@@ -42,7 +42,19 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     final body = Container(
-      color: Tg.sidebar,
+      decoration: BoxDecoration(
+        color: Tg.sidebar,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           _header(),
@@ -56,7 +68,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final content = widget.elevated
         ? DecoratedBox(
             decoration: BoxDecoration(
-              color: Tg.sidebar,
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.5),

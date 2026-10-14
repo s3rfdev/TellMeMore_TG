@@ -18,10 +18,16 @@ class MessageBubble extends StatelessWidget {
     super.key,
     required this.message,
     this.chatId = '',
+    this.selectionMode = false,
+    this.isSelected = false,
+    this.onSelectToggle,
   });
 
   final TgMessage message;
   final String chatId;
+  final bool selectionMode;
+  final bool isSelected;
+  final VoidCallback? onSelectToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -114,48 +120,92 @@ class MessageBubble extends StatelessWidget {
       content = _textBody(context, message.text, out);
     }
 
+    final bubbleWidget = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 470),
+      child: GestureDetector(
+        onTap: selectionMode ? onSelectToggle : null,
+        onSecondaryTapUp: selectionMode
+            ? null
+            : (details) => MessageContextMenu.show(
+                  context: context,
+                  position: details.globalPosition,
+                  message: message,
+                  chatId: chatId,
+                ),
+        onLongPressStart: selectionMode
+            ? null
+            : (details) => MessageContextMenu.show(
+                  context: context,
+                  position: details.globalPosition,
+                  message: message,
+                  chatId: chatId,
+                ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: out ? Tg.outBubble : Tg.inBubble,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(14),
+              topRight: const Radius.circular(14),
+              bottomLeft: Radius.circular(out ? 14 : 4),
+              bottomRight: Radius.circular(out ? 4 : 14),
+            ),
+            border: isSelected ? Border.all(color: Tg.accent, width: 2) : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 4,
+                offset: const Offset(0, 1.5),
+              ),
+            ],
+          ),
+          child: (message.replyToMessageId > 0 || message.replySenderName.isNotEmpty)
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _replyBox(context, out),
+                    content,
+                  ],
+                )
+              : content,
+        ),
+      ),
+    );
+
+    if (selectionMode) {
+      final checkIcon = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: GestureDetector(
+          onTap: onSelectToggle,
+          child: Icon(
+            isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            color: isSelected ? Tg.accent : Tg.textDim,
+            size: 22,
+          ),
+        ),
+      );
+
+      return Align(
+        alignment: out ? Alignment.centerRight : Alignment.centerLeft,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(out ? 20 : 14, 2, out ? 14 : 20, 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!out) checkIcon,
+              Flexible(child: bubbleWidget),
+              if (out) checkIcon,
+            ],
+          ),
+        ),
+      );
+    }
+
     return Align(
       alignment: out ? Alignment.centerRight : Alignment.centerLeft,
       child: Padding(
         padding: EdgeInsets.fromLTRB(out ? 64 : 14, 2, out ? 14 : 64, 2),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 470),
-          child: GestureDetector(
-            onSecondaryTapUp: (details) => MessageContextMenu.show(
-              context: context,
-              position: details.globalPosition,
-              message: message,
-              chatId: chatId,
-            ),
-            onLongPressStart: (details) => MessageContextMenu.show(
-              context: context,
-              position: details.globalPosition,
-              message: message,
-              chatId: chatId,
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: out ? Tg.outBubble : Tg.inBubble,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(14),
-                  topRight: const Radius.circular(14),
-                  bottomLeft: Radius.circular(out ? 14 : 4),
-                  bottomRight: Radius.circular(out ? 4 : 14),
-                ),
-              ),
-              child: (message.replyToMessageId > 0 || message.replySenderName.isNotEmpty)
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _replyBox(context, out),
-                        content,
-                      ],
-                    )
-                  : content,
-            ),
-          ),
-        ),
+        child: bubbleWidget,
       ),
     );
   }

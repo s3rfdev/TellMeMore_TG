@@ -109,6 +109,8 @@ class TgChat {
     this.muted = false,
     this.unread = 0,
     this.unreadOwn = false,
+    this.outgoing = false,
+    this.outgoingRead = false,
     this.reactions = const [],
     this.messages = const [],
   });
@@ -128,6 +130,8 @@ class TgChat {
   final bool muted;
   final int unread;
   final bool unreadOwn;
+  final bool outgoing;
+  final bool outgoingRead;
   final List<TgReaction> reactions;
   final List<TgMessage> messages;
 }

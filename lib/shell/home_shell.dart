@@ -53,7 +53,13 @@ class _HomeShellState extends State<HomeShell> {
             final width = raw.clamp(_minSidebar, _maxSidebar);
             return Row(
               children: [
-                SizedBox(width: width, child: const ChatListScreen()),
+                SizedBox(
+                  width: width,
+                  child: const Padding(
+                    padding: EdgeInsets.fromLTRB(10, 10, 0, 10),
+                    child: ChatListScreen(),
+                  ),
+                ),
                 _DragHandle(
                   onDrag: (dx) => AppState.sidebarWidth.value =
                       (AppState.sidebarWidth.value + dx)

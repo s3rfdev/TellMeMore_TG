@@ -108,6 +108,7 @@ class _Store {
   final Map<int, Map<String, dynamic>> _allMessages = {};
   final Set<int> _requestedReplyMessages = {};
   int _myId = 0;
+  bool _authorized = false;
   bool _paramsSent = false;
   bool _chatsDirty = false;
   final Set<String> _dirtyHistories = {};
@@ -317,6 +318,50 @@ class _Store {
           return;
         }
         _fetchHistoryBatch(st, isInitial: false);
+      case 'deleteMessages':
+        final chatId = cmd['chatId'] as int;
+        final messageIds = (cmd['messageIds'] as List).cast<int>();
+        final revoke = cmd['revoke'] as bool? ?? true;
+        _send({
+          '@type': 'deleteMessages',
+          'chat_id': chatId,
+          'message_ids': messageIds,
+          'revoke': revoke,
+        });
+        final st = _chatById(chatId);
+        if (st != null) {
+          st.history.removeWhere((m) => messageIds.contains(m['id']));
+          _dirtyHistories.add(chatId.toString());
+        }
+      case 'clearHistory':
+        final chatId = cmd['chatId'] as int;
+        final revoke = cmd['revoke'] as bool? ?? true;
+        _send({
+          '@type': 'deleteChatHistory',
+          'chat_id': chatId,
+          'remove_from_chat_list': false,
+          'revoke': revoke,
+        });
+        final st = _chatById(chatId);
+        if (st != null) {
+          st.history.clear();
+          st.oldestId = 0;
+          _dirtyHistories.add(chatId.toString());
+        }
+      case 'deleteChat':
+        final chatId = cmd['chatId'] as int;
+        _send({
+          '@type': 'deleteChatHistory',
+          'chat_id': chatId,
+          'remove_from_chat_list': true,
+          'revoke': true,
+        });
+        _send({
+          '@type': 'closeChat',
+          'chat_id': chatId,
+        });
+        _chats.remove(chatId);
+        _chatsDirty = true;
     }
   }
 
@@ -359,6 +404,7 @@ class _Store {
             // Запрашиваем QR-код для удобного и безопасного входа
             _send({'@type': 'requestQrCodeAuthentication'});
           case 'authorizationStateReady':
+            _authorized = true;
             _send({'@type': 'getMe'});
             _send({'@type': 'getChats', 'limit': 50});
         }
@@ -521,6 +567,21 @@ class _Store {
               if (st.oldestId == 0 || newId < st.oldestId) st.oldestId = newId;
               _dirtyHistories.add(chatId.toString());
             }
+          }
+        }
+        final isOutgoing = msg['is_outgoing'] == true || _isFromMe(msg);
+        if (!isOutgoing && _authorized) {
+          final notif = st?.chat['notification_settings'] as Map<String, dynamic>?;
+          final muteFor = (notif?['mute_for'] as num?)?.toInt() ?? 0;
+          if (muteFor <= 0) {
+            final senderTitle = st != null ? (st.chat['title'] as String? ?? 'Telegram') : 'Telegram';
+            final text = TdContent.fullText(msg);
+            _ui.send({
+              'type': 'notification',
+              'title': senderTitle,
+              'body': text.isNotEmpty ? text : 'Новое сообщение',
+              'chatId': chatId.toString(),
+            });
           }
         }
         return;
@@ -770,6 +831,10 @@ class _Store {
       }
     }
 
+    final lastReadOutboxId = (st.chat['last_read_outbox_message_id'] as num?)?.toInt() ?? 0;
+    final lastMsgId = last != null ? (last['id'] as num?)?.toInt() ?? 0 : 0;
+    final isOutgoingRead = fromMe && (lastMsgId > 0 && lastMsgId <= lastReadOutboxId);
+
     return TgChat(
       id: st.chat['id'].toString(),
       title: title,
@@ -783,6 +848,8 @@ class _Store {
       verified: st.chat['is_verified'] as bool? ?? false,
       unread: st.unread,
       unreadOwn: fromMe,
+      outgoing: fromMe,
+      outgoingRead: isOutgoingRead,
     );
   }
 

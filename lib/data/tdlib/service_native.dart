@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/services/desktop_notification_service.dart';
 import '../../core/utils/session_paths.dart';
 import '../../state/app_state.dart';
 import '../models/tg_chat.dart';
@@ -163,6 +164,11 @@ class TdlibService {
         if (cid != null) {
           AppState.selectedChatId.value = cid;
         }
+      case 'notification':
+        final title = msg['title'] as String? ?? 'Telegram';
+        final body = msg['body'] as String? ?? '';
+        final chatId = msg['chatId'] as String?;
+        DesktopNotificationService.show(title: title, body: body, chatId: chatId);
     }
   }
 
@@ -324,6 +330,33 @@ class TdlibService {
     if (loadingMore.value.contains(chatId)) return;
     loadingMore.value = {...loadingMore.value, chatId};
     _sendCmd({'type': 'loadMore', 'chatId': id});
+  }
+
+  /// Удалить список сообщений (в т.ч. множественное удаление)
+  void deleteMessages(int chatId, List<int> messageIds, {bool revoke = true}) {
+    _sendCmd({
+      'type': 'deleteMessages',
+      'chatId': chatId,
+      'messageIds': messageIds,
+      'revoke': revoke,
+    });
+  }
+
+  /// Очистить историю сообщений
+  void clearHistory(int chatId, {bool revoke = true}) {
+    _sendCmd({
+      'type': 'clearHistory',
+      'chatId': chatId,
+      'revoke': revoke,
+    });
+  }
+
+  /// Удалить чат полностью
+  void deleteChat(int chatId) {
+    _sendCmd({
+      'type': 'deleteChat',
+      'chatId': chatId,
+    });
   }
 
   ValueNotifier<TgChatHistory> _store(String chatId) =>

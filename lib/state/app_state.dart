@@ -19,4 +19,12 @@ class AppState {
 
   /// Сообщение, на которое сейчас пишется ответ (Reply).
   static final ValueNotifier<TgMessage?> replyingTo = ValueNotifier<TgMessage?>(null);
+
+  /// Режим множественного выбора сообщений в текущем чате.
+  static final ValueNotifier<bool> messageSelectionMode = ValueNotifier<bool>(false);
+  static final ValueNotifier<Set<int>> selectedMessages = ValueNotifier<Set<int>>({});
+
+  /// Режим поиска по сообщениям внутри чата.
+  static final ValueNotifier<bool> chatSearchActive = ValueNotifier<bool>(false);
+  static final ValueNotifier<String> chatSearchQuery = ValueNotifier<String>('');
 }

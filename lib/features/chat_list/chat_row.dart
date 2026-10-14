@@ -110,9 +110,15 @@ class ChatRow extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (chat.unreadOwn)
-                      Icon(Icons.done, size: 12, color: timeColor),
-                    const SizedBox(width: 3),
+                    if (chat.outgoing || chat.unreadOwn)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 3),
+                        child: Icon(
+                          chat.outgoingRead ? Icons.done_all_rounded : Icons.done_rounded,
+                          size: 13,
+                          color: chat.outgoingRead ? const Color(0xFF8774E1) : timeColor,
+                        ),
+                      ),
                     Text(chat.time,
                         style: TextStyle(fontSize: 11, color: timeColor)),
                   ],

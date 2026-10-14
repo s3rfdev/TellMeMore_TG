@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,16 +15,25 @@ import '../../core/widgets/tg_toast.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../data/mock_data.dart';
 import '../../state/app_state.dart';
+import 'widgets/call_dialog.dart';
 import 'widgets/emoji_picker_popup.dart';
+import 'widgets/forward_dialog.dart';
 import 'widgets/message_bubble.dart';
 
 /// Правая часть: шапка чата, лента сообщений, поле ввода.
-/// Работает и с моками (демо), и с реальными данными TDLib.
-class ChatScreen extends StatelessWidget {
+/// Поддерживает Drag-and-Drop файлов, мульти-прикрепление, звонки, поиск и выбор сообщений.
+class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, this.showBack = false, this.onBack});
 
   final bool showBack;
   final VoidCallback? onBack;
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final GlobalKey<_InputBarState> _inputBarKey = GlobalKey<_InputBarState>();
 
   @override
   Widget build(BuildContext context) {
@@ -53,15 +63,25 @@ class ChatScreen extends StatelessWidget {
           color: Colors.transparent,
           child: Column(
             children: [
-              _Header(chat: chat, showBack: showBack, onBack: onBack),
+              _Header(
+                chat: chat,
+                showBack: widget.showBack,
+                onBack: widget.onBack,
+              ),
               Expanded(
                 child: _MessageList(
                   key: ValueKey(chat.id),
                   chat: chat,
                   realMode: useReal,
+                  onFilesDropped: (files) =>
+                      _inputBarKey.currentState?.addStagedFiles(files),
                 ),
               ),
-              _InputBar(chat: chat, enabled: useReal),
+              _InputBar(
+                key: _inputBarKey,
+                chat: chat,
+                enabled: useReal,
+              ),
             ],
           ),
         );
@@ -71,7 +91,11 @@ class ChatScreen extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.chat, required this.showBack, this.onBack});
+  const _Header({
+    required this.chat,
+    required this.showBack,
+    this.onBack,
+  });
 
   final TgChat chat;
   final bool showBack;
@@ -79,81 +103,337 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 50,
-      decoration: const BoxDecoration(
-        color: Tg.sidebar,
-        border: Border(bottom: BorderSide(color: Tg.hairline)),
-      ),
-      child: Row(
-        children: [
-          if (showBack) ...[
-            const SizedBox(width: 4),
-            CircleIconButton(
-              icon: Icons.arrow_back_ios_new,
-              iconSize: 16,
-              color: Tg.textDim,
-              onTap: onBack,
-            ),
-          ],
-          const SizedBox(width: 12),
-          TgAvatar(
-            emoji: chat.avatarEmoji,
-            color: Color(chat.avatarColor),
-            imagePath: chat.avatarPath,
-            size: 36,
-            fontSize: 15,
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        AppState.messageSelectionMode,
+        AppState.selectedMessages,
+        AppState.chatSearchActive,
+      ]),
+      builder: (context, _) {
+        final isSelection = AppState.messageSelectionMode.value;
+        final isSearch = AppState.chatSearchActive.value;
+
+        return Container(
+          height: 52,
+          margin: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+          decoration: BoxDecoration(
+            color: Tg.sidebar,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        chat.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Tg.text,
-                        ),
+          clipBehavior: Clip.antiAlias,
+          child: isSelection
+              ? _buildSelectionHeader(context)
+              : isSearch
+                  ? _buildSearchHeader(context)
+                  : _buildNormalHeader(context),
+        );
+      },
+    );
+  }
+
+  Widget _buildSelectionHeader(BuildContext context) {
+    final count = AppState.selectedMessages.value.length;
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.close_rounded, color: Tg.textDim),
+          onPressed: () {
+            AppState.messageSelectionMode.value = false;
+            AppState.selectedMessages.value = {};
+          },
+        ),
+        const SizedBox(width: 6),
+        Text(
+          'Выбрано: $count',
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Tg.text),
+        ),
+        const Spacer(),
+        if (count > 0) ...[
+          IconButton(
+            icon: const Icon(Icons.shortcut_rounded, color: Tg.accent),
+            tooltip: 'Переслать',
+            onPressed: () {
+              final msgIds = AppState.selectedMessages.value;
+              final history = TdlibService.instance.messagesOf(chat.id).value.messages;
+              final found = history.where((m) => msgIds.contains(m.id)).toList();
+              if (found.isNotEmpty) {
+                ForwardDialog.show(context, message: found.first, currentChatId: chat.id);
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: Tg.danger),
+            tooltip: 'Удалить',
+            onPressed: () => _confirmDeleteSelected(context),
+          ),
+        ],
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  void _confirmDeleteSelected(BuildContext context) {
+    final count = AppState.selectedMessages.value.length;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF212D3B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Удалить сообщения', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+        content: Text('Удалить выбранные сообщения ($count)?', style: const TextStyle(color: Tg.textDim, fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Отмена', style: TextStyle(color: Tg.textDim)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              final id = int.tryParse(chat.id);
+              if (id != null) {
+                TdlibService.instance.deleteMessages(id, AppState.selectedMessages.value.toList());
+                AppState.messageSelectionMode.value = false;
+                AppState.selectedMessages.value = {};
+                TgToast.show(context, 'Удалено сообщений: $count', icon: Icons.delete_outline_rounded);
+              }
+            },
+            child: const Text('Удалить', style: TextStyle(color: Tg.danger, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchHeader(BuildContext context) {
+    return Row(
+      children: [
+        const SizedBox(width: 14),
+        const Icon(Icons.search_rounded, size: 20, color: Tg.textDim),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            autofocus: true,
+            onChanged: (v) => AppState.chatSearchQuery.value = v,
+            style: const TextStyle(fontSize: 14, color: Tg.text),
+            decoration: const InputDecoration(
+              hintText: 'Поиск сообщений…',
+              hintStyle: TextStyle(fontSize: 14, color: Tg.textFaint),
+              border: InputBorder.none,
+              isDense: true,
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textDim),
+          onPressed: () {
+            AppState.chatSearchActive.value = false;
+            AppState.chatSearchQuery.value = '';
+          },
+        ),
+        const SizedBox(width: 6),
+      ],
+    );
+  }
+
+  Widget _buildNormalHeader(BuildContext context) {
+    return Row(
+      children: [
+        if (showBack) ...[
+          const SizedBox(width: 4),
+          CircleIconButton(
+            icon: Icons.arrow_back_ios_new,
+            iconSize: 16,
+            color: Tg.textDim,
+            onTap: onBack,
+          ),
+        ],
+        const SizedBox(width: 12),
+        TgAvatar(
+          emoji: chat.avatarEmoji,
+          color: Color(chat.avatarColor),
+          imagePath: chat.avatarPath,
+          size: 36,
+          fontSize: 15,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      chat.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Tg.text,
                       ),
                     ),
-                    if (chat.verified) ...[
-                      const SizedBox(width: 4),
-                      const Icon(Icons.verified, size: 14, color: Tg.verified),
-                    ],
+                  ),
+                  if (chat.verified) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.verified, size: 14, color: Tg.verified),
                   ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  chat.headerSubtitle,
-                  style: const TextStyle(fontSize: 11.5, color: Tg.textFaint),
-                ),
-              ],
-            ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                chat.headerSubtitle,
+                style: const TextStyle(fontSize: 11.5, color: Tg.textFaint),
+              ),
+            ],
           ),
-          const CircleIconButton(icon: Icons.phone_outlined, iconSize: 20, color: Tg.textDim),
-          const CircleIconButton(icon: Icons.search, iconSize: 20, color: Tg.textDim),
-          const CircleIconButton(icon: Icons.more_horiz, iconSize: 20, color: Tg.textDim),
-          const SizedBox(width: 10),
+        ),
+        CircleIconButton(
+          icon: Icons.phone_outlined,
+          iconSize: 20,
+          color: Tg.textDim,
+          onTap: () => CallDialog.show(context, chat),
+        ),
+        CircleIconButton(
+          icon: Icons.search,
+          iconSize: 20,
+          color: Tg.textDim,
+          onTap: () => AppState.chatSearchActive.value = true,
+        ),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert_rounded, size: 20, color: Tg.textDim),
+          color: const Color(0xFF212D3B),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          onSelected: (val) {
+            if (val == 'select') {
+              AppState.messageSelectionMode.value = true;
+              AppState.selectedMessages.value = {};
+            } else if (val == 'clear') {
+              _confirmClearHistory(context);
+            } else if (val == 'delete') {
+              _confirmDeleteChat(context);
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'select',
+              child: Row(
+                children: [
+                  Icon(Icons.checklist_rounded, size: 18, color: Tg.textDim),
+                  SizedBox(width: 12),
+                  Text('Выбрать сообщения', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'clear',
+              child: Row(
+                children: [
+                  Icon(Icons.cleaning_services_rounded, size: 18, color: Tg.textDim),
+                  SizedBox(width: 12),
+                  Text('Очистить историю', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(height: 1),
+            const PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline_rounded, size: 18, color: Tg.danger),
+                  SizedBox(width: 12),
+                  Text('Удалить чат', style: TextStyle(color: Tg.danger, fontSize: 13.5)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 6),
+      ],
+    );
+  }
+
+  void _confirmClearHistory(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF212D3B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Очистить историю', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+        content: Text('Вы действительно хотите очистить историю сообщений с «${chat.title}»?', style: const TextStyle(color: Tg.textDim, fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Отмена', style: TextStyle(color: Tg.textDim)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              final id = int.tryParse(chat.id);
+              if (id != null) {
+                TdlibService.instance.clearHistory(id);
+                TgToast.show(context, 'История сообщений очищена', icon: Icons.cleaning_services_rounded);
+              }
+            },
+            child: const Text('Очистить', style: TextStyle(color: Tg.danger, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteChat(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF212D3B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Удалить чат', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+        content: Text('Удалить чат с «${chat.title}» и всю переписку?', style: const TextStyle(color: Tg.textDim, fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Отмена', style: TextStyle(color: Tg.textDim)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              final id = int.tryParse(chat.id);
+              if (id != null) {
+                TdlibService.instance.deleteChat(id);
+                AppState.selectedChatId.value = '';
+                TgToast.show(context, 'Чат удален', icon: Icons.delete_outline_rounded);
+              }
+            },
+            child: const Text('Удалить', style: TextStyle(color: Tg.danger, fontWeight: FontWeight.w600)),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Лента сообщений: 20 последних при открытии, догрузка вверх при скролле.
+/// Лента сообщений: Drag-and-Drop прием файлов, 20 последних при открытии, догрузка вверх при скролле.
 class _MessageList extends StatefulWidget {
-  const _MessageList({super.key, required this.chat, required this.realMode});
+  const _MessageList({
+    super.key,
+    required this.chat,
+    required this.realMode,
+    required this.onFilesDropped,
+  });
 
   final TgChat chat;
   final bool realMode;
+  final void Function(List<String> files) onFilesDropped;
 
   @override
   State<_MessageList> createState() => _MessageListState();
@@ -161,6 +441,7 @@ class _MessageList extends StatefulWidget {
 
 class _MessageListState extends State<_MessageList> {
   final _controller = ScrollController();
+  bool _isDragging = false;
 
   @override
   void initState() {
@@ -188,7 +469,6 @@ class _MessageListState extends State<_MessageList> {
   void _onScroll() {
     if (!widget.realMode) return;
     final pos = _controller.position;
-    // список развёрнут (новые внизу) — «верх» это maxScrollExtent
     if (pos.pixels >= pos.maxScrollExtent - 600) {
       TdlibService.instance.loadMore(widget.chat.id);
     }
@@ -196,27 +476,36 @@ class _MessageListState extends State<_MessageList> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.realMode) return _buildList(widget.chat.messages, false);
-
     return ListenableBuilder(
       listenable: Listenable.merge([
-        TdlibService.instance.messagesOf(widget.chat.id),
-        TdlibService.instance.loadingMore,
-        TdlibService.instance.loadingHistory,
+        AppState.messageSelectionMode,
+        AppState.selectedMessages,
+        AppState.chatSearchQuery,
       ]),
       builder: (context, _) {
-        final history = TdlibService.instance.messagesOf(widget.chat.id).value;
-        final loadingMore = TdlibService.instance.loadingMore.value
-            .contains(widget.chat.id);
-        final initialLoading = TdlibService.instance.loadingHistory.value
-            .contains(widget.chat.id);
-        final isEmpty = history.messages.isEmpty;
+        if (!widget.realMode) return _buildList(widget.chat.messages, false);
 
-        return _buildList(
-          history.messages,
-          history.hasMore && loadingMore,
-          isLoadingInitial: isEmpty && initialLoading,
-          isEmpty: isEmpty && !initialLoading,
+        return ListenableBuilder(
+          listenable: Listenable.merge([
+            TdlibService.instance.messagesOf(widget.chat.id),
+            TdlibService.instance.loadingMore,
+            TdlibService.instance.loadingHistory,
+          ]),
+          builder: (context, _) {
+            final history = TdlibService.instance.messagesOf(widget.chat.id).value;
+            final loadingMore = TdlibService.instance.loadingMore.value
+                .contains(widget.chat.id);
+            final initialLoading = TdlibService.instance.loadingHistory.value
+                .contains(widget.chat.id);
+            final isEmpty = history.messages.isEmpty;
+
+            return _buildList(
+              history.messages,
+              history.hasMore && loadingMore,
+              isLoadingInitial: isEmpty && initialLoading,
+              isEmpty: isEmpty && !initialLoading,
+            );
+          },
         );
       },
     );
@@ -289,34 +578,129 @@ class _MessageListState extends State<_MessageList> {
         ),
       );
     }
-    final items = messages.reversed.toList();
-    return ListView.builder(
-      controller: _controller,
-      reverse: true,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      itemCount: items.length + (showLoader ? 1 : 0),
-      itemBuilder: (context, i) {
-        if (i >= items.length) {
-          return const Padding(
-            padding: EdgeInsets.all(10),
-            child: Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: Tg.accent),
+
+    // Фильтрация поиска внутри чата
+    final query = AppState.chatSearchQuery.value.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? messages
+        : messages.where((m) =>
+            m.text.toLowerCase().contains(query) ||
+            m.fileName.toLowerCase().contains(query)).toList();
+
+    if (query.isNotEmpty && filtered.isEmpty) {
+      return Center(
+        child: Text(
+          'Ничего не найдено по запросу «$query»',
+          style: const TextStyle(color: Tg.textDim, fontSize: 14),
+        ),
+      );
+    }
+
+    final items = filtered.reversed.toList();
+    final isSelection = AppState.messageSelectionMode.value;
+    final selectedIds = AppState.selectedMessages.value;
+
+    return DropTarget(
+      onDragEntered: (_) => setState(() => _isDragging = true),
+      onDragExited: (_) => setState(() => _isDragging = false),
+      onDragDone: (details) {
+        setState(() => _isDragging = false);
+        final paths = details.files
+            .map((f) => f.path)
+            .where((p) => p.isNotEmpty && File(p).existsSync())
+            .toList();
+        if (paths.isNotEmpty) {
+          widget.onFilesDropped(paths);
+        }
+      },
+      child: Stack(
+        children: [
+          ListView.builder(
+            controller: _controller,
+            reverse: true,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            itemCount: items.length + (showLoader ? 1 : 0),
+            itemBuilder: (context, i) {
+              if (i >= items.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Tg.accent),
+                    ),
+                  ),
+                );
+              }
+              final msg = items[i];
+              return MessageBubble(
+                message: msg,
+                chatId: widget.chat.id,
+                selectionMode: isSelection,
+                isSelected: selectedIds.contains(msg.id),
+                onSelectToggle: () {
+                  final s = Set<int>.from(AppState.selectedMessages.value);
+                  if (s.contains(msg.id)) {
+                    s.remove(msg.id);
+                  } else {
+                    s.add(msg.id);
+                  }
+                  AppState.selectedMessages.value = s;
+                },
+              );
+            },
+          ),
+          if (_isDragging)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.65),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                    decoration: BoxDecoration(
+                      color: Tg.sidebar,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Tg.accent, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          blurRadius: 24,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.file_upload_outlined, size: 52, color: Tg.accent),
+                        SizedBox(height: 12),
+                        Text(
+                          'Перетащите файлы сюда для отправки',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          );
-        }
-        return MessageBubble(message: items[i], chatId: widget.chat.id);
-      },
+        ],
+      ),
     );
   }
 }
 
 class _InputBar extends StatefulWidget {
-  const _InputBar({required this.chat, required this.enabled});
+  const _InputBar({
+    super.key,
+    required this.chat,
+    required this.enabled,
+  });
 
   final TgChat chat;
   final bool enabled;
@@ -327,6 +711,7 @@ class _InputBar extends StatefulWidget {
 
 class _InputBarState extends State<_InputBar> {
   final _controller = TextEditingController();
+  final List<String> _stagedFiles = [];
   final _audioRecorder = AudioRecorder();
   bool _isRecordingVoice = false;
   int _recordSeconds = 0;
@@ -342,6 +727,21 @@ class _InputBarState extends State<_InputBar> {
     super.dispose();
   }
 
+  /// Добавление перетянутых или выбранных файлов в очередь отправки
+  void addStagedFiles(List<String> paths) {
+    final valid = paths.where((p) => p.isNotEmpty && File(p).existsSync()).toList();
+    if (valid.isNotEmpty) {
+      setState(() {
+        _stagedFiles.addAll(valid);
+      });
+      TgToast.show(
+        context,
+        'Прикреплено файлов: ${valid.length}',
+        icon: Icons.attach_file_rounded,
+      );
+    }
+  }
+
   void _toggleVoice() {
     if (_isRecordingVoice) {
       _stopVoice(send: true);
@@ -351,38 +751,37 @@ class _InputBarState extends State<_InputBar> {
   }
 
   Future<void> _startVoice() async {
-    final hasPerm = await _audioRecorder.hasPermission();
-    if (!hasPerm) {
-      if (mounted) {
-        TgToast.show(
-          context,
-          'Разрешение на микрофон не предоставлено',
-          icon: Icons.mic_off_rounded,
-        );
-      }
-      return;
-    }
-    final dir = await getTemporaryDirectory();
-    final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    _voicePath = path;
     try {
+      if (!await _audioRecorder.hasPermission()) {
+        if (mounted) {
+          TgToast.show(
+            context,
+            'Нет доступа к микрофону',
+            icon: Icons.mic_off_rounded,
+          );
+        }
+        return;
+      }
+      final tempDir = await getTemporaryDirectory();
+      final path = '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
       await _audioRecorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc),
+        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100),
         path: path,
       );
       setState(() {
         _isRecordingVoice = true;
         _recordSeconds = 0;
+        _voicePath = path;
       });
-      _recordTimer?.cancel();
       _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (mounted) setState(() => _recordSeconds++);
+        if (!mounted) return;
+        setState(() => _recordSeconds++);
       });
     } catch (e) {
       if (mounted) {
         TgToast.show(
           context,
-          'Ошибка старта записи: $e',
+          'Ошибка записи: $e',
           icon: Icons.error_outline_rounded,
         );
       }
@@ -391,12 +790,9 @@ class _InputBarState extends State<_InputBar> {
 
   Future<void> _stopVoice({required bool send}) async {
     _recordTimer?.cancel();
-    String? path;
-    try {
-      path = await _audioRecorder.stop();
-    } catch (_) {}
+    final path = await _audioRecorder.stop();
     final finalPath = path ?? _voicePath;
-    if (send && _recordSeconds > 0 && finalPath != null) {
+    if (send && finalPath != null && _recordSeconds > 0) {
       final id = int.tryParse(widget.chat.id);
       if (id != null) {
         TdlibService.instance.sendVoiceNote(id, finalPath, _recordSeconds);
@@ -417,35 +813,58 @@ class _InputBarState extends State<_InputBar> {
 
   void _send() {
     final text = _controller.text.trim();
-    if (text.isEmpty || !widget.enabled) return;
+    if (text.isEmpty && _stagedFiles.isEmpty) return;
+    if (!widget.enabled) return;
     final id = int.tryParse(widget.chat.id);
-    if (id != null) {
-      final replyMsg = AppState.replyingTo.value;
-      TdlibService.instance.sendMessage(
-        id,
-        text,
-        replyToMessageId: replyMsg?.id,
+    if (id == null) return;
+
+    // Множественная отправка файлов с подписью
+    if (_stagedFiles.isNotEmpty) {
+      final total = _stagedFiles.length;
+      for (int i = 0; i < total; i++) {
+        final filePath = _stagedFiles[i];
+        final caption = (i == 0) ? text : '';
+        TdlibService.instance.sendFile(id, filePath, caption);
+      }
+      setState(() {
+        _stagedFiles.clear();
+      });
+      _controller.clear();
+      TgToast.show(
+        context,
+        'Отправлено файлов: $total',
+        icon: Icons.done_all_rounded,
       );
-      AppState.replyingTo.value = null;
+      return;
     }
+
+    final replyMsg = AppState.replyingTo.value;
+    TdlibService.instance.sendMessage(
+      id,
+      text,
+      replyToMessageId: replyMsg?.id,
+    );
+    AppState.replyingTo.value = null;
     _controller.clear();
     setState(() => _showEmoji = false);
   }
 
   Future<void> _pickAttachment() async {
     try {
-      final files = await FilePicker.pickFiles();
-      if (files.isNotEmpty && files.first.path != null) {
-        final id = int.tryParse(widget.chat.id);
-        if (id != null) {
-          TdlibService.instance.sendFile(id, files.first.path!);
+      final result = await FilePicker.pickFiles();
+      if (result.isNotEmpty) {
+        final valid = result.map((f) => f.path).whereType<String>().where((p) => File(p).existsSync()).toList();
+        if (valid.isNotEmpty) {
+          setState(() {
+            _stagedFiles.addAll(valid);
+          });
         }
       }
     } catch (e) {
       if (mounted) {
         TgToast.show(
           context,
-          'Ошибка при выборе файла: $e',
+          'Ошибка при выборе файлов: $e',
           icon: Icons.error_outline_rounded,
         );
       }
@@ -454,124 +873,244 @@ class _InputBarState extends State<_InputBar> {
 
   void _onEmoji(String emoji) {
     final text = _controller.text;
-    final sel = _controller.selection;
-    final start = sel.start < 0 ? text.length : sel.start;
-    final end = sel.end < 0 ? text.length : sel.end;
-    final newText = text.replaceRange(start, end, emoji);
-    _controller.text = newText;
-    _controller.selection =
-        TextSelection.collapsed(offset: start + emoji.length);
+    final selection = _controller.selection;
+    if (selection.start >= 0) {
+      final newText = text.replaceRange(selection.start, selection.end, emoji);
+      _controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: selection.start + emoji.length),
+      );
+    } else {
+      _controller.text += emoji;
+    }
     setState(() => _showEmoji = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (_showEmoji)
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16, bottom: 8),
-              child: EmojiPickerPopup(
-                onEmojiSelected: _onEmoji,
-                onClose: () => setState(() => _showEmoji = false),
-              ),
-            ),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+      decoration: BoxDecoration(
+        color: Tg.sidebar,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
-        ValueListenableBuilder<TgMessage?>(
-          valueListenable: AppState.replyingTo,
-          builder: (context, replyMsg, _) {
-            if (replyMsg == null) return const SizedBox.shrink();
-            final hasThumb = replyMsg.thumbnailPath.isNotEmpty && File(replyMsg.thumbnailPath).existsSync();
-            return Container(
-              color: Tg.sidebar,
-              padding: const EdgeInsets.fromLTRB(14, 6, 12, 4),
-              child: Row(
-                children: [
-                  const Icon(Icons.reply_rounded, color: Tg.accent, size: 20),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 3,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Tg.accent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (hasThumb) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Image.file(
-                        File(replyMsg.thumbnailPath),
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.cover,
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_showEmoji)
+            EmojiPickerPopup(
+              onEmojiSelected: _onEmoji,
+              onClose: () => setState(() => _showEmoji = false),
+            ),
+          if (_stagedFiles.isNotEmpty) _buildStagedFilesBar(),
+          ValueListenableBuilder<TgMessage?>(
+            valueListenable: AppState.replyingTo,
+            builder: (context, replyMsg, _) {
+              if (replyMsg == null) return const SizedBox.shrink();
+              final hasThumb = replyMsg.thumbnailPath.isNotEmpty &&
+                  File(replyMsg.thumbnailPath).existsSync();
+
+              return Container(
+                color: Tg.sidebar.withValues(alpha: 0.95),
+                padding: const EdgeInsets.fromLTRB(14, 6, 12, 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.reply_rounded, color: Tg.accent, size: 20),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 3,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Tg.accent,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                     const SizedBox(width: 8),
-                  ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Ответ на сообщение',
-                          style: TextStyle(
-                            color: Tg.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                    if (hasThumb) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Image.file(
+                          File(replyMsg.thumbnailPath),
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.cover,
                         ),
-                        const SizedBox(height: 1),
-                        Text(
-                          replyMsg.text.isNotEmpty
-                              ? replyMsg.text
-                              : (replyMsg.kind == MessageKind.video
-                                  ? (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : 'Видеозапись')
-                                  : (replyMsg.kind == MessageKind.image
-                                      ? 'Фотография'
-                                      : (replyMsg.kind == MessageKind.voice
-                                          ? 'Голосовое сообщение'
-                                          : (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : 'Файл')))),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Tg.textDim,
-                            fontSize: 11.8,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Ответ на сообщение',
+                            style: TextStyle(
+                              color: Tg.accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 1),
+                          Text(
+                            replyMsg.text.isNotEmpty
+                                ? replyMsg.text
+                                : (replyMsg.kind == MessageKind.video
+                                    ? (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : 'Видеозапись')
+                                    : (replyMsg.kind == MessageKind.image
+                                        ? 'Фотография'
+                                        : (replyMsg.kind == MessageKind.voice
+                                            ? 'Голосовое сообщение'
+                                            : (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : 'Файл')))),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Tg.textDim,
+                              fontSize: 11.8,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: Tg.textDim),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    splashRadius: 14,
-                    onPressed: () => AppState.replyingTo.value = null,
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18, color: Tg.textDim),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      splashRadius: 14,
+                      onPressed: () => AppState.replyingTo.value = null,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: _isRecordingVoice
+                ? _buildVoiceRecordingBar()
+                : _buildStandardInputBar(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStagedFilesBar() {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Tg.field.withValues(alpha: 0.5),
+        border: const Border(bottom: BorderSide(color: Tg.hairline)),
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _stagedFiles.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          if (index == _stagedFiles.length) {
+            return Center(
+              child: IconButton(
+                icon: const Icon(Icons.add_circle_outline_rounded, color: Tg.accent, size: 28),
+                tooltip: 'Добавить ещё файлы',
+                onPressed: _pickAttachment,
               ),
             );
-          },
-        ),
-        Container(
-          decoration: const BoxDecoration(
-            color: Tg.sidebar,
-            border: Border(top: BorderSide(color: Tg.hairline)),
-          ),
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          child: _isRecordingVoice
-              ? _buildVoiceRecordingBar()
-              : _buildStandardInputBar(),
-        ),
-      ],
+          }
+          final path = _stagedFiles[index];
+          final fileName = path.split(Platform.pathSeparator).last;
+          final isImage = path.toLowerCase().endsWith('.png') ||
+              path.toLowerCase().endsWith('.jpg') ||
+              path.toLowerCase().endsWith('.jpeg') ||
+              path.toLowerCase().endsWith('.webp');
+
+          return Container(
+            width: 140,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Tg.sidebar,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Tg.hairline),
+            ),
+            child: Row(
+              children: [
+                if (isImage)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.file(
+                      File(path),
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Tg.accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.insert_drive_file_rounded, color: Tg.accent, size: 22),
+                  ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fileName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: Tg.text, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _getFileSize(path),
+                        style: const TextStyle(fontSize: 10.5, color: Tg.textDim),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 16, color: Tg.textDim),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  splashRadius: 12,
+                  onPressed: () {
+                    setState(() {
+                      _stagedFiles.removeAt(index);
+                    });
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
+  }
+
+  String _getFileSize(String path) {
+    try {
+      final bytes = File(path).lengthSync();
+      if (bytes < 1024) return '$bytes B';
+      if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    } catch (_) {
+      return '';
+    }
   }
 
   Widget _buildVoiceRecordingBar() {
@@ -637,7 +1176,7 @@ class _InputBarState extends State<_InputBar> {
         CircleIconButton(
           icon: Icons.attach_file_rounded,
           iconSize: 22,
-          color: Tg.textFaint,
+          color: _stagedFiles.isNotEmpty ? Tg.accent : Tg.textFaint,
           onTap: _pickAttachment,
         ),
         const SizedBox(width: 8),
@@ -676,7 +1215,7 @@ class _InputBarState extends State<_InputBar> {
                     cursorWidth: 1.5,
                     decoration: InputDecoration(
                       isDense: true,
-                      hintText: 'Сообщение…',
+                      hintText: _stagedFiles.isNotEmpty ? 'Добавьте подпись…' : 'Сообщение…',
                       hintStyle: const TextStyle(fontSize: 14.5, color: Tg.textFaint),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -704,7 +1243,7 @@ class _InputBarState extends State<_InputBar> {
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: _controller,
           builder: (context, value, _) {
-            final hasText = value.text.trim().isNotEmpty;
+            final hasText = value.text.trim().isNotEmpty || _stagedFiles.isNotEmpty;
             return GestureDetector(
               onTap: hasText ? _send : _toggleVoice,
               child: Container(

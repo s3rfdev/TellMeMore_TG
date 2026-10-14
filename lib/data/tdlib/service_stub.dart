@@ -44,6 +44,9 @@ class TdlibService {
   void openUserByUsername(String username) {}
   void createGroup(String title) {}
   void openChat(int chatId) {}
+  void deleteMessages(int chatId, List<int> messageIds, {bool revoke = true}) {}
+  void clearHistory(int chatId, {bool revoke = true}) {}
+  void deleteChat(int chatId) {}
 
   Future<void> shutdown() async {}
 
