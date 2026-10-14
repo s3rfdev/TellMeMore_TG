@@ -1,48 +1,115 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/tg_theme.dart';
+import '../../../data/models/tg_chat.dart';
+import '../services/smart_reply_engine.dart';
 
-class SmartRepliesBar extends StatelessWidget {
+/// Всплывающее меню AI Reply с двумя действиями:
+/// 1. «Автоответ» — мгновенно формирует ответ на основе контекста чата.
+/// 2. «Надиктовать» — позволяет надиктовать голосом или ввести личную инструкцию (контекст задачи) и сгенерировать ответ.
+class SmartRepliesBar extends StatefulWidget {
   const SmartRepliesBar({
     super.key,
-    required this.chatId,
+    required this.chat,
+    required this.messages,
     required this.onSelected,
     required this.onClose,
   });
 
-  final String chatId;
+  final TgChat chat;
+  final List<TgMessage> messages;
   final ValueChanged<String> onSelected;
   final VoidCallback onClose;
 
-  List<String> _getSuggestions() {
-    if (chatId == 'taras') {
-      return [
-        '🔥 Классная идея! Давай сделаем шерлок по аве',
-        'Отличная скорость у Claude! А какую китайскую модель гонял?',
-        'Давай закинем портфолио на GitHub и оформим README',
-      ];
+  @override
+  State<SmartRepliesBar> createState() => _SmartRepliesBarState();
+}
+
+class _SmartRepliesBarState extends State<SmartRepliesBar> {
+  bool _isDictationMode = false;
+  bool _isRecording = false;
+  int _recordSeconds = 0;
+  Timer? _recordTimer;
+  bool _isGenerating = false;
+
+  final TextEditingController _instructionController = TextEditingController();
+
+  @override
+  void dispose() {
+    _recordTimer?.cancel();
+    _instructionController.dispose();
+    super.dispose();
+  }
+
+  void _handleAutoReply() {
+    setState(() => _isGenerating = true);
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      final reply = SmartReplyEngine.generateAutoReply(
+        chatTitle: widget.chat.title,
+        messages: widget.messages,
+      );
+      setState(() => _isGenerating = false);
+      widget.onSelected(reply);
+    });
+  }
+
+  void _toggleRecording() {
+    if (_isRecording) {
+      // Остановить запись и подставить транскрибацию
+      _recordTimer?.cancel();
+      setState(() {
+        _isRecording = false;
+        if (_instructionController.text.trim().isEmpty) {
+          _instructionController.text =
+              'Мне этот человек неприятен, ответь вежливо, чтобы он отстал без грубости';
+        }
+      });
+    } else {
+      // Начать запись
+      setState(() {
+        _isRecording = true;
+        _recordSeconds = 0;
+      });
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) return;
+        setState(() => _recordSeconds++);
+      });
     }
-    if (chatId == 'nha-trang-estate') {
-      return [
-        'Здравствуйте! Подскажите, свободна ли вилла на следующей неделе?',
-        'Какой депозит и минимальный срок аренды?',
-        'Пришлите, пожалуйста, точную геолокацию и видео объекта',
-      ];
+  }
+
+  void _handleInstructionSubmit() {
+    final text = _instructionController.text.trim();
+    if (text.isEmpty && !_isRecording) return;
+
+    if (_isRecording) {
+      _recordTimer?.cancel();
+      _isRecording = false;
     }
-    return [
-      '🤝 Да, всё в силе! Буду на связи.',
-      'Подскажите, пожалуйста, подробнее условия?',
-      'Звучит отлично, давайте обсудим детали!',
-    ];
+
+    final query = text.isNotEmpty
+        ? text
+        : 'Мне этот человек неприятен, ответь вежливо, чтобы он отстал без грубости';
+
+    setState(() => _isGenerating = true);
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      final reply = SmartReplyEngine.generateInstructionReply(
+        chatTitle: widget.chat.title,
+        messages: widget.messages,
+        instruction: query,
+      );
+      setState(() => _isGenerating = false);
+      widget.onSelected(reply);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final suggestions = _getSuggestions();
-
     return Container(
       margin: const EdgeInsets.fromLTRB(14, 0, 14, 6),
-      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      padding: const EdgeInsets.fromLTRB(12, 6, 8, 8),
       decoration: BoxDecoration(
         color: const Color(0xFF1B2735),
         borderRadius: BorderRadius.circular(14),
@@ -61,67 +128,255 @@ class SmartRepliesBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Заголовок более мелким шрифтом, чтобы занимать минимум места
           Row(
             children: [
-              const Icon(Icons.auto_awesome, size: 14, color: Color(0xFF8774E1)),
-              const SizedBox(width: 6),
+              const Icon(Icons.auto_awesome, size: 12, color: Color(0xFF8774E1)),
+              const SizedBox(width: 5),
               const Text(
-                'AI Smart Reply (на основе цели и контекста диалога):',
+                'AI reply на основе целей',
                 style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
                   color: Color(0xFF8774E1),
+                  letterSpacing: 0.1,
                 ),
               ),
               const Spacer(),
               GestureDetector(
-                onTap: onClose,
-                child: const Icon(Icons.close_rounded, size: 16, color: Tg.textFaint),
+                onTap: widget.onClose,
+                child: const Padding(
+                  padding: EdgeInsets.all(2),
+                  child: Icon(Icons.close_rounded, size: 15, color: Tg.textFaint),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: suggestions.map((text) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    onTap: () => onSelected(text),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Tg.sidebar,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF51B2FF)),
-                          const SizedBox(width: 5),
-                          Text(
-                            text,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              color: Tg.text,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+          const SizedBox(height: 5),
+
+          if (_isGenerating)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: const [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8774E1)),
                     ),
                   ),
-                );
-              }).toList(),
-            ),
-          ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Генерация ответа LLM...',
+                    style: TextStyle(fontSize: 11.5, color: Tg.textDim),
+                  ),
+                ],
+              ),
+            )
+          else if (!_isDictationMode)
+            _buildTwoActionButtons()
+          else
+            _buildDictationBar(),
         ],
       ),
+    );
+  }
+
+  /// Две кнопки вместо прежних пресетов
+  Widget _buildTwoActionButtons() {
+    return Row(
+      children: [
+        // Кнопка 1: Автоответ по контексту чата
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _handleAutoReply,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF8774E1).withValues(alpha: 0.25),
+                    const Color(0xFF766AC8).withValues(alpha: 0.15),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(
+                  color: const Color(0xFF8774E1).withValues(alpha: 0.4),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF51B2FF)),
+                  SizedBox(width: 5),
+                  Text(
+                    'Автоответ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Кнопка 2: Надиктовать голосом с учётом сказанного
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _isDictationMode = true),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Tg.sidebar,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(
+                  color: const Color(0xFF51B2FF).withValues(alpha: 0.35),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.mic_rounded, size: 14, color: Color(0xFF51B2FF)),
+                  SizedBox(width: 5),
+                  Text(
+                    'Надиктовать контекст',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Tg.text,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Режим диктовки/ввода личной голосовой инструкции
+  Widget _buildDictationBar() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            // Кнопка записи микрофона
+            GestureDetector(
+              onTap: _toggleRecording,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: _isRecording
+                      ? Colors.redAccent.withValues(alpha: 0.25)
+                      : const Color(0xFF8774E1).withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _isRecording ? Colors.redAccent : const Color(0xFF8774E1),
+                  ),
+                ),
+                child: Icon(
+                  _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                  size: 15,
+                  color: _isRecording ? Colors.redAccent : const Color(0xFF8774E1),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Поле для инструкции / распознанного текста
+            Expanded(
+              child: Container(
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Tg.sidebar,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+                child: TextField(
+                  controller: _instructionController,
+                  style: const TextStyle(fontSize: 11.5, color: Tg.text),
+                  decoration: InputDecoration(
+                    hintText: _isRecording
+                        ? 'Идёт запись ($_recordSeconds с)... говорите задачу'
+                        : 'Надиктовать: например, отшить вежливо без грубости',
+                    hintStyle: const TextStyle(fontSize: 11, color: Tg.textFaint),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                  ),
+                  onSubmitted: (_) => _handleInstructionSubmit(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Кнопка применить / сгенерировать ответ
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _handleInstructionSubmit,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8774E1), Color(0xFF766AC8)],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome, size: 12, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text(
+                        'Ответить',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+
+            // Отмена / возврат к двум кнопкам
+            GestureDetector(
+              onTap: () {
+                _recordTimer?.cancel();
+                setState(() {
+                  _isRecording = false;
+                  _isDictationMode = false;
+                });
+              },
+              child: const Padding(
+                padding: EdgeInsets.all(4),
+                child: Icon(Icons.arrow_back_rounded, size: 14, color: Tg.textFaint),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

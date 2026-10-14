@@ -89,6 +89,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 key: _inputBarKey,
                 chat: chat,
                 enabled: useReal,
+                realMode: useReal,
               ),
             ],
           ),
@@ -719,10 +720,12 @@ class _InputBar extends StatefulWidget {
     super.key,
     required this.chat,
     required this.enabled,
+    this.realMode = false,
   });
 
   final TgChat chat;
   final bool enabled;
+  final bool realMode;
 
   @override
   State<_InputBar> createState() => _InputBarState();
@@ -1015,7 +1018,12 @@ class _InputBarState extends State<_InputBar> {
           ),
           if (_showSmartReplies)
             SmartRepliesBar(
-              chatId: widget.chat.id,
+              chat: widget.chat,
+              messages: widget.realMode
+                  ? (TdlibService.instance.messagesOf(widget.chat.id).value.messages.isNotEmpty
+                      ? TdlibService.instance.messagesOf(widget.chat.id).value.messages
+                      : widget.chat.messages)
+                  : widget.chat.messages,
               onSelected: (text) {
                 _controller.text = text;
                 _controller.selection = TextSelection.fromPosition(
