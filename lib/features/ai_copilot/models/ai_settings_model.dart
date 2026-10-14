@@ -6,6 +6,10 @@ class AiSettings {
     this.model = 'glm-5',
     this.contextMessageCount = 30,
     this.contextCompression = true,
+    this.compressionMode = 'volume',
+    this.compressionVolumeThreshold = 4000,
+    this.compressionKeepRawCount = 6,
+    this.sandwichContextEnabled = true,
     this.voiceProvider = 'Deepgram Nova-2',
     this.openAiKey = '',
     this.geminiKey = '',
@@ -27,6 +31,10 @@ class AiSettings {
   String model;
   int contextMessageCount;
   bool contextCompression;
+  String compressionMode; // 'volume' | 'message_count'
+  int compressionVolumeThreshold; // tokens
+  int compressionKeepRawCount; // raw messages retained in window
+  bool sandwichContextEnabled;
   String voiceProvider;
   String openAiKey;
   String geminiKey;
@@ -48,6 +56,10 @@ class AiSettings {
     String? model,
     int? contextMessageCount,
     bool? contextCompression,
+    String? compressionMode,
+    int? compressionVolumeThreshold,
+    int? compressionKeepRawCount,
+    bool? sandwichContextEnabled,
     String? voiceProvider,
     String? openAiKey,
     String? geminiKey,
@@ -69,6 +81,10 @@ class AiSettings {
       model: model ?? this.model,
       contextMessageCount: contextMessageCount ?? this.contextMessageCount,
       contextCompression: contextCompression ?? this.contextCompression,
+      compressionMode: compressionMode ?? this.compressionMode,
+      compressionVolumeThreshold: compressionVolumeThreshold ?? this.compressionVolumeThreshold,
+      compressionKeepRawCount: compressionKeepRawCount ?? this.compressionKeepRawCount,
+      sandwichContextEnabled: sandwichContextEnabled ?? this.sandwichContextEnabled,
       voiceProvider: voiceProvider ?? this.voiceProvider,
       openAiKey: openAiKey ?? this.openAiKey,
       geminiKey: geminiKey ?? this.geminiKey,

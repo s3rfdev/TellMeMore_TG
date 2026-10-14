@@ -9,6 +9,7 @@ import '../../data/mock_data.dart';
 import '../../data/models/tg_account.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../state/app_state.dart';
+import '../ai_copilot/widgets/copilot_session_list_view.dart';
 import '../contacts/contacts_list_view.dart';
 import 'chat_row.dart';
 
@@ -69,6 +70,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   if (activeTab == SidebarTab.contacts)
                     Expanded(
                       child: ContactsListView(onContactOpened: widget.onChatOpened),
+                    )
+                  else if (activeTab == SidebarTab.copilot)
+                    Expanded(
+                      child: CopilotSessionListView(onSessionOpened: widget.onChatOpened),
                     )
                   else ...[
                     _header(),

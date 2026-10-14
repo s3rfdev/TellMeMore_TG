@@ -572,46 +572,252 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
   }
 
   Widget _buildContextSection(AiSettings settings) {
+    final isVolume = settings.compressionMode == 'volume';
+    final approxChars = (settings.compressionVolumeThreshold * 3.8).round();
+
     return Column(
       children: [
         _buildCard(
-          title: 'Глубина контекста диалога',
+          title: 'Умная автокомпрессия контекста',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Сообщений в памяти:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
-                  Text(
-                    '${settings.contextMessageCount} сообщений',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF8774E1)),
-                  ),
-                ],
-              ),
-              Slider(
-                value: settings.contextMessageCount.toDouble(),
-                min: 10,
-                max: 100,
-                divisions: 18,
-                activeColor: const Color(0xFF8774E1),
-                inactiveColor: Tg.field,
-                onChanged: (val) {
-                  AiSettingsStore.instance.settings.value =
-                      settings.copyWith(contextMessageCount: val.round());
-                },
-              ),
-              const SizedBox(height: 8),
               SwitchListTile(
                 value: settings.contextCompression,
-                title: const Text('Сжатие длинного контекста', style: TextStyle(color: Tg.text, fontSize: 13.5)),
-                subtitle: const Text('Использовать суммаризацию старых веток диалога', style: TextStyle(color: Tg.textDim, fontSize: 12)),
-                activeThumbColor: const Color(0xFF8774E1),
+                title: const Text('Включить сжатие длинного контекста', style: TextStyle(color: Tg.text, fontSize: 14, fontWeight: FontWeight.w500)),
+                subtitle: const Text('Сворачивает ранние ветки диалога в структурированное резюме', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                activeThumbColor: const Color(0xFF00C48C),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (val) {
                   AiSettingsStore.instance.settings.value =
                       settings.copyWith(contextCompression: val);
                 },
+              ),
+              const Divider(color: Tg.hairline, height: 20),
+
+              // Метод оценки порога сжатия
+              const Text('Критерий оценки для автосжатия:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () {
+                        AiSettingsStore.instance.settings.value =
+                            settings.copyWith(compressionMode: 'volume');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: isVolume ? const Color(0xFF8774E1).withValues(alpha: 0.18) : Tg.field,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isVolume ? const Color(0xFF8774E1) : Colors.white.withValues(alpha: 0.08),
+                            width: isVolume ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.speed_rounded, size: 16, color: isVolume ? const Color(0xFF8774E1) : Tg.textDim),
+                            const SizedBox(width: 8),
+                            Text(
+                              'По объёму токенов (Smart)',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: isVolume ? FontWeight.w600 : FontWeight.normal,
+                                color: isVolume ? const Color(0xFF8774E1) : Tg.text,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () {
+                        AiSettingsStore.instance.settings.value =
+                            settings.copyWith(compressionMode: 'message_count');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: !isVolume ? const Color(0xFF8774E1).withValues(alpha: 0.18) : Tg.field,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: !isVolume ? const Color(0xFF8774E1) : Colors.white.withValues(alpha: 0.08),
+                            width: !isVolume ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.format_list_numbered_rounded, size: 16, color: !isVolume ? const Color(0xFF8774E1) : Tg.textDim),
+                            const SizedBox(width: 8),
+                            Text(
+                              'По числу сообщений',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: !isVolume ? FontWeight.w600 : FontWeight.normal,
+                                color: !isVolume ? const Color(0xFF8774E1) : Tg.text,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              if (isVolume) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Порог объёма для сжатия:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+                    Text(
+                      '${settings.compressionVolumeThreshold} токенов (~$approxChars симв.)',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF00C48C)),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: settings.compressionVolumeThreshold.toDouble().clamp(1000, 32000),
+                  min: 1000,
+                  max: 32000,
+                  divisions: 31,
+                  activeColor: const Color(0xFF00C48C),
+                  inactiveColor: Tg.field,
+                  onChanged: (val) {
+                    AiSettingsStore.instance.settings.value =
+                        settings.copyWith(compressionVolumeThreshold: (val / 500).round() * 500);
+                  },
+                ),
+                Text(
+                  '💡 Короткие реплики («ок», «как дела») не вызывают сжатие преждевременно, а объемный код или статьи сожмутся вовремя.',
+                  style: TextStyle(fontSize: 11.5, color: Tg.textDim, height: 1.35),
+                ),
+              ] else ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Сообщений до сжатия:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+                    Text(
+                      '${settings.contextMessageCount} сообщений',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF8774E1)),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: settings.contextMessageCount.toDouble(),
+                  min: 10,
+                  max: 100,
+                  divisions: 18,
+                  activeColor: const Color(0xFF8774E1),
+                  inactiveColor: Tg.field,
+                  onChanged: (val) {
+                    AiSettingsStore.instance.settings.value =
+                        settings.copyWith(contextMessageCount: val.round());
+                  },
+                ),
+              ],
+
+              const SizedBox(height: 14),
+              const Divider(color: Tg.hairline, height: 20),
+
+              // Окно свежих сырых сообщений
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Окно свежих сообщений (без сжатия):', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+                  Text(
+                    '${settings.compressionKeepRawCount} последних сообщений',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF51B2FF)),
+                  ),
+                ],
+              ),
+              Slider(
+                value: settings.compressionKeepRawCount.toDouble().clamp(3, 20),
+                min: 3,
+                max: 20,
+                divisions: 17,
+                activeColor: const Color(0xFF51B2FF),
+                inactiveColor: Tg.field,
+                onChanged: (val) {
+                  AiSettingsStore.instance.settings.value =
+                      settings.copyWith(compressionKeepRawCount: val.round());
+                },
+              ),
+              Text(
+                '💡 Эти недавние сообщения всегда подаются модели слово в слово в сыром виде (второй слой начинки), сохраняя контекст последних минут общения.',
+                style: TextStyle(fontSize: 11.5, color: Tg.textDim, height: 1.35),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Карточка: Принцип Бутерброд
+        _buildCard(
+          title: 'Архитектура: Принцип «Бутерброд» (Context Sandwich)',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SwitchListTile(
+                value: settings.sandwichContextEnabled,
+                title: const Text('Сборка промпта по слоям', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                subtitle: const Text('Оптимизирует следование инструкциям и точность ответов', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                activeThumbColor: const Color(0xFF8774E1),
+                contentPadding: EdgeInsets.zero,
+                onChanged: (val) {
+                  AiSettingsStore.instance.settings.value =
+                      settings.copyWith(sandwichContextEnabled: val);
+                },
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Tg.field,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: const Column(
+                  children: [
+                    _SandwichLayerTile(
+                      icon: '🍞',
+                      name: 'Верхний хлеб (System Directives)',
+                      desc: 'Системные правила, персона агента, CRM-досье и спецификация инструментов.',
+                      color: Color(0xFFFF9F43),
+                    ),
+                    SizedBox(height: 8),
+                    _SandwichLayerTile(
+                      icon: '🥩',
+                      name: 'Начинка 1: Сжатая выжимка (Context Summary)',
+                      desc: 'Суть ранних веток переписки (решения, факты, договоренности).',
+                      color: Color(0xFF00C48C),
+                    ),
+                    SizedBox(height: 8),
+                    _SandwichLayerTile(
+                      icon: '🥬',
+                      name: 'Начинка 2: Сырые сообщения (Recent Window)',
+                      desc: 'Последние сообщения без изменений для сохранения нити диалога.',
+                      color: Color(0xFF51B2FF),
+                    ),
+                    SizedBox(height: 8),
+                    _SandwichLayerTile(
+                      icon: '🍞',
+                      name: 'Нижний хлеб (User Query & Directives)',
+                      desc: 'Текущий запрос пользователя и финальные ограничения на формат.',
+                      color: Color(0xFFFF7675),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -724,6 +930,63 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SandwichLayerTile extends StatelessWidget {
+  const _SandwichLayerTile({
+    required this.icon,
+    required this.name,
+    required this.desc,
+    required this.color,
+  });
+
+  final String icon;
+  final String name;
+  final String desc;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  desc,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Tg.textDim,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
