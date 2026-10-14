@@ -88,8 +88,18 @@ class _HomeShellState extends State<HomeShell> {
       }
 
       return Stack(
+        fit: StackFit.expand,
         children: [
-          mainContent,
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/chat_bg.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+          ),
+          Positioned.fill(
+            child: mainContent,
+          ),
           ValueListenableBuilder<bool>(
             valueListenable: AppState.drawerOpen,
             builder: (context, open, _) {

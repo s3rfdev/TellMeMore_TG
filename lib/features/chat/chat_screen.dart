@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -49,7 +50,7 @@ class ChatScreen extends StatelessWidget {
         }
 
         return Container(
-          color: Tg.chatBg,
+          color: Colors.transparent,
           child: Column(
             children: [
               _Header(chat: chat, showBack: showBack, onBack: onBack),
@@ -560,7 +561,10 @@ class _InputBarState extends State<_InputBar> {
           },
         ),
         Container(
-          color: Tg.sidebar,
+          decoration: const BoxDecoration(
+            color: Tg.sidebar,
+            border: Border(top: BorderSide(color: Tg.hairline)),
+          ),
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
           child: _isRecordingVoice
               ? _buildVoiceRecordingBar()
@@ -647,33 +651,49 @@ class _InputBarState extends State<_InputBar> {
             child: ValueListenableBuilder<TextEditingValue>(
               valueListenable: _controller,
               builder: (context, value, _) {
-                return TextField(
-                  controller: _controller,
-                  minLines: 1,
-                  maxLines: 5,
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _send(),
-                  style: const TextStyle(fontSize: 14.5, color: Tg.text),
-                  cursorWidth: 1.5,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: 'Сообщение…',
-                    hintStyle: const TextStyle(fontSize: 14.5, color: Tg.textFaint),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                    suffixIcon: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => setState(() => _showEmoji = !_showEmoji),
-                      child: Icon(
-                        _showEmoji
-                            ? Icons.keyboard_rounded
-                            : Icons.sentiment_satisfied_alt_rounded,
-                        size: 21,
-                        color: _showEmoji ? const Color(0xFF8774E1) : Tg.textFaint,
+                return Focus(
+                  onKeyEvent: (node, event) {
+                    final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
+                                    event.logicalKey == LogicalKeyboardKey.numpadEnter;
+                    final isCtrlOrCmd = HardwareKeyboard.instance.isControlPressed ||
+                                        HardwareKeyboard.instance.isMetaPressed;
+                    if (isEnter && isCtrlOrCmd) {
+                      if (event is KeyDownEvent) {
+                        _send();
+                      }
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: TextField(
+                    controller: _controller,
+                    minLines: 1,
+                    maxLines: 5,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    onChanged: (_) => setState(() {}),
+                    style: const TextStyle(fontSize: 14.5, color: Tg.text),
+                    cursorWidth: 1.5,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Сообщение…',
+                      hintStyle: const TextStyle(fontSize: 14.5, color: Tg.textFaint),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      suffixIcon: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => setState(() => _showEmoji = !_showEmoji),
+                        child: Icon(
+                          _showEmoji
+                              ? Icons.keyboard_rounded
+                              : Icons.sentiment_satisfied_alt_rounded,
+                          size: 21,
+                          color: _showEmoji ? const Color(0xFF8774E1) : Tg.textFaint,
+                        ),
                       ),
+                      suffixIconConstraints:
+                          const BoxConstraints(minWidth: 28, minHeight: 28),
                     ),
-                    suffixIconConstraints:
-                        const BoxConstraints(minWidth: 28, minHeight: 28),
                   ),
                 );
               },
