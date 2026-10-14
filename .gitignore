@@ -1,0 +1,5 @@
+.dart_tool/
+build/
+*.iml
+.idea/
+lib/config/credentials.dart

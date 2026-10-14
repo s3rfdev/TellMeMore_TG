@@ -1,0 +1,364 @@
+import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+
+import '../../core/theme/tg_theme.dart';
+import '../../data/tdlib/tdlib_service.dart';
+import '../../state/app_state.dart';
+
+/// Экран авторизации в Telegram: QR-код (по умолчанию) / Телефон / 2FA.
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _controller = TextEditingController();
+  final _focus = FocusNode();
+  bool _busy = false;
+  bool _preferPhone = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _submit(AuthPhase phase) {
+    final service = TdlibService.instance;
+    final value = _controller.text.trim();
+    if (value.isEmpty || _busy) return;
+    setState(() => _busy = true);
+    switch (phase) {
+      case AuthPhase.waitPhone:
+        service.sendPhoneNumber(value);
+      case AuthPhase.waitCode:
+        service.sendCode(value);
+      case AuthPhase.waitPassword:
+        service.sendPassword(value);
+      default:
+        break;
+    }
+    _controller.clear();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) setState(() => _busy = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        TdlibService.instance.phase,
+        TdlibService.instance.errorText,
+        TdlibService.instance.qrLink,
+        TdlibService.instance.codeDeliveryHint,
+        TdlibService.instance.passwordHint,
+      ]),
+      builder: (context, _) {
+        final service = TdlibService.instance;
+        final phase = service.phase.value;
+        final error = service.errorText.value;
+        final qrLink = service.qrLink.value;
+        final codeHint = service.codeDeliveryHint.value;
+        final passwordHint = service.passwordHint.value;
+
+        return Scaffold(
+          backgroundColor: Tg.chatBg,
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: Container(
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: Tg.sidebar,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Логотип
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF8774E1), Color(0xFF6B58C9)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.send_rounded, size: 36, color: Colors.white),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'TG Answer',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Tg.text,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Ошибка
+                      if (error != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Tg.danger.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Tg.danger.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            error,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 13, color: Tg.danger),
+                          ),
+                        ),
+                      ],
+
+                      // Контент в зависимости от фазы
+                      if (phase == AuthPhase.connecting || phase == AuthPhase.idle) ...[
+                        const SizedBox(height: 24),
+                        const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(strokeWidth: 2.5, color: Tg.accent),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Подключение к серверам Telegram…',
+                          style: TextStyle(fontSize: 14, color: Tg.textDim),
+                        ),
+                      ] else if (phase == AuthPhase.waitQr && !_preferPhone && qrLink != null) ...[
+                        // Вход по QR-коду
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Быстрый вход по QR-коду',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Наведите камеру в приложении Telegram:\nНастройки → Устройства → Подключить',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
+                        ),
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: QrImageView(
+                            data: qrLink,
+                            version: QrVersions.auto,
+                            size: 200,
+                            gapless: true,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _preferPhone = true);
+                            service.requestPhoneAuth();
+                          },
+                          child: const Text(
+                            'Войти по номеру телефона',
+                            style: TextStyle(fontSize: 14, color: Tg.accent, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ] else if (phase == AuthPhase.waitPhone || (phase == AuthPhase.waitQr && _preferPhone)) ...[
+                        // Вход по номеру телефона
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Вход по номеру телефона',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Код подтверждения придёт в приложение Telegram на вашем устройстве',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
+                        ),
+                        const SizedBox(height: 20),
+                        _buildInputField(
+                          hint: '+7 999 123-45-67',
+                          keyboardType: TextInputType.phone,
+                          onSubmitted: () => _submit(AuthPhase.waitPhone),
+                        ),
+                        const SizedBox(height: 14),
+                        _buildActionButton(
+                          label: 'Продолжить',
+                          onPressed: () => _submit(AuthPhase.waitPhone),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _preferPhone = false);
+                            service.requestQrCode();
+                          },
+                          child: const Text(
+                            'Войти по QR-коду',
+                            style: TextStyle(fontSize: 14, color: Tg.accent, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ] else if (phase == AuthPhase.waitCode) ...[
+                        // Ввод кода
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Проверьте Telegram',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          codeHint ?? 'Код подтверждения отправлен в ваш аккаунт Telegram',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
+                        ),
+                        const SizedBox(height: 20),
+                        _buildInputField(
+                          hint: 'Код подтверждения',
+                          keyboardType: TextInputType.number,
+                          onSubmitted: () => _submit(AuthPhase.waitCode),
+                        ),
+                        const SizedBox(height: 14),
+                        _buildActionButton(
+                          label: 'Подтвердить',
+                          onPressed: () => _submit(AuthPhase.waitCode),
+                        ),
+                      ] else if (phase == AuthPhase.waitPassword) ...[
+                        // 2FA Пароль
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Облачный пароль (2FA)',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          passwordHint != null && passwordHint.isNotEmpty
+                              ? 'Подсказка: $passwordHint'
+                              : 'Введите ваш дополнительный пароль защиты Telegram',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
+                        ),
+                        const SizedBox(height: 20),
+                        _buildInputField(
+                          hint: 'Пароль 2FA',
+                          obscure: true,
+                          onSubmitted: () => _submit(AuthPhase.waitPassword),
+                        ),
+                        const SizedBox(height: 14),
+                        _buildActionButton(
+                          label: 'Войти',
+                          onPressed: () => _submit(AuthPhase.waitPassword),
+                        ),
+                      ] else if (phase == AuthPhase.error) ...[
+                        const SizedBox(height: 16),
+                        const Icon(Icons.error_outline_rounded, size: 48, color: Tg.danger),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Ошибка подключения',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildActionButton(
+                          label: 'Повторить попытку',
+                          onPressed: () => service.init(),
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
+                      const Divider(color: Colors.white12, height: 1),
+                      const SizedBox(height: 14),
+                      TextButton(
+                        onPressed: () => AppState.demoMode.value = true,
+                        child: const Text(
+                          'Демо-режим (тест интерфейса без входа)',
+                          style: TextStyle(fontSize: 12.5, color: Tg.textFaint),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInputField({
+    required String hint,
+    TextInputType keyboardType = TextInputType.text,
+    bool obscure = false,
+    required VoidCallback onSubmitted,
+  }) {
+    return TextField(
+      controller: _controller,
+      focusNode: _focus,
+      obscureText: obscure,
+      autofocus: true,
+      keyboardType: keyboardType,
+      style: const TextStyle(fontSize: 15, color: Tg.text),
+      onSubmitted: (_) => onSubmitted(),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Tg.field,
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 14.5, color: Tg.textFaint),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Tg.accent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: _busy ? null : onPressed,
+        child: _busy
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+}

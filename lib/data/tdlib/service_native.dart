@@ -1,0 +1,332 @@
+import 'dart:async';
+import 'dart:isolate';
+
+import 'package:flutter/foundation.dart';
+
+import '../../core/utils/session_paths.dart';
+import '../../state/app_state.dart';
+import '../models/tg_chat.dart';
+import 'auth_phase.dart';
+import 'td_content.dart';
+import 'td_json_ffi.dart';
+import 'td_worker.dart';
+
+/// UI-сторона TDLib: тонкий клиент воркера-изолята.
+class TdlibService {
+  TdlibService._();
+
+  static final TdlibService instance = TdlibService._();
+
+  final ValueNotifier<AuthPhase> phase =
+      ValueNotifier<AuthPhase>(AuthPhase.idle);
+  final ValueNotifier<String?> errorText = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> qrLink = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> codeDeliveryHint = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> passwordHint = ValueNotifier<String?>(null);
+  final ValueNotifier<List<TgChat>> chats = ValueNotifier<List<TgChat>>([]);
+  final ValueNotifier<TgUser?> currentUser = ValueNotifier<TgUser?>(null);
+  final ValueNotifier<List<TgChat>> searchResults = ValueNotifier<List<TgChat>>([]);
+
+  /// Чаты, для которых идёт догрузка истории вверх.
+  final ValueNotifier<Set<String>> loadingMore =
+      ValueNotifier<Set<String>>(const {});
+
+  /// Чаты, для которых идёт первичная загрузка истории.
+  final ValueNotifier<Set<String>> loadingHistory =
+      ValueNotifier<Set<String>>(const {});
+
+  final Set<String> _requestedHistories = {};
+
+  SendPort? _cmd;
+  ReceivePort? _ui;
+  bool _started = false;
+  final Map<String, ValueNotifier<TgChatHistory>> _stores = {};
+  final List<Map<String, dynamic>> _pendingCmds = [];
+  final Completer<void> _closedCompleter = Completer<void>();
+
+  void _sendCmd(Map<String, dynamic> cmd) {
+    if (_cmd != null) {
+      _cmd!.send(cmd);
+    } else {
+      _pendingCmds.add(cmd);
+    }
+  }
+
+  // ---------------------------------------------------------------- init
+
+  Future<void> init() async {
+    if (_started) return;
+    _started = true;
+
+    final ffi = TdJsonFfi.tryOpen();
+    if (ffi == null) {
+      phase.value = AuthPhase.error;
+      errorText.value = 'libtdjson не найдена. ${TdJsonFfi.lastError ?? ''}';
+      return;
+    }
+    ffi.setLogLevel(1);
+    final client = ffi.createClient();
+
+    final dirs = await SessionPaths.getTdlibDirectories();
+    _ui = ReceivePort();
+    _ui!.listen((m) => _onWorkerMessage(Map<String, dynamic>.from(m as Map)));
+
+    await Isolate.spawn(
+      TdWorker.entry,
+      {
+        'clientAddress': client.clientAddress,
+        'ui': _ui!.sendPort,
+        'dbDir': dirs['dbDir']!,
+        'filesDir': dirs['filesDir']!,
+      },
+      debugName: 'tdlib-worker',
+    );
+
+    // ВАЖНО: ждём тот же completer, который завершает _onWorkerMessage
+    // в case 'ready'.
+    _cmd = await _cmdCompleter.future;
+    phase.value = AuthPhase.connecting;
+  }
+
+  void _onWorkerMessage(Map<String, dynamic> msg) {
+    switch (msg['type']) {
+      case 'ready':
+        // ignore: avoid_print
+        print('[service] worker ready, захватываю cmd-порт');
+        final port = msg['cmd'] as SendPort;
+        if (!_cmdCompleter.isCompleted) _cmdCompleter.complete(port);
+        _cmd = port;
+        for (final pending in _pendingCmds) {
+          _cmd!.send(pending);
+        }
+        _pendingCmds.clear();
+      case 'auth':
+        if (msg.containsKey('link') && msg['link'] != null) {
+          qrLink.value = msg['link'] as String;
+        }
+        if (msg.containsKey('passwordHint')) {
+          passwordHint.value = msg['passwordHint'] as String?;
+        }
+        if (msg.containsKey('codeInfo')) {
+          final ci = msg['codeInfo'] as Map<String, dynamic>?;
+          final type = ci?['type']?['@type'] as String?;
+          if (type == 'authenticationCodeTypeTelegramMessage') {
+            codeDeliveryHint.value = 'Код отправлен в приложение Telegram';
+          } else if (type == 'authenticationCodeTypeSms') {
+            codeDeliveryHint.value = 'Код отправлен по SMS';
+          } else {
+            codeDeliveryHint.value = 'Код подтверждения отправлен';
+          }
+        }
+        _setAuth(msg['state'] as String);
+      case 'error':
+        errorText.value = msg['message'] as String?;
+      case 'me':
+        final u = msg['user'] as Map<String, dynamic>;
+        final fn = u['first_name'] as String? ?? '';
+        final ln = u['last_name'] as String? ?? '';
+        currentUser.value = TgUser(
+          id: u['id'] as int,
+          firstName: fn,
+          lastName: ln,
+          username: u['username'] as String? ?? '',
+          phoneNumber: u['phone_number'] as String? ?? '',
+          avatarEmoji: TdContent.initials('$fn $ln'.trim().isEmpty ? 'User' : '$fn $ln'.trim()),
+          avatarColor: TdContent.colorFor('$fn $ln'.trim().isEmpty ? 'User' : '$fn $ln'.trim()),
+        );
+      case 'searchResults':
+        final ids = (msg['chatIds'] as List).cast<int>().toSet();
+        final all = chats.value;
+        searchResults.value = all.where((c) => ids.contains(int.tryParse(c.id))).toList();
+      case 'chats':
+        final list = (msg['chats'] as List).cast<TgChat>();
+        chats.value = list;
+        if (list.isNotEmpty) {
+          final cur = AppState.selectedChatId.value;
+          if (cur == null || cur == 'taras' || !list.any((c) => c.id == cur)) {
+            AppState.selectedChatId.value = list.first.id;
+          }
+        }
+      case 'history':
+        final payload = Map<String, TgChatHistory>.from(msg['messages'] as Map);
+        final stillLoading = Set<String>.from(loadingMore.value);
+        final stillInitialLoading = Set<String>.from(loadingHistory.value);
+        payload.forEach((key, history) {
+          _store(key).value = history;
+          stillLoading.remove(key);
+          stillInitialLoading.remove(key);
+        });
+        loadingMore.value = stillLoading;
+        loadingHistory.value = stillInitialLoading;
+      case 'selectChat':
+        final cid = msg['chatId'] as String?;
+        if (cid != null) {
+          AppState.selectedChatId.value = cid;
+        }
+    }
+  }
+
+  final Completer<SendPort> _cmdCompleter = Completer<SendPort>();
+
+  void _setAuth(String state) {
+    switch (state) {
+      case 'authorizationStateWaitTdlibParameters':
+      case 'authorizationStateWaitEncryptionKey':
+        phase.value = AuthPhase.connecting;
+      case 'authorizationStateWaitOtherDeviceConfirmation':
+        phase.value = AuthPhase.waitQr;
+        errorText.value = null;
+      case 'authorizationStateWaitPhoneNumber':
+        phase.value = AuthPhase.waitPhone;
+      case 'authorizationStateWaitCode':
+        phase.value = AuthPhase.waitCode;
+      case 'authorizationStateWaitRegistration':
+      case 'authorizationStateWaitPassword':
+        phase.value = AuthPhase.waitPassword;
+      case 'authorizationStateReady':
+        phase.value = AuthPhase.ready;
+        errorText.value = null;
+      case 'authorizationStateClosed':
+        if (!_closedCompleter.isCompleted) _closedCompleter.complete();
+        phase.value = AuthPhase.error;
+        errorText.value = 'Сессия закрыта';
+    }
+  }
+
+  // ------------------------------------------------------------- actions
+
+  void requestQrCode() {
+    errorText.value = null;
+    _sendCmd({'type': 'qr'});
+  }
+
+  void requestPhoneAuth() {
+    errorText.value = null;
+    phase.value = AuthPhase.waitPhone;
+  }
+
+  void sendPhoneNumber(String phone) {
+    // ignore: avoid_print
+    print('[auth-ui] sendPhoneNumber "$phone", cmdPort ready: ${_cmd != null}');
+    errorText.value = null;
+    _sendCmd({'type': 'phone', 'value': phone});
+  }
+
+  void sendCode(String code) {
+    errorText.value = null;
+    _sendCmd({'type': 'code', 'value': code});
+  }
+
+  void sendPassword(String password) {
+    errorText.value = null;
+    _sendCmd({'type': 'password', 'value': password});
+  }
+
+  void sendMessage(int chatId, String text, {int? replyToMessageId}) {
+    _sendCmd({
+      'type': 'send',
+      'chatId': chatId,
+      'text': text,
+      if (replyToMessageId != null && replyToMessageId > 0)
+        'replyToMessageId': replyToMessageId,
+    });
+  }
+
+  void downloadFile(int fileId) {
+    if (fileId > 0) {
+      _sendCmd({'type': 'downloadFile', 'fileId': fileId});
+    }
+  }
+
+  void deleteMessage(int chatId, int messageId) {
+    _sendCmd({'type': 'deleteMessage', 'chatId': chatId, 'messageId': messageId});
+  }
+
+  void pinMessage(int chatId, int messageId) {
+    _sendCmd({'type': 'pinMessage', 'chatId': chatId, 'messageId': messageId});
+  }
+
+  void forwardMessage(int toChatId, int fromChatId, int messageId) {
+    _sendCmd({
+      'type': 'forwardMessage',
+      'toChatId': toChatId,
+      'fromChatId': fromChatId,
+      'messageId': messageId,
+    });
+  }
+
+  void sendVoiceNote(int chatId, String path, int duration) {
+    _sendCmd({'type': 'sendVoice', 'chatId': chatId, 'path': path, 'duration': duration});
+  }
+
+  void sendFile(int chatId, String path, [String caption = '']) {
+    _sendCmd({'type': 'sendFile', 'chatId': chatId, 'path': path, 'caption': caption});
+  }
+
+  void searchChats(String query) {
+    if (query.trim().isEmpty) {
+      searchResults.value = [];
+      return;
+    }
+    _sendCmd({'type': 'searchChats', 'query': query.trim()});
+  }
+
+  void loadMe() {
+    _sendCmd({'type': 'getMe'});
+  }
+
+  void openUserByUsername(String username) {
+    _sendCmd({'type': 'openUsername', 'username': username});
+  }
+
+  void createGroup(String title) {
+    _sendCmd({'type': 'createGroup', 'title': title});
+  }
+
+  void openChat(int chatId) {
+    _sendCmd({'type': 'openChat', 'chatId': chatId});
+    requestHistory(chatId.toString());
+  }
+
+  /// Запрос истории сообщений для чата (вызывается при выборе чата, но не на каждый build)
+  void requestHistory(String chatId, {bool force = false}) {
+    final id = int.tryParse(chatId);
+    if (id == null) return;
+    if (!force && _requestedHistories.contains(chatId)) {
+      _sendCmd({'type': 'openChat', 'chatId': id});
+      return;
+    }
+    _requestedHistories.add(chatId);
+    final current = Set<String>.from(loadingHistory.value);
+    current.add(chatId);
+    loadingHistory.value = current;
+    _sendCmd({'type': 'history', 'chatId': id});
+  }
+
+  /// Корректное закрытие TDLib: сбрасывает сессию на диск.
+  /// Вызывается при выходе из приложения (Cmd+Q / SIGTERM).
+  Future<void> shutdown() async {
+    if (_closedCompleter.isCompleted) return;
+    _sendCmd({'type': 'close'});
+    await _closedCompleter.future
+        .timeout(const Duration(seconds: 4), onTimeout: () {});
+  }
+
+  /// Хранилище истории чата: чистый getter, не отправляющий команд во избежание бесконечных циклов.
+  ValueNotifier<TgChatHistory> messagesOf(String chatId) {
+    return _store(chatId);
+  }
+
+  /// Догрузка более старых сообщений (скролл вверх).
+  void loadMore(String chatId) {
+    final id = int.tryParse(chatId);
+    if (id == null) return;
+    if (loadingMore.value.contains(chatId)) return;
+    loadingMore.value = {...loadingMore.value, chatId};
+    _sendCmd({'type': 'loadMore', 'chatId': id});
+  }
+
+  ValueNotifier<TgChatHistory> _store(String chatId) =>
+      _stores.putIfAbsent(
+          chatId, () => ValueNotifier<TgChatHistory>(const TgChatHistory()));
+}
