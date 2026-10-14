@@ -1,9 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../core/widgets/tg_avatar.dart';
+import '../data/models/tg_chat.dart';
+import '../data/tdlib/td_content.dart';
 import '../data/tdlib/tdlib_service.dart';
 import '../features/auth/login_screen.dart';
 import '../features/chat/chat_screen.dart';
+import '../features/chat/widgets/call_dialog.dart';
 import '../features/chat_list/chat_list_screen.dart';
 import '../features/chat_list/widgets/main_drawer.dart';
 import '../state/app_state.dart';
@@ -97,10 +101,16 @@ class _HomeShellState extends State<HomeShell> {
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/chat_bg.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
+            child: Container(
+              color: const Color(0xFF0F1721),
+              child: Opacity(
+                opacity: 0.15, // 85% прозрачность, чтобы узор не слепил и был мягким как в оригинале
+                child: Image.asset(
+                  'assets/images/chat_bg.png',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                ),
+              ),
             ),
           ),
           Positioned.fill(
@@ -127,6 +137,13 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 ],
               );
+            },
+          ),
+          ValueListenableBuilder<TgCallInfo?>(
+            valueListenable: AppState.incomingCall,
+            builder: (context, call, _) {
+              if (call == null) return const SizedBox.shrink();
+              return _IncomingCallBanner(call: call);
             },
           ),
         ],
@@ -177,3 +194,128 @@ class _DragHandleState extends State<_DragHandle> {
     );
   }
 }
+
+class _IncomingCallBanner extends StatelessWidget {
+  const _IncomingCallBanner({required this.call});
+
+  final TgCallInfo call;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 18,
+      right: 18,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 330,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1B232E),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF43D39E).withValues(alpha: 0.5), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              TgAvatar(
+                emoji: TdContent.initials(call.userName),
+                color: const Color(0xFF65AADD),
+                size: 44,
+                fontSize: 16,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      call.userName,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Входящий аудиозвонок…',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF43D39E),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Отклонить (красный)
+              Tooltip(
+                message: 'Отклонить вызов',
+                child: GestureDetector(
+                  onTap: () {
+                    TdlibService.instance.discardCall(call.callId);
+                  },
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE53935),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.call_end_rounded, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Принять (зелёный)
+              Tooltip(
+                message: 'Принять звонок',
+                child: GestureDetector(
+                  onTap: () {
+                    TdlibService.instance.acceptCall(call.callId);
+                    final matchingChat = TdlibService.instance.chats.value.firstWhere(
+                      (c) => c.userId == call.userId || c.id == call.userId.toString(),
+                      orElse: () => TgChat(
+                        id: call.userId.toString(),
+                        userId: call.userId,
+                        title: call.userName,
+                        avatarEmoji: TdContent.initials(call.userName),
+                        avatarColor: 0xFF65AADD,
+                        sender: '',
+                        preview: '',
+                        time: '',
+                        headerSubtitle: 'Звонок',
+                      ),
+                    );
+                    CallDialog.show(context, matchingChat, initialCall: call);
+                  },
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF43D39E),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.call_rounded, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

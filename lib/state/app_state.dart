@@ -27,4 +27,10 @@ class AppState {
   /// Режим поиска по сообщениям внутри чата.
   static final ValueNotifier<bool> chatSearchActive = ValueNotifier<bool>(false);
   static final ValueNotifier<String> chatSearchQuery = ValueNotifier<String>('');
+
+  /// Активный исходящий или текущий разговор.
+  static final ValueNotifier<TgCallInfo?> activeCall = ValueNotifier<TgCallInfo?>(null);
+
+  /// Входящий вызов, ожидающий ответа пользователя.
+  static final ValueNotifier<TgCallInfo?> incomingCall = ValueNotifier<TgCallInfo?>(null);
 }

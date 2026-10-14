@@ -362,6 +362,58 @@ class _Store {
         });
         _chats.remove(chatId);
         _chatsDirty = true;
+      case 'createCall':
+        final userId = cmd['userId'] as int?;
+        if (userId != null) {
+          // ignore: avoid_print
+          print('[worker] createCall user_id=$userId');
+          _send({
+            '@type': 'createCall',
+            'user_id': userId,
+            'protocol': {
+              '@type': 'callProtocol',
+              'udp_p2p': true,
+              'udp_reflector': true,
+              'min_layer': 65,
+              'max_layer': 92,
+              'library_versions': ['1.2.0'],
+            },
+            'is_video': false,
+          });
+        }
+      case 'discardCall':
+        final callId = cmd['callId'] as int?;
+        final duration = (cmd['duration'] as num?)?.toInt() ?? 0;
+        if (callId != null) {
+          // ignore: avoid_print
+          print('[worker] discardCall call_id=$callId duration=$duration');
+          _send({
+            '@type': 'discardCall',
+            'call_id': callId,
+            'is_disconnected': false,
+            'duration': duration,
+            'is_video': false,
+            'connection_id': 0,
+          });
+        }
+      case 'acceptCall':
+        final callId = cmd['callId'] as int?;
+        if (callId != null) {
+          // ignore: avoid_print
+          print('[worker] acceptCall call_id=$callId');
+          _send({
+            '@type': 'acceptCall',
+            'call_id': callId,
+            'protocol': {
+              '@type': 'callProtocol',
+              'udp_p2p': true,
+              'udp_reflector': true,
+              'min_layer': 65,
+              'max_layer': 92,
+              'library_versions': ['1.2.0'],
+            },
+          });
+        }
     }
   }
 
@@ -667,6 +719,90 @@ class _Store {
           }
         }
         return;
+      case 'call':
+        _handleCall(m);
+        return;
+      case 'updateCall':
+        final c = m['call'] as Map<String, dynamic>?;
+        if (c != null) _handleCall(c);
+        return;
+    }
+  }
+
+  void _handleCall(Map<String, dynamic> call) {
+    final callId = (call['id'] as num?)?.toInt() ?? 0;
+    final userId = (call['user_id'] as num?)?.toInt() ?? 0;
+    final isOutgoing = call['is_outgoing'] as bool? ?? false;
+    final stateObj = call['state'] as Map<String, dynamic>? ?? {};
+    final stateType = stateObj['@type'] as String? ?? '';
+
+    TgCallState state = TgCallState.pending;
+    List<String> emojis = [];
+    String discardReason = '';
+
+    if (stateType == 'callStatePending') {
+      final isReceived = stateObj['is_received'] as bool? ?? false;
+      state = isReceived ? TgCallState.ringing : TgCallState.pending;
+    } else if (stateType == 'callStateExchangingKeys') {
+      state = TgCallState.exchangingKeys;
+    } else if (stateType == 'callStateReady') {
+      state = TgCallState.ready;
+      final emList = stateObj['emojis'] as List?;
+      if (emList != null) {
+        emojis = emList.whereType<String>().toList();
+      }
+    } else if (stateType == 'callStateHangingUp') {
+      state = TgCallState.hangingUp;
+    } else if (stateType == 'callStateDiscarded') {
+      state = TgCallState.discarded;
+      final reasonObj = stateObj['reason'] as Map<String, dynamic>?;
+      final reasonType = reasonObj?['@type'] as String? ?? '';
+      if (reasonType == 'callDiscardReasonDeclined') {
+        discardReason = 'Вызов отклонен';
+      } else if (reasonType == 'callDiscardReasonDisconnected') {
+        discardReason = 'Связь прервана';
+      } else if (reasonType == 'callDiscardReasonHungUp') {
+        discardReason = 'Вызов завершен';
+      } else if (reasonType == 'callDiscardReasonMissed') {
+        discardReason = 'Пропущенный звонок';
+      } else {
+        discardReason = 'Звонок завершен';
+      }
+    }
+
+    String callerName = 'Пользователь';
+    final user = _users[userId];
+    if (user != null) {
+      final fn = user['first_name'] as String? ?? '';
+      final ln = user['last_name'] as String? ?? '';
+      callerName = '$fn $ln'.trim();
+      if (callerName.isEmpty) callerName = user['username'] as String? ?? 'Telegram';
+    }
+
+    // ignore: avoid_print
+    print('[worker] call update: id=$callId user=$userId ($callerName) outgoing=$isOutgoing state=$stateType ($state)');
+
+    final callInfo = TgCallInfo(
+      callId: callId,
+      userId: userId,
+      userName: callerName,
+      isOutgoing: isOutgoing,
+      state: state,
+      rawState: stateType,
+      discardReason: discardReason,
+      emojis: emojis,
+    );
+
+    _ui.send({
+      'type': 'callUpdate',
+      'call': callInfo,
+    });
+
+    if (!isOutgoing && (state == TgCallState.pending || state == TgCallState.ringing)) {
+      _ui.send({
+        'type': 'incomingCall',
+        'call': callInfo,
+      });
     }
   }
 
@@ -834,6 +970,11 @@ class _Store {
     final lastReadOutboxId = (st.chat['last_read_outbox_message_id'] as num?)?.toInt() ?? 0;
     final lastMsgId = last != null ? (last['id'] as num?)?.toInt() ?? 0 : 0;
     final isOutgoingRead = fromMe && (lastMsgId > 0 && lastMsgId <= lastReadOutboxId);
+    final chatType = st.chat['type'] as Map<String, dynamic>?;
+    int? userId;
+    if (chatType?['@type'] == 'chatTypePrivate') {
+      userId = chatType?['user_id'] as int?;
+    }
 
     return TgChat(
       id: st.chat['id'].toString(),
@@ -845,6 +986,7 @@ class _Store {
       preview: preview,
       time: time,
       headerSubtitle: 'last seen recently',
+      userId: userId,
       verified: st.chat['is_verified'] as bool? ?? false,
       unread: st.unread,
       unreadOwn: fromMe,

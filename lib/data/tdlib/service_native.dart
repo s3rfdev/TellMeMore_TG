@@ -169,6 +169,27 @@ class TdlibService {
         final body = msg['body'] as String? ?? '';
         final chatId = msg['chatId'] as String?;
         DesktopNotificationService.show(title: title, body: body, chatId: chatId);
+      case 'callUpdate':
+        final call = msg['call'] as TgCallInfo?;
+        if (call != null) {
+          AppState.activeCall.value = call;
+          if (call.state == TgCallState.discarded) {
+            Future.delayed(const Duration(milliseconds: 1600), () {
+              if (AppState.activeCall.value?.callId == call.callId) {
+                AppState.activeCall.value = null;
+              }
+            });
+          }
+        }
+      case 'incomingCall':
+        final call = msg['call'] as TgCallInfo?;
+        if (call != null) {
+          AppState.incomingCall.value = call;
+          DesktopNotificationService.show(
+            title: 'Входящий звонок',
+            body: '${call.userName} звонит вам',
+          );
+        }
     }
   }
 
@@ -357,6 +378,30 @@ class TdlibService {
       'type': 'deleteChat',
       'chatId': chatId,
     });
+  }
+
+  /// Начать аудиозвонок пользователю
+  void createCall(int userId) {
+    _sendCmd({'type': 'createCall', 'userId': userId});
+  }
+
+  /// Завершить / отклонить аудиозвонок
+  void discardCall(int callId, {int duration = 0}) {
+    _sendCmd({'type': 'discardCall', 'callId': callId, 'duration': duration});
+    if (AppState.activeCall.value?.callId == callId) {
+      AppState.activeCall.value = null;
+    }
+    if (AppState.incomingCall.value?.callId == callId) {
+      AppState.incomingCall.value = null;
+    }
+  }
+
+  /// Принять входящий звонок
+  void acceptCall(int callId) {
+    _sendCmd({'type': 'acceptCall', 'callId': callId});
+    if (AppState.incomingCall.value?.callId == callId) {
+      AppState.incomingCall.value = null;
+    }
   }
 
   ValueNotifier<TgChatHistory> _store(String chatId) =>

@@ -105,6 +105,7 @@ class TgChat {
     required this.preview,
     required this.time,
     required this.headerSubtitle,
+    this.userId,
     this.verified = false,
     this.muted = false,
     this.unread = 0,
@@ -126,6 +127,7 @@ class TgChat {
   final String preview;
   final String time;
   final String headerSubtitle;
+  final int? userId;
   final bool verified;
   final bool muted;
   final int unread;
@@ -134,4 +136,61 @@ class TgChat {
   final bool outgoingRead;
   final List<TgReaction> reactions;
   final List<TgMessage> messages;
+}
+
+enum TgCallState {
+  pending,
+  ringing,
+  exchangingKeys,
+  ready,
+  hangingUp,
+  discarded,
+}
+
+class TgCallInfo {
+  const TgCallInfo({
+    required this.callId,
+    required this.userId,
+    required this.userName,
+    required this.isOutgoing,
+    required this.state,
+    this.rawState = '',
+    this.discardReason = '',
+    this.emojis = const [],
+    this.duration = 0,
+  });
+
+  final int callId;
+  final int userId;
+  final String userName;
+  final bool isOutgoing;
+  final TgCallState state;
+  final String rawState;
+  final String discardReason;
+  final List<String> emojis;
+  final int duration;
+
+  TgCallInfo copyWith({
+    int? callId,
+    int? userId,
+    String? userName,
+    bool? isOutgoing,
+    TgCallState? state,
+    String? rawState,
+    String? discardReason,
+    List<String>? emojis,
+    int? duration,
+  }) {
+    return TgCallInfo(
+      callId: callId ?? this.callId,
+      userId: userId ?? this.userId,
+      userName: userName ?? this.userName,
+      isOutgoing: isOutgoing ?? this.isOutgoing,
+      state: state ?? this.state,
+      rawState: rawState ?? this.rawState,
+      discardReason: discardReason ?? this.discardReason,
+      emojis: emojis ?? this.emojis,
+      duration: duration ?? this.duration,
+    );
+  }
 }

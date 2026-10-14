@@ -5,19 +5,22 @@ import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_avatar.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
+import '../../../data/tdlib/tdlib_service.dart';
+import '../../../state/app_state.dart';
 
-/// Аутентичное окно аудиозвонка в стиле Telegram Desktop.
+/// Аутентичное окно аудиозвонка в стиле Telegram Desktop с поддержкой сигнализации TDLib.
 class CallDialog extends StatefulWidget {
-  const CallDialog({super.key, required this.chat});
+  const CallDialog({super.key, required this.chat, this.initialCall});
 
   final TgChat chat;
+  final TgCallInfo? initialCall;
 
-  static void show(BuildContext context, TgChat chat) {
+  static void show(BuildContext context, TgChat chat, {TgCallInfo? initialCall}) {
     showDialog(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withValues(alpha: 0.65),
-      builder: (_) => CallDialog(chat: chat),
+      builder: (_) => CallDialog(chat: chat, initialCall: initialCall),
     );
   }
 
@@ -27,13 +30,14 @@ class CallDialog extends StatefulWidget {
 
 class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
-  Timer? _statusTimer;
   Timer? _durationTimer;
+  Timer? _autoCloseTimer;
   int _seconds = 0;
   String _status = 'Соединение…';
   bool _connected = false;
   bool _muted = false;
   bool _speaker = true;
+  List<String> _emojis = [];
 
   @override
   void initState() {
@@ -43,39 +47,82 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
 
-    // Имитация этапов установления соединения
-    _statusTimer = Timer(const Duration(milliseconds: 1800), () {
-      if (!mounted) return;
-      setState(() => _status = 'Идет вызов…');
-      _statusTimer = Timer(const Duration(milliseconds: 2200), () {
-        if (!mounted) return;
-        setState(() {
-          _status = '00:00';
+    AppState.activeCall.addListener(_onCallUpdate);
+    final current = widget.initialCall ?? AppState.activeCall.value;
+    if (current != null) {
+      _updateFromCallInfo(current);
+    } else {
+      final targetUserId = widget.chat.userId ?? int.tryParse(widget.chat.id) ?? 0;
+      if (targetUserId > 0) {
+        TdlibService.instance.createCall(targetUserId);
+      }
+    }
+  }
+
+  void _onCallUpdate() {
+    final call = AppState.activeCall.value;
+    if (!mounted || call == null) return;
+    setState(() => _updateFromCallInfo(call));
+  }
+
+  void _updateFromCallInfo(TgCallInfo call) {
+    _emojis = call.emojis;
+    switch (call.state) {
+      case TgCallState.pending:
+        _status = 'Соединение…';
+        _connected = false;
+      case TgCallState.ringing:
+        _status = 'Идет вызов…';
+        _connected = false;
+      case TgCallState.exchangingKeys:
+        _status = 'Обмен ключами шифрования…';
+        _connected = false;
+      case TgCallState.ready:
+        if (!_connected) {
           _connected = true;
+          _status = '00:00';
+          _startDurationTimer();
+        }
+      case TgCallState.hangingUp:
+        _status = 'Завершение…';
+      case TgCallState.discarded:
+        _status = call.discardReason.isNotEmpty ? call.discardReason : 'Вызов завершен';
+        _durationTimer?.cancel();
+        _autoCloseTimer?.cancel();
+        _autoCloseTimer = Timer(const Duration(milliseconds: 1500), () {
+          if (mounted) Navigator.of(context, rootNavigator: true).maybePop();
         });
-        _durationTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-          if (!mounted) return;
-          setState(() {
-            _seconds++;
-            final m = (_seconds ~/ 60).toString().padLeft(2, '0');
-            final s = (_seconds % 60).toString().padLeft(2, '0');
-            _status = '$m:$s';
-          });
-        });
+    }
+  }
+
+  void _startDurationTimer() {
+    _durationTimer?.cancel();
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        _seconds++;
+        final m = (_seconds ~/ 60).toString().padLeft(2, '0');
+        final s = (_seconds % 60).toString().padLeft(2, '0');
+        _status = '$m:$s';
       });
     });
   }
 
   @override
   void dispose() {
+    AppState.activeCall.removeListener(_onCallUpdate);
     _pulseController.dispose();
-    _statusTimer?.cancel();
     _durationTimer?.cancel();
+    _autoCloseTimer?.cancel();
     super.dispose();
   }
 
   void _endCall() {
-    Navigator.of(context).pop();
+    final call = AppState.activeCall.value;
+    if (call != null) {
+      TdlibService.instance.discardCall(call.callId, duration: _seconds);
+    }
+    if (mounted) Navigator.of(context, rootNavigator: true).maybePop();
     final dur = _seconds > 0 ? _status : 'Звонок отменён';
     TgToast.show(
       context,
@@ -91,8 +138,8 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Container(
-        width: 320,
-        height: 430,
+        width: 330,
+        height: 460,
         decoration: BoxDecoration(
           color: const Color(0xFF1B232E),
           borderRadius: BorderRadius.circular(24),
@@ -133,11 +180,20 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                       ),
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textDim),
-                    onPressed: _endCall,
-                    splashRadius: 16,
-                  ),
+                  if (_emojis.isNotEmpty)
+                    Tooltip(
+                      message: 'Ключ шифрования совпадает',
+                      child: Text(
+                        _emojis.join(' '),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    )
+                  else
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textDim),
+                      onPressed: _endCall,
+                      splashRadius: 16,
+                    ),
                 ],
               ),
             ),
@@ -195,10 +251,34 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                 fontWeight: _connected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
+            const SizedBox(height: 8),
+            // Информационный бейдж о сигнализации
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.cell_tower_rounded, size: 13, color: Tg.textFaint),
+                  SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Сигнализация TDLib активна (звонок на устройство)',
+                      style: TextStyle(fontSize: 10.5, color: Tg.textFaint),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const Spacer(),
             // Кнопки управления звонком
             Padding(
-              padding: const EdgeInsets.only(bottom: 28),
+              padding: const EdgeInsets.only(bottom: 26),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [

@@ -47,6 +47,9 @@ class TdlibService {
   void deleteMessages(int chatId, List<int> messageIds, {bool revoke = true}) {}
   void clearHistory(int chatId, {bool revoke = true}) {}
   void deleteChat(int chatId) {}
+  void createCall(int userId) {}
+  void discardCall(int callId, {int duration = 0}) {}
+  void acceptCall(int callId) {}
 
   Future<void> shutdown() async {}
 
