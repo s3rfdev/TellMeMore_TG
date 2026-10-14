@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_avatar.dart';
 import '../../../core/widgets/tg_toast.dart';
+import '../../../data/models/tg_account.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../data/tdlib/tdlib_service.dart';
 import '../../../state/app_state.dart';
+import '../../profile/profile_dialog.dart';
+import '../../settings/settings_dialog.dart';
 
 /// Главное меню Telegram Desktop (выдвигается по кнопке ≡).
 class MainDrawer extends StatelessWidget {
@@ -33,7 +36,7 @@ class MainDrawer extends StatelessWidget {
                   title: 'Мой профиль',
                   onTap: () {
                     onClose();
-                    _showProfileDialog(context);
+                    ProfileDialog.show(context);
                   },
                 ),
                 _menuItem(
@@ -89,7 +92,7 @@ class MainDrawer extends StatelessWidget {
                   title: 'Настройки',
                   onTap: () {
                     onClose();
-                    _showSettingsDialog(context);
+                    SettingsDialog.show(context);
                   },
                 ),
                 const Divider(height: 12, color: Tg.hairline),
@@ -114,51 +117,90 @@ class MainDrawer extends StatelessWidget {
   }
 
   Widget _userHeader(BuildContext context) {
-    return ValueListenableBuilder<TgUser?>(
-      valueListenable: TdlibService.instance.currentUser,
-      builder: (context, user, _) {
-        final name = user?.fullName.isNotEmpty == true ? user!.fullName : 'Мой аккаунт';
-        final phone = user?.phoneNumber.isNotEmpty == true ? user!.phoneNumber : 'Telegram подключен';
-        final initial = user?.avatarEmoji ?? '👤';
-        final color = user?.avatarColor ?? 0xFF766AC8;
-
-        return Container(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-          color: Tg.sidebar,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TgAvatar(
-                    emoji: initial,
-                    color: Color(color),
-                    size: 48,
-                    fontSize: 20,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20, color: Tg.textDim),
-                    onPressed: onClose,
-                    splashRadius: 18,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Tg.text,
+    return ValueListenableBuilder<TgAccount>(
+      valueListenable: AccountManager.instance.currentAccount,
+      builder: (context, acc, _) {
+        return InkWell(
+          onTap: () {
+            onClose();
+            ProfileDialog.show(context);
+          },
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+            color: Tg.sidebar,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Stack(
+                      children: [
+                        TgAvatar(
+                          emoji: acc.avatarEmoji,
+                          color: acc.avatarColor,
+                          imagePath: acc.avatarPath,
+                          size: 48,
+                          fontSize: 20,
+                        ),
+                        if (acc.isOnline)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4BD964),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Tg.sidebar, width: 2),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20, color: Tg.textDim),
+                      onPressed: onClose,
+                      splashRadius: 18,
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                phone,
-                style: const TextStyle(fontSize: 13, color: Tg.textDim),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            acc.name,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Tg.text,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            acc.phone,
+                            style: const TextStyle(fontSize: 13, color: Tg.textDim),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Tg.textDim),
+                      onPressed: () {
+                        onClose();
+                        SettingsDialog.show(context);
+                      },
+                      splashRadius: 18,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -207,180 +249,6 @@ class MainDrawer extends StatelessWidget {
     );
   }
 
-  void _showProfileDialog(BuildContext context) {
-    final user = TdlibService.instance.currentUser.value;
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF212126),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: Color(0xFF2E2E34), width: 1),
-        ),
-        child: Container(
-          width: 360,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Мой профиль',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: Tg.textDim),
-                    onPressed: () => Navigator.pop(ctx),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Center(
-                child: TgAvatar(
-                  emoji: user?.avatarEmoji ?? '👤',
-                  color: Color(user?.avatarColor ?? 0xFF766AC8),
-                  size: 64,
-                  fontSize: 26,
-                ),
-              ),
-              const SizedBox(height: 18),
-              _infoRow('Имя', user?.fullName ?? 'Пользователь'),
-              _infoRow('Телефон', user?.phoneNumber ?? 'Не указан'),
-              _infoRow('Username', user?.username.isNotEmpty == true ? '@${user!.username}' : '—'),
-              _infoRow('Telegram ID', user?.id.toString() ?? '—'),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8774E1),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                  ),
-                  child: const Text('Закрыть', style: TextStyle(fontSize: 13.5)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showSettingsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF212126),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: Color(0xFF2E2E34), width: 1),
-        ),
-        child: Container(
-          width: 420,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Настройки TG Answer',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: Tg.textDim),
-                    onPressed: () => Navigator.pop(ctx),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Статус сессии:',
-                style: TextStyle(fontSize: 12, color: Tg.textDim),
-              ),
-              const SizedBox(height: 4),
-              const Row(
-                children: [
-                  Icon(Icons.check_circle_rounded, color: Tg.accent, size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'Подключено (TDLib SQLite session активна)',
-                    style: TextStyle(fontSize: 13.5, color: Tg.accent, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Путь базы данных:',
-                style: TextStyle(fontSize: 12, color: Tg.textDim),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF18181B),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '~/.local/share/tg_answer/tdlib/db',
-                  style: TextStyle(fontSize: 12, color: Tg.text.withValues(alpha: 0.85), fontFamily: 'monospace'),
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Адаптивный интерфейс:',
-                style: TextStyle(fontSize: 12, color: Tg.textDim),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Ресайз колонок мышь/drag, компактный шрифт 14.5px, лайтбокс фото, кликабельные @mentions.',
-                style: TextStyle(fontSize: 13, color: Tg.text),
-              ),
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8774E1),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                  ),
-                  child: const Text('Готово', style: TextStyle(fontSize: 13.5)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   void _showNewChatDialog(BuildContext context, {required bool isGroup}) {
     final titleController = TextEditingController();
@@ -564,24 +432,6 @@ class MainDrawer extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(label, style: const TextStyle(fontSize: 13, color: Tg.textDim)),
-          ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 13, color: Tg.text, fontWeight: FontWeight.w500)),
-          ),
-        ],
       ),
     );
   }

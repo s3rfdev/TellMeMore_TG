@@ -3,8 +3,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/tg_theme.dart';
-import '../../core/widgets/circle_icon_button.dart';
+import '../../core/widgets/tg_avatar.dart';
 import '../../data/mock_data.dart';
+import '../../data/models/tg_account.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../state/app_state.dart';
 import '../contacts/contacts_list_view.dart';
@@ -101,11 +102,45 @@ class _ChatListScreenState extends State<ChatListScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         children: [
-          CircleIconButton(
-            icon: Icons.menu_rounded,
-            iconSize: 20,
-            color: Tg.textDim,
-            onTap: () => AppState.drawerOpen.value = true,
+          ValueListenableBuilder<TgAccount>(
+            valueListenable: AccountManager.instance.currentAccount,
+            builder: (context, acc, _) {
+              return Tooltip(
+                message: '${acc.name} — Меню и Профиль',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => AppState.drawerOpen.value = true,
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Stack(
+                      children: [
+                        TgAvatar(
+                          emoji: acc.avatarEmoji,
+                          color: acc.avatarColor,
+                          imagePath: acc.avatarPath,
+                          size: 32,
+                          fontSize: 13,
+                        ),
+                        if (acc.isOnline)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 9,
+                              height: 9,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4BD964),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Tg.sidebar, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(width: 8),
           Expanded(child: _searchField()),
@@ -212,13 +247,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
         AppState.demoMode,
         TdlibService.instance.chats,
         TdlibService.instance.searchResults,
+        AccountManager.instance.currentAccount,
       ]),
       builder: (context, _) {
+        final currentAcc = AccountManager.instance.currentAccount.value;
         final realChats = TdlibService.instance.chats.value;
         final searchChats = TdlibService.instance.searchResults.value;
+        final isNatalie = currentAcc.id == 'natalie';
         final useReal =
-            !kIsWeb && !AppState.demoMode.value && realChats.isNotEmpty;
-        final source = useReal ? realChats : mockChats;
+            !kIsWeb && !AppState.demoMode.value && realChats.isNotEmpty && isNatalie;
+        final source = useReal ? realChats : AccountManager.instance.getChats(currentAcc.id);
         final q = _query.trim().toLowerCase();
         final List<TgChat> chats;
         if (q.isNotEmpty && searchChats.isNotEmpty) {
@@ -245,6 +283,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               chat: chat,
               selected: chat.id == AppState.selectedChatId.value,
               onTap: () {
+                AccountManager.instance.setSelectedChat(currentAcc.id, chat.id);
                 AppState.selectedChatId.value = chat.id;
                 widget.onChatOpened?.call();
               },
@@ -323,47 +362,55 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   Widget _chatsTabButton({required bool active}) {
-    return Tooltip(
-      message: 'Чаты',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => AppState.activeSidebarTab.value = SidebarTab.chats,
-        child: SizedBox(
-          width: 44,
-          height: 38,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Center(
-                child: Icon(
-                  active ? Icons.chat_bubble : Icons.chat_bubble_outline,
-                  size: 20,
-                  color: active ? Tg.accent : Tg.textFaint,
-                ),
-              ),
-              Positioned(
-                right: 2,
-                top: 2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: Tg.accent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    '33',
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+    return ValueListenableBuilder<TgAccount>(
+      valueListenable: AccountManager.instance.currentAccount,
+      builder: (context, currentAcc, _) {
+        final badgeCount = currentAcc.unreadBadge;
+        final badgeText = badgeCount > 999 ? '999+' : badgeCount.toString();
+        return Tooltip(
+          message: 'Чаты',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => AppState.activeSidebarTab.value = SidebarTab.chats,
+            child: SizedBox(
+              width: 44,
+              height: 38,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Center(
+                    child: Icon(
+                      active ? Icons.chat_bubble : Icons.chat_bubble_outline,
+                      size: 20,
+                      color: active ? Tg.accent : Tg.textFaint,
                     ),
                   ),
-                ),
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: 2,
+                      top: 2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Tg.accent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: const TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

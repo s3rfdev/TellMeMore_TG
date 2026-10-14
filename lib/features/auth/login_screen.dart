@@ -90,19 +90,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Логотип
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF8774E1), Color(0xFF6B58C9)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.asset(
+                          'assets/images/tg_icon.png',
+                          width: 76,
+                          height: 76,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 76,
+                            height: 76,
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFF8774E1), Color(0xFF6B58C9)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.send_rounded, size: 36, color: Colors.white),
                           ),
-                          shape: BoxShape.circle,
                         ),
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.send_rounded, size: 36, color: Colors.white),
                       ),
                       const SizedBox(height: 18),
                       const Text(

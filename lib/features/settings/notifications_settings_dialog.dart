@@ -1,0 +1,396 @@
+import 'package:flutter/material.dart';
+
+import '../../core/services/call_sound_service.dart';
+import '../../core/theme/tg_theme.dart';
+import '../../core/widgets/tg_toast.dart';
+
+class NotificationsSettingsDialog extends StatefulWidget {
+  const NotificationsSettingsDialog({super.key});
+
+  static void show(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (_) => const NotificationsSettingsDialog(),
+    );
+  }
+
+  @override
+  State<NotificationsSettingsDialog> createState() => _NotificationsSettingsDialogState();
+}
+
+class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialog> {
+  bool _allAccounts = true;
+  bool _privateChats = true;
+  bool _groups = true;
+  bool _channels = true;
+  bool _stories = false;
+  bool _reactions = true;
+
+  String _vibrate = 'Default';
+  final String _ringtone = 'Telegram.ogg (Default)';
+
+  bool _badgeIcon = true;
+  bool _includeMuted = false;
+  bool _countUnread = true;
+
+  bool _contactJoined = true;
+  bool _pinnedMessages = true;
+
+  bool _keepAlive = true;
+  bool _bgConnection = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Container(
+        width: 440,
+        constraints: const BoxConstraints(maxHeight: 740),
+        decoration: BoxDecoration(
+          color: Tg.sidebar,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(18),
+                  children: [
+                    _buildAllAccountsCard(),
+                    const SizedBox(height: 14),
+                    _buildChatsCard(),
+                    const SizedBox(height: 14),
+                    _buildCallsCard(context),
+                    const SizedBox(height: 14),
+                    _buildBadgeCard(),
+                    const SizedBox(height: 14),
+                    _buildEventsCard(),
+                    const SizedBox(height: 14),
+                    _buildOtherCard(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: Tg.sidebar,
+        border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Tg.textDim, size: 22),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Notifications and Sounds',
+              style: TextStyle(
+                fontSize: 16.5,
+                fontWeight: FontWeight.w600,
+                color: Tg.text,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, color: Tg.textDim, size: 22),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCard({String? header, required Widget child}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (header != null) ...[
+          Padding(
+            padding: const EdgeInsets.only(left: 6, bottom: 6),
+            child: Text(
+              header,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF55A5EB)),
+            ),
+          ),
+        ],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1F2B38),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: child,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAllAccountsCard() {
+    return _buildCard(
+      header: 'Show notifications from',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SwitchListTile(
+            value: _allAccounts,
+            activeThumbColor: const Color(0xFF55A5EB),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('All Accounts', style: TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500)),
+            onChanged: (v) => setState(() => _allAccounts = v),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Turn this off if you want to receive notifications only from the account you are currently using.',
+              style: TextStyle(fontSize: 11.5, color: Tg.textDim),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatsCard() {
+    return _buildCard(
+      header: 'Notifications for chats',
+      child: Column(
+        children: [
+          _switchRow(
+            icon: Icons.person_outline_rounded,
+            title: 'Private Chats',
+            subtitle: 'Tap to change',
+            value: _privateChats,
+            onChanged: (v) => setState(() => _privateChats = v),
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          _switchRow(
+            icon: Icons.group_outlined,
+            title: 'Groups',
+            subtitle: 'Tap to change',
+            value: _groups,
+            onChanged: (v) => setState(() => _groups = v),
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          _switchRow(
+            icon: Icons.campaign_outlined,
+            title: 'Channels',
+            subtitle: 'Tap to change',
+            value: _channels,
+            onChanged: (v) => setState(() => _channels = v),
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          _switchRow(
+            icon: Icons.play_circle_outline_rounded,
+            title: 'Stories',
+            subtitle: 'Off, 1 automatic exception',
+            value: _stories,
+            onChanged: (v) => setState(() => _stories = v),
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          _switchRow(
+            icon: Icons.favorite_border_rounded,
+            title: 'Reactions',
+            subtitle: 'Messages, Stories',
+            value: _reactions,
+            onChanged: (v) => setState(() => _reactions = v),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _switchRow({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: Tg.textDim, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: const TextStyle(fontSize: 11.5, color: Tg.textDim)),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            activeThumbColor: const Color(0xFF55A5EB),
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCallsCard(BuildContext context) {
+    return _buildCard(
+      header: 'Calls',
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () {
+              final options = ['Default', 'Strong', 'Short', 'Disabled'];
+              final idx = (options.indexOf(_vibrate) + 1) % options.length;
+              setState(() => _vibrate = options[idx]);
+              TgToast.show(context, 'Вибрация: $_vibrate');
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Vibrate', style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
+                  Text(_vibrate, style: const TextStyle(fontSize: 13, color: Color(0xFF55A5EB))),
+                ],
+              ),
+            ),
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          InkWell(
+            onTap: () {
+              CallSoundService.startIncomingRingtone();
+              TgToast.show(context, 'Проигрывание мелодии вызова…');
+              Future.delayed(const Duration(seconds: 3), () {
+                CallSoundService.stop();
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Ringtone', style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
+                  Row(
+                    children: [
+                      Text(_ringtone, style: const TextStyle(fontSize: 13, color: Color(0xFF55A5EB))),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.volume_up_rounded, size: 16, color: Color(0xFF55A5EB)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBadgeCard() {
+    return _buildCard(
+      header: 'Badge Counter',
+      child: Column(
+        children: [
+          SwitchListTile(
+            value: _badgeIcon,
+            activeThumbColor: const Color(0xFF55A5EB),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Show Badge Icon', style: TextStyle(color: Colors.white, fontSize: 14)),
+            onChanged: (v) => setState(() => _badgeIcon = v),
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          SwitchListTile(
+            value: _includeMuted,
+            activeThumbColor: const Color(0xFF55A5EB),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Include Muted Chats', style: TextStyle(color: Colors.white, fontSize: 14)),
+            onChanged: (v) => setState(() => _includeMuted = v),
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          SwitchListTile(
+            value: _countUnread,
+            activeThumbColor: const Color(0xFF55A5EB),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Count Unread Messages', style: TextStyle(color: Colors.white, fontSize: 14)),
+            onChanged: (v) => setState(() => _countUnread = v),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventsCard() {
+    return _buildCard(
+      header: 'Events',
+      child: Column(
+        children: [
+          SwitchListTile(
+            value: _contactJoined,
+            activeThumbColor: const Color(0xFF55A5EB),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Contact joined Telegram', style: TextStyle(color: Colors.white, fontSize: 14)),
+            onChanged: (v) => setState(() => _contactJoined = v),
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          SwitchListTile(
+            value: _pinnedMessages,
+            activeThumbColor: const Color(0xFF55A5EB),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Pinned Messages', style: TextStyle(color: Colors.white, fontSize: 14)),
+            onChanged: (v) => setState(() => _pinnedMessages = v),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOtherCard() {
+    return _buildCard(
+      header: 'Other',
+      child: Column(
+        children: [
+          SwitchListTile(
+            value: _keepAlive,
+            activeThumbColor: const Color(0xFF55A5EB),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Keep-Alive Service', style: TextStyle(color: Colors.white, fontSize: 14)),
+            onChanged: (v) => setState(() => _keepAlive = v),
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          SwitchListTile(
+            value: _bgConnection,
+            activeThumbColor: const Color(0xFF55A5EB),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Background Connection', style: TextStyle(color: Colors.white, fontSize: 14)),
+            onChanged: (v) => setState(() => _bgConnection = v),
+          ),
+        ],
+      ),
+    );
+  }
+}

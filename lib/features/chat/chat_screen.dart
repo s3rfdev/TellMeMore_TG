@@ -14,6 +14,7 @@ import '../../core/widgets/tg_avatar.dart';
 import '../../core/widgets/tg_toast.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../data/mock_data.dart';
+import '../../data/models/tg_account.dart';
 import '../../state/app_state.dart';
 import '../ai_copilot/widgets/contact_dossier_sheet.dart';
 import '../ai_copilot/widgets/smart_replies_bar.dart';
@@ -41,23 +42,28 @@ class _ChatScreenState extends State<ChatScreen> {
     return ListenableBuilder(
       listenable: Listenable.merge([
         AppState.selectedChatId,
+        AppState.demoMode,
         TdlibService.instance.chats,
+        AccountManager.instance.currentAccount,
       ]),
       builder: (context, _) {
         final id = AppState.selectedChatId.value;
+        final currentAcc = AccountManager.instance.currentAccount.value;
         final realChats = TdlibService.instance.chats.value;
+        final isNatalie = currentAcc.id == 'natalie';
         final useReal =
-            !kIsWeb && !AppState.demoMode.value && realChats.isNotEmpty;
+            !kIsWeb && !AppState.demoMode.value && realChats.isNotEmpty && isNatalie;
+
+        final accountChats = useReal
+            ? realChats
+            : AccountManager.instance.getChats(currentAcc.id);
 
         final TgChat chat;
-        if (useReal) {
-          final found = realChats.where((c) => c.id == id).toList();
-          chat = found.isNotEmpty ? found.first : realChats.first;
+        if (accountChats.isNotEmpty) {
+          final found = accountChats.where((c) => c.id == id).toList();
+          chat = found.isNotEmpty ? found.first : accountChats.first;
         } else {
-          chat = mockChats.firstWhere(
-            (c) => c.id == id,
-            orElse: () => mockChats.first,
-          );
+          chat = mockChats.first;
         }
 
         return Container(

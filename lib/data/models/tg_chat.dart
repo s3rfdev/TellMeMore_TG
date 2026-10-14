@@ -14,6 +14,7 @@ class TgUser {
     this.avatarEmoji = '👤',
     this.avatarColor = 0xFF766AC8,
     this.avatarPath = '',
+    this.bio = 'Ai',
   });
 
   final int id;
@@ -24,6 +25,7 @@ class TgUser {
   final String avatarEmoji;
   final int avatarColor;
   final String avatarPath;
+  final String bio;
 
   String get fullName =>
       lastName.isEmpty ? firstName : '$firstName $lastName';

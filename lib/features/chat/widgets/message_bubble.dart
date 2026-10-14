@@ -541,8 +541,8 @@ class MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Flexible(
-            child: RichText(
-              text: TextSpan(
+            child: SelectableText.rich(
+              TextSpan(
                 style: const TextStyle(
                   fontSize: 14.5,
                   height: 1.25,
@@ -550,6 +550,8 @@ class MessageBubble extends StatelessWidget {
                 ),
                 children: spans,
               ),
+              cursorColor: Tg.accent,
+              selectionColor: Tg.accent.withValues(alpha: 0.35),
             ),
           ),
           const SizedBox(width: 10),

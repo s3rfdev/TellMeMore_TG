@@ -21,16 +21,29 @@ class TgAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imagePath.isNotEmpty && File(imagePath).existsSync()) {
-      return ClipOval(
-        child: Image.file(
-          File(imagePath),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildFallback(),
-        ),
-      );
+    if (imagePath.isNotEmpty) {
+      if (imagePath.startsWith('assets/')) {
+        return ClipOval(
+          child: Image.asset(
+            imagePath,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildFallback(),
+          ),
+        );
+      }
+      if (File(imagePath).existsSync()) {
+        return ClipOval(
+          child: Image.file(
+            File(imagePath),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildFallback(),
+          ),
+        );
+      }
     }
     return _buildFallback();
   }

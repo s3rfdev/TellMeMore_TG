@@ -2,20 +2,25 @@ import 'package:flutter/foundation.dart';
 
 class AiSettings {
   AiSettings({
-    this.provider = 'OpenAI',
-    this.model = 'GPT-4o',
+    this.provider = 'Z-AI (ZIAI)',
+    this.model = 'glm-5',
     this.contextMessageCount = 30,
     this.contextCompression = true,
     this.voiceProvider = 'Deepgram Nova-2',
     this.openAiKey = '',
-    this.geminiKey = 'AIzaSy...7b41',
+    this.geminiKey = '',
+    this.zaiKey = '',
     this.anthropicKey = '',
-    this.deepgramKey = 'dg_sec_...99ff',
+    this.deepgramKey = '',
     this.ollamaUrl = 'http://localhost:11434',
     this.autoDetectVoiceLang = true,
     this.cacheTranscriptions = true,
     this.cachedAudioCount = 48,
     this.cachedAudioSizeBytes = 12400000,
+    this.autoPilotEnabled = true,
+    this.autoPilotDirectSend = true,
+    this.autoPilotReadIncoming = true,
+    this.autoPilotToneMatching = true,
   });
 
   String provider;
@@ -25,6 +30,7 @@ class AiSettings {
   String voiceProvider;
   String openAiKey;
   String geminiKey;
+  String zaiKey;
   String anthropicKey;
   String deepgramKey;
   String ollamaUrl;
@@ -32,6 +38,10 @@ class AiSettings {
   bool cacheTranscriptions;
   int cachedAudioCount;
   int cachedAudioSizeBytes;
+  bool autoPilotEnabled;
+  bool autoPilotDirectSend;
+  bool autoPilotReadIncoming;
+  bool autoPilotToneMatching;
 
   AiSettings copyWith({
     String? provider,
@@ -41,6 +51,7 @@ class AiSettings {
     String? voiceProvider,
     String? openAiKey,
     String? geminiKey,
+    String? zaiKey,
     String? anthropicKey,
     String? deepgramKey,
     String? ollamaUrl,
@@ -48,6 +59,10 @@ class AiSettings {
     bool? cacheTranscriptions,
     int? cachedAudioCount,
     int? cachedAudioSizeBytes,
+    bool? autoPilotEnabled,
+    bool? autoPilotDirectSend,
+    bool? autoPilotReadIncoming,
+    bool? autoPilotToneMatching,
   }) {
     return AiSettings(
       provider: provider ?? this.provider,
@@ -57,6 +72,7 @@ class AiSettings {
       voiceProvider: voiceProvider ?? this.voiceProvider,
       openAiKey: openAiKey ?? this.openAiKey,
       geminiKey: geminiKey ?? this.geminiKey,
+      zaiKey: zaiKey ?? this.zaiKey,
       anthropicKey: anthropicKey ?? this.anthropicKey,
       deepgramKey: deepgramKey ?? this.deepgramKey,
       ollamaUrl: ollamaUrl ?? this.ollamaUrl,
@@ -64,6 +80,10 @@ class AiSettings {
       cacheTranscriptions: cacheTranscriptions ?? this.cacheTranscriptions,
       cachedAudioCount: cachedAudioCount ?? this.cachedAudioCount,
       cachedAudioSizeBytes: cachedAudioSizeBytes ?? this.cachedAudioSizeBytes,
+      autoPilotEnabled: autoPilotEnabled ?? this.autoPilotEnabled,
+      autoPilotDirectSend: autoPilotDirectSend ?? this.autoPilotDirectSend,
+      autoPilotReadIncoming: autoPilotReadIncoming ?? this.autoPilotReadIncoming,
+      autoPilotToneMatching: autoPilotToneMatching ?? this.autoPilotToneMatching,
     );
   }
 }
