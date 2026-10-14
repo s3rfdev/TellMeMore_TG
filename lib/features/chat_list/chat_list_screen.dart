@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_locale.dart';
 import '../../core/theme/tg_theme.dart';
 import '../../core/widgets/tg_avatar.dart';
 import '../../data/mock_data.dart';
@@ -57,22 +58,27 @@ class _ChatListScreenState extends State<ChatListScreen> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: ValueListenableBuilder<SidebarTab>(
-        valueListenable: AppState.activeSidebarTab,
-        builder: (context, activeTab, _) {
-          return Column(
-            children: [
-              if (activeTab == SidebarTab.contacts)
-                Expanded(
-                  child: ContactsListView(onContactOpened: widget.onChatOpened),
-                )
-              else ...[
-                _header(),
-                _archivedRow(),
-                Expanded(child: _chatList()),
-              ],
-              _bottomBar(),
-            ],
+      child: ValueListenableBuilder<AppLanguage>(
+        valueListenable: I18n.instance.currentLanguage,
+        builder: (context, lang, child) {
+          return ValueListenableBuilder<SidebarTab>(
+            valueListenable: AppState.activeSidebarTab,
+            builder: (context, activeTab, _) {
+              return Column(
+                children: [
+                  if (activeTab == SidebarTab.contacts)
+                    Expanded(
+                      child: ContactsListView(onContactOpened: widget.onChatOpened),
+                    )
+                  else ...[
+                    _header(),
+                    _archivedRow(),
+                    Expanded(child: _chatList()),
+                  ],
+                  _bottomBar(),
+                ],
+              );
+            },
           );
         },
       ),
@@ -105,11 +111,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ValueListenableBuilder<TgAccount>(
             valueListenable: AccountManager.instance.currentAccount,
             builder: (context, acc, _) {
-              return Tooltip(
-                message: '${acc.name} — Меню и Профиль',
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => AppState.drawerOpen.value = true,
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  AppState.drawerOpen.value = true;
+                },
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
                   child: Padding(
                     padding: const EdgeInsets.all(2),
                     child: Stack(
@@ -170,12 +178,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 TdlibService.instance.searchChats(v);
               },
               style: const TextStyle(fontSize: 13, color: Tg.text),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
-                hintText: 'Поиск…',
-                hintStyle: TextStyle(fontSize: 13, color: Tg.textFaint),
+                hintText: tr('search'),
+                hintStyle: const TextStyle(fontSize: 13, color: Tg.textFaint),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 6),
+                contentPadding: const EdgeInsets.symmetric(vertical: 6),
               ),
             ),
           ),
@@ -207,16 +215,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
         ),
         child: Stack(
           children: [
-            const Center(
+            Center(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.inventory_2_outlined,
+                  const Icon(Icons.inventory_2_outlined,
                       size: 18, color: Tg.textDim),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
-                    'Archived Chats',
-                    style: TextStyle(
+                    tr('archived_chats'),
+                    style: const TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w500,
                       color: Tg.text,
@@ -253,9 +261,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
         final currentAcc = AccountManager.instance.currentAccount.value;
         final realChats = TdlibService.instance.chats.value;
         final searchChats = TdlibService.instance.searchResults.value;
-        final isNatalie = currentAcc.id == 'natalie';
+        final isPrimary = currentAcc.id == 'sergei';
         final useReal =
-            !kIsWeb && !AppState.demoMode.value && realChats.isNotEmpty && isNatalie;
+            !kIsWeb && !AppState.demoMode.value && realChats.isNotEmpty && isPrimary;
         final source = useReal ? realChats : AccountManager.instance.getChats(currentAcc.id);
         final q = _query.trim().toLowerCase();
         final List<TgChat> chats;
@@ -311,7 +319,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 active: activeTab == SidebarTab.contacts,
                 icon: Icons.people_alt_outlined,
                 activeIcon: Icons.people_alt_rounded,
-                tooltip: 'Контакты',
+                tooltip: tr('contacts'),
               ),
               _chatsTabButton(active: activeTab == SidebarTab.chats),
               _bottomTabButton(
@@ -319,7 +327,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 active: activeTab == SidebarTab.copilot,
                 icon: Icons.auto_awesome_outlined,
                 activeIcon: Icons.auto_awesome,
-                tooltip: 'AI Copilot',
+                tooltip: tr('copilot'),
                 activeColor: const Color(0xFF8774E1),
               ),
               _bottomTabButton(
@@ -327,7 +335,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 active: activeTab == SidebarTab.settings,
                 icon: Icons.settings_outlined,
                 activeIcon: Icons.settings_rounded,
-                tooltip: 'Настройки',
+                tooltip: tr('settings'),
               ),
             ],
           );
@@ -368,7 +376,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         final badgeCount = currentAcc.unreadBadge;
         final badgeText = badgeCount > 999 ? '999+' : badgeCount.toString();
         return Tooltip(
-          message: 'Чаты',
+          message: tr('chats'),
           child: InkWell(
             borderRadius: BorderRadius.circular(20),
             onTap: () => AppState.activeSidebarTab.value = SidebarTab.chats,

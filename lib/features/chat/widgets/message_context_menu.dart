@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
@@ -231,35 +232,35 @@ class _ContextMenuDialog extends StatelessWidget {
                 children: [
                   _menuItem(
                     icon: Icons.reply_rounded,
-                    label: 'Ответить',
+                    label: tr('reply'),
                     onTap: () => _onReply(context),
                   ),
                   _menuItem(
                     icon: Icons.shortcut_rounded,
-                    label: 'Переслать',
+                    label: tr('forward'),
                     onTap: () => _onForward(context),
                   ),
                   if (message.text.isNotEmpty)
                     _menuItem(
                       icon: Icons.copy_rounded,
-                      label: 'Копировать текст',
+                      label: tr('copy_text'),
                       onTap: () => _onCopy(context),
                     ),
                   if (_hasFile)
                     _menuItem(
                       icon: Icons.download_rounded,
-                      label: 'Сохранить в…',
+                      label: tr('save_to_downloads'),
                       onTap: () => _saveToDownloads(context),
                     ),
                   _menuItem(
                     icon: Icons.push_pin_outlined,
-                    label: 'Закрепить',
+                    label: tr('pin'),
                     onTap: () => _onPin(context),
                   ),
                   const Divider(color: Color(0xFF2C2C30), height: 7, thickness: 1),
                   _menuItem(
                     icon: Icons.delete_outline_rounded,
-                    label: 'Удалить',
+                    label: tr('delete'),
                     color: const Color(0xFFFF595A),
                     onTap: () => _onDelete(context),
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_toast.dart';
+import '../../settings/settings_dialog.dart';
 import '../models/ai_settings_model.dart';
 import '../services/ai_model_service.dart';
 
@@ -135,17 +136,34 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
           ),
         ],
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.settings_suggest_rounded, color: Color(0xFF8774E1), size: 24),
-          SizedBox(width: 12),
-          Text(
-            'Настройки AI и Системы',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Tg.text,
+          const Icon(Icons.settings_suggest_rounded, color: Color(0xFF8774E1), size: 24),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Настройки AI и Системы',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Tg.text,
+              ),
             ),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2F6FA8),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            icon: const Icon(Icons.manage_accounts_rounded, size: 17),
+            label: const Text(
+              'Профиль & Аккаунты',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+            ),
+            onPressed: () => SettingsDialog.show(context),
           ),
         ],
       ),

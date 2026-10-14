@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_locale.dart';
 import '../../core/theme/tg_theme.dart';
 import '../../core/widgets/tg_avatar.dart';
 import '../../core/widgets/tg_toast.dart';
 import '../../data/models/tg_account.dart';
+import '../../data/tdlib/tdlib_service.dart';
 import '../ai_copilot/models/ai_settings_model.dart';
+import '../auth/add_account_dialog.dart';
 
 class EditAccountDialog extends StatefulWidget {
   const EditAccountDialog({super.key});
@@ -44,16 +47,107 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
     super.dispose();
   }
 
-  void _save() {
+  void _save(TgAccount cur) {
     final fn = _nameController.text.trim();
     final ln = _lastNameController.text.trim();
     final fullName = ln.isNotEmpty ? '$fn $ln' : fn;
     AccountManager.instance.updateCurrentAccount(
-      name: fullName.isNotEmpty ? fullName : 'Natalie',
+      name: fullName.isNotEmpty ? fullName : cur.name,
       bio: _bioController.text.trim(),
     );
     Navigator.of(context).pop();
-    TgToast.show(context, '✅ Профиль успешно обновлен');
+    TgToast.show(context, '✅ ${tr('save')}');
+  }
+
+  void _showLogOutConfirm(BuildContext context, TgAccount currentAcc) {
+    final isPrimary = currentAcc.id == 'sergei';
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: 380,
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Tg.sidebar,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        isPrimary ? tr('log_out_confirm_title') : tr('delete_account_confirm_title'),
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  (isPrimary ? tr('log_out_confirm_msg') : tr('delete_account_confirm_msg'))
+                      .replaceAll('{name}', currentAcc.name)
+                      .replaceAll('{phone}', currentAcc.phone),
+                  style: const TextStyle(fontSize: 13.5, color: Tg.textDim, height: 1.4),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(
+                        tr('cancel'),
+                        style: const TextStyle(color: Tg.textDim, fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        Navigator.of(context).pop();
+                        if (isPrimary) {
+                          TdlibService.instance.logOut();
+                          TgToast.show(context, 'Сессия завершена (Log out)');
+                        } else {
+                          AccountManager.instance.removeAccount(currentAcc.id);
+                          TgToast.show(context, 'Аккаунт удален');
+                        }
+                      },
+                      child: Text(isPrimary ? tr('log_out') : tr('delete_account')),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -83,7 +177,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
               borderRadius: BorderRadius.circular(20),
               child: Column(
                 children: [
-                  _buildHeader(context),
+                  _buildHeader(context, acc),
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.all(18),
@@ -109,7 +203,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, TgAccount acc) {
     return Container(
       height: 52,
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -124,10 +218,10 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
             onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Account',
-              style: TextStyle(
+              tr('account_settings'),
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: Tg.text,
@@ -136,8 +230,8 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
           ),
           IconButton(
             icon: const Icon(Icons.check_rounded, color: Tg.accent, size: 24),
-            tooltip: 'Save',
-            onPressed: _save,
+            tooltip: tr('save'),
+            onPressed: () => _save(acc),
           ),
         ],
       ),
@@ -155,27 +249,27 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Your name', style: TextStyle(fontSize: 12, color: Color(0xFF55A5EB), fontWeight: FontWeight.w500)),
+          Text(tr('first_name'), style: const TextStyle(fontSize: 12, color: Color(0xFF55A5EB), fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
           TextField(
             controller: _nameController,
             style: const TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w500),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               isDense: true,
               border: InputBorder.none,
-              hintText: 'First name',
-              hintStyle: TextStyle(color: Tg.textDim),
+              hintText: tr('first_name'),
+              hintStyle: const TextStyle(color: Tg.textDim),
             ),
           ),
           Divider(height: 16, color: Colors.white.withValues(alpha: 0.06)),
           TextField(
             controller: _lastNameController,
             style: const TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w500),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               isDense: true,
               border: InputBorder.none,
-              hintText: 'Last name (optional)',
-              hintStyle: TextStyle(color: Tg.textDim),
+              hintText: tr('last_name'),
+              hintStyle: const TextStyle(color: Tg.textDim),
             ),
           ),
         ],
@@ -203,11 +297,11 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                   maxLength: 70,
                   buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                   style: const TextStyle(fontSize: 15, color: Colors.white),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: 'Bio',
-                    hintStyle: TextStyle(color: Tg.textDim),
+                    hintText: tr('bio'),
+                    hintStyle: const TextStyle(color: Tg.textDim),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -219,7 +313,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
             ],
           ),
           const SizedBox(height: 4),
-          const Text('A few words about you.', style: TextStyle(fontSize: 12, color: Tg.textDim)),
+          Text(tr('bio'), style: const TextStyle(fontSize: 12, color: Tg.textDim)),
         ],
       ),
     );
@@ -236,7 +330,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Your Info', style: TextStyle(fontSize: 12, color: Color(0xFF55A5EB), fontWeight: FontWeight.w500)),
+          Text(tr('profile'), style: const TextStyle(fontSize: 12, color: Color(0xFF55A5EB), fontWeight: FontWeight.w500)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -253,7 +347,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                   children: [
                     Text(acc.phone, style: const TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500)),
                     const SizedBox(height: 2),
-                    const Text('Tap to change phone number', style: TextStyle(fontSize: 11.5, color: Tg.textDim)),
+                    Text(tr('phone'), style: const TextStyle(fontSize: 11.5, color: Tg.textDim)),
                   ],
                 ),
               ),
@@ -275,7 +369,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                   children: [
                     Text(acc.username, style: const TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500)),
                     const SizedBox(height: 2),
-                    const Text('Username', style: TextStyle(fontSize: 11.5, color: Tg.textDim)),
+                    Text(tr('username'), style: const TextStyle(fontSize: 11.5, color: Tg.textDim)),
                   ],
                 ),
               ),
@@ -291,13 +385,13 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                 child: const Icon(Icons.cake_rounded, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Add Birthday', style: TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500)),
-                    SizedBox(height: 2),
-                    Text('Only your contacts can see your birthday.', style: TextStyle(fontSize: 11.5, color: Tg.textDim)),
+                    Text(tr('birthday'), style: const TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Text(tr('other'), style: const TextStyle(fontSize: 11.5, color: Tg.textDim)),
                   ],
                 ),
               ),
@@ -328,10 +422,10 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                 child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 12),
-              const Expanded(
-                child: Text('Personal channel', style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
+              Expanded(
+                child: Text(tr('personal_channel'), style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
               ),
-              const Text('Add', style: TextStyle(fontSize: 13, color: Color(0xFF55A5EB), fontWeight: FontWeight.w600)),
+              const Icon(Icons.add_rounded, color: Color(0xFF55A5EB), size: 20),
             ],
           ),
           Divider(height: 20, color: Colors.white.withValues(alpha: 0.06)),
@@ -356,7 +450,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                       children: [
                         Row(
                           children: [
-                            const Text('Chat Automation', style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
+                            Text(tr('chat_automation'), style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
@@ -366,7 +460,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                           ],
                         ),
                         const SizedBox(height: 2),
-                        const Text('Add a bot to answer messages on your behalf.', style: TextStyle(fontSize: 11.5, color: Tg.textDim)),
+                        const Text('AI Auto-Pilot & Bot replies', style: TextStyle(fontSize: 11.5, color: Tg.textDim)),
                       ],
                     ),
                   ),
@@ -402,17 +496,17 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
           InkWell(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
             onTap: () {
-              TgToast.show(context, 'Добавление нового аккаунта');
+              AddAccountDialog.show(context);
             },
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
               child: Row(
                 children: [
-                  Icon(Icons.person_add_alt_1_outlined, color: Color(0xFF55A5EB), size: 22),
-                  SizedBox(width: 14),
+                  const Icon(Icons.person_add_alt_1_outlined, color: Color(0xFF55A5EB), size: 22),
+                  const SizedBox(width: 14),
                   Text(
-                    'Add Account',
-                    style: TextStyle(fontSize: 14.5, color: Color(0xFF55A5EB), fontWeight: FontWeight.w600),
+                    tr('add_account'),
+                    style: const TextStyle(fontSize: 14.5, color: Color(0xFF55A5EB), fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -424,7 +518,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
             return InkWell(
               onTap: () {
                 AccountManager.instance.switchAccount(acc.id);
-                TgToast.show(context, 'Переключено на аккаунт: ${acc.name}');
+                TgToast.show(context, 'Активный аккаунт: ${acc.name}');
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -463,6 +557,24 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
               ),
             );
           }),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          InkWell(
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+            onTap: () => _showLogOutConfirm(context, current),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                  const SizedBox(width: 14),
+                  Text(
+                    current.id == 'sergei' ? tr('log_out') : tr('delete_account'),
+                    style: const TextStyle(fontSize: 14.5, color: Colors.redAccent, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

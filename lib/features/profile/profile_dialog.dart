@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_locale.dart';
 import '../../core/theme/tg_theme.dart';
 import '../../core/widgets/tg_avatar.dart';
 import '../../core/widgets/tg_toast.dart';
@@ -30,48 +31,53 @@ class _ProfileDialogState extends State<ProfileDialog> {
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ValueListenableBuilder<TgAccount>(
-        valueListenable: AccountManager.instance.currentAccount,
-        builder: (context, acc, _) {
-          return Container(
-            width: 440,
-            constraints: const BoxConstraints(maxHeight: 720),
-            decoration: BoxDecoration(
-              color: Tg.sidebar,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Column(
-                children: [
-                  _buildHeader(context, acc),
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                      children: [
-                        _buildAvatarSection(acc),
-                        const SizedBox(height: 18),
-                        _buildActionButtons(context),
-                        const SizedBox(height: 18),
-                        _buildInfoCard(acc),
-                        const SizedBox(height: 18),
-                        _buildPostsTabs(),
-                        const SizedBox(height: 24),
-                        _buildEmptyPostsState(),
-                      ],
+      child: ValueListenableBuilder<AppLanguage>(
+        valueListenable: I18n.instance.currentLanguage,
+        builder: (context, lang, child) {
+          return ValueListenableBuilder<TgAccount>(
+            valueListenable: AccountManager.instance.currentAccount,
+            builder: (context, acc, _) {
+              return Container(
+                width: 440,
+                constraints: const BoxConstraints(maxHeight: 720),
+                decoration: BoxDecoration(
+                  color: Tg.sidebar,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
                     ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Column(
+                    children: [
+                      _buildHeader(context, acc),
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                          children: [
+                            _buildAvatarSection(acc),
+                            const SizedBox(height: 18),
+                            _buildActionButtons(context),
+                            const SizedBox(height: 18),
+                            _buildInfoCard(acc),
+                            const SizedBox(height: 18),
+                            _buildPostsTabs(),
+                            const SizedBox(height: 24),
+                            _buildEmptyPostsState(),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -93,10 +99,10 @@ class _ProfileDialogState extends State<ProfileDialog> {
             onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Profile',
-              style: TextStyle(
+              tr('profile'),
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: Tg.text,
@@ -105,7 +111,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
           ),
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: Tg.accent, size: 20),
-            tooltip: 'Edit Profile',
+            tooltip: tr('edit_info'),
             onPressed: () => EditAccountDialog.show(context),
           ),
           IconButton(
@@ -156,7 +162,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
           ),
           const SizedBox(height: 3),
           Text(
-            acc.isOnline ? 'online' : 'last seen recently',
+            acc.isOnline ? tr('online') : tr('last_seen_recently'),
             style: TextStyle(
               fontSize: 13,
               color: acc.isOnline ? const Color(0xFF4BD964) : Tg.textDim,
@@ -173,15 +179,15 @@ class _ProfileDialogState extends State<ProfileDialog> {
         Expanded(
           child: _actionButton(
             icon: Icons.add_a_photo_outlined,
-            label: 'Set Photo',
-            onTap: () => TgToast.show(context, '📸 Смена фото профиля'),
+            label: tr('set_photo'),
+            onTap: () => TgToast.show(context, '📸 ${tr('set_photo')}'),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: _actionButton(
             icon: Icons.edit_note_rounded,
-            label: 'Edit Info',
+            label: tr('edit_info'),
             onTap: () => EditAccountDialog.show(context),
           ),
         ),
@@ -189,7 +195,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
         Expanded(
           child: _actionButton(
             icon: Icons.settings_outlined,
-            label: 'Settings',
+            label: tr('settings_title'),
             onTap: () {
               Navigator.of(context).pop();
               AppState.activeSidebarTab.value = SidebarTab.settings;
@@ -244,19 +250,19 @@ class _ProfileDialogState extends State<ProfileDialog> {
         children: [
           _infoRow(
             title: acc.phone,
-            subtitle: 'Mobile',
+            subtitle: tr('phone'),
             onTap: () => TgToast.show(context, 'Номер скопирован'),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           _infoRow(
-            title: acc.bio.isNotEmpty ? acc.bio : 'No bio',
-            subtitle: 'Bio',
+            title: acc.bio.isNotEmpty ? acc.bio : '—',
+            subtitle: tr('bio'),
             onTap: () => EditAccountDialog.show(context),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           _infoRow(
             title: acc.username,
-            subtitle: 'Username',
+            subtitle: tr('username'),
             onTap: () => TgToast.show(context, 'Юзернейм скопирован'),
           ),
         ],
@@ -315,7 +321,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  'Posts',
+                  tr('posts'),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: _activeTab == 0 ? FontWeight.w600 : FontWeight.normal,
@@ -335,7 +341,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  'Archived Posts',
+                  tr('archived_posts'),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: _activeTab == 1 ? FontWeight.w600 : FontWeight.normal,
@@ -354,19 +360,21 @@ class _ProfileDialogState extends State<ProfileDialog> {
     return Column(
       children: [
         const SizedBox(height: 14),
-        const Text(
-          'No posts yet...',
-          style: TextStyle(
+        Text(
+          tr('no_posts_yet'),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Publish photos and videos to display on your profile page',
+        Text(
+          I18n.instance.isRu
+              ? 'Публикуйте фотографии и видео для вашей страницы'
+              : 'Publish photos and videos to display on your profile page',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: Tg.textDim),
+          style: const TextStyle(fontSize: 13, color: Tg.textDim),
         ),
         const SizedBox(height: 18),
         ElevatedButton.icon(
@@ -378,7 +386,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           ),
           icon: const Icon(Icons.add_a_photo_rounded, size: 18),
-          label: const Text('Add a post'),
+          label: Text(tr('add_post')),
         ),
       ],
     );

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+import '../../core/localization/app_locale.dart';
 import '../../core/theme/tg_theme.dart';
 import '../../core/widgets/circle_icon_button.dart';
 import '../../core/widgets/tg_avatar.dart';
@@ -50,9 +51,9 @@ class _ChatScreenState extends State<ChatScreen> {
         final id = AppState.selectedChatId.value;
         final currentAcc = AccountManager.instance.currentAccount.value;
         final realChats = TdlibService.instance.chats.value;
-        final isNatalie = currentAcc.id == 'natalie';
+        final isPrimary = currentAcc.id == 'sergei';
         final useReal =
-            !kIsWeb && !AppState.demoMode.value && realChats.isNotEmpty && isNatalie;
+            !kIsWeb && !AppState.demoMode.value && realChats.isNotEmpty && isPrimary;
 
         final accountChats = useReal
             ? realChats
@@ -1238,7 +1239,9 @@ class _InputBarState extends State<_InputBar> {
                     cursorWidth: 1.5,
                     decoration: InputDecoration(
                       isDense: true,
-                      hintText: _stagedFiles.isNotEmpty ? 'Добавьте подпись…' : 'Сообщение…',
+                      hintText: _stagedFiles.isNotEmpty
+                          ? (I18n.instance.isRu ? 'Добавьте подпись…' : 'Add a caption…')
+                          : tr('write_message'),
                       hintStyle: const TextStyle(fontSize: 14.5, color: Tg.textFaint),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 12),

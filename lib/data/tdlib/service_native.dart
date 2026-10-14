@@ -7,6 +7,7 @@ import '../../core/services/call_sound_service.dart';
 import '../../core/services/desktop_notification_service.dart';
 import '../../core/utils/session_paths.dart';
 import '../../state/app_state.dart';
+import '../models/tg_account.dart';
 import '../models/tg_chat.dart';
 import 'auth_phase.dart';
 import 'td_content.dart';
@@ -127,7 +128,7 @@ class TdlibService {
         final u = msg['user'] as Map<String, dynamic>;
         final fn = u['first_name'] as String? ?? '';
         final ln = u['last_name'] as String? ?? '';
-        currentUser.value = TgUser(
+        final user = TgUser(
           id: u['id'] as int,
           firstName: fn,
           lastName: ln,
@@ -136,6 +137,8 @@ class TdlibService {
           avatarEmoji: TdContent.initials('$fn $ln'.trim().isEmpty ? 'User' : '$fn $ln'.trim()),
           avatarColor: TdContent.colorFor('$fn $ln'.trim().isEmpty ? 'User' : '$fn $ln'.trim()),
         );
+        currentUser.value = user;
+        AccountManager.instance.syncAuthorizedUser(user);
       case 'searchResults':
         final ids = (msg['chatIds'] as List).cast<int>().toSet();
         final all = chats.value;
@@ -346,6 +349,14 @@ class TdlibService {
     _sendCmd({'type': 'close'});
     await _closedCompleter.future
         .timeout(const Duration(seconds: 4), onTimeout: () {});
+  }
+
+  void logOut() {
+    _sendCmd({'type': 'logOut'});
+    chats.value = [];
+    currentUser.value = null;
+    phase.value = AuthPhase.waitPhone;
+    AppState.demoMode.value = true;
   }
 
   /// Хранилище истории чата: чистый getter, не отправляющий команд во избежание бесконечных циклов.

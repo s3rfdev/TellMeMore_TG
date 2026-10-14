@@ -52,6 +52,7 @@ class TdlibService {
   void acceptCall(int callId) {}
 
   Future<void> shutdown() async {}
+  void logOut() {}
 
   ValueNotifier<TgChatHistory> messagesOf(String chatId) =>
       ValueNotifier<TgChatHistory>(const TgChatHistory());

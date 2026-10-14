@@ -168,6 +168,8 @@ class _Store {
       case 'close':
         // корректное закрытие: TDLib сбрасывает binlog с сессией на диск
         _send({'@type': 'close'});
+      case 'logOut':
+        _send({'@type': 'logOut'});
       case 'getMe':
         _send({'@type': 'getMe'});
       case 'send':

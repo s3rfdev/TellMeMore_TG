@@ -65,22 +65,22 @@ class AccountManager {
   static final AccountManager instance = AccountManager._();
 
   final Map<String, String> _selectedChatPerAccount = {
-    'natalie': 'taras',
     'sergei': 'amos-core',
+    'natalie': 'taras',
     'caban': 'caban-marketing',
   };
 
   final ValueNotifier<List<TgAccount>> accounts = ValueNotifier<List<TgAccount>>([]);
   final ValueNotifier<TgAccount> currentAccount = ValueNotifier<TgAccount>(
     const TgAccount(
-      id: 'natalie',
-      name: 'Natalie',
-      phone: '+63 966 770 4095',
-      username: '@natashadetka',
-      bio: 'Ai',
-      avatarPath: 'assets/images/natalie_avatar.png',
-      avatarEmoji: 'N',
-      avatarColor: Color(0xFF8774E1),
+      id: 'sergei',
+      name: 'Сергей',
+      phone: '+7 928 296 50 54',
+      username: '@sergei_amos',
+      bio: 'Developer & Team Lead | AMOS',
+      avatarPath: 'assets/images/sergei_avatar.png',
+      avatarEmoji: 'S',
+      avatarColor: Color(0xFF2F6FA8),
       unreadBadge: 0,
       isOnline: true,
     ),
@@ -88,6 +88,18 @@ class AccountManager {
 
   void _initDefaults() {
     accounts.value = [
+      const TgAccount(
+        id: 'sergei',
+        name: 'Сергей',
+        phone: '+7 928 296 50 54',
+        username: '@sergei_amos',
+        bio: 'Developer & Team Lead | AMOS',
+        avatarPath: 'assets/images/sergei_avatar.png',
+        avatarEmoji: 'S',
+        avatarColor: Color(0xFF2F6FA8),
+        unreadBadge: 0,
+        isOnline: true,
+      ),
       const TgAccount(
         id: 'natalie',
         name: 'Natalie',
@@ -99,18 +111,6 @@ class AccountManager {
         avatarColor: Color(0xFF8774E1),
         unreadBadge: 0,
         isOnline: true,
-      ),
-      const TgAccount(
-        id: 'sergei',
-        name: 'Sergei',
-        phone: '+7 999 123 4567',
-        username: '@sergei_amos',
-        bio: 'Developer & Team Lead',
-        avatarPath: 'assets/images/sergei_avatar.png',
-        avatarEmoji: 'S',
-        avatarColor: Color(0xFF2F6FA8),
-        unreadBadge: 31,
-        isOnline: false,
       ),
       const TgAccount(
         id: 'caban',
@@ -153,6 +153,30 @@ class AccountManager {
     return mockContacts;
   }
 
+  void syncAuthorizedUser(TgUser user) {
+    final cur = accounts.value.firstWhere(
+      (a) => a.id == 'sergei',
+      orElse: () => accounts.value.first,
+    );
+    final fullName = user.fullName.trim();
+    final name = fullName.isNotEmpty ? fullName : cur.name;
+    final rawPhone = user.phoneNumber.trim();
+    final phone = rawPhone.isNotEmpty
+        ? (rawPhone.startsWith('+') ? rawPhone : '+$rawPhone')
+        : cur.phone;
+    final username = user.username.isNotEmpty ? '@${user.username}' : cur.username;
+    final updated = cur.copyWith(
+      name: name,
+      phone: phone,
+      username: username,
+      isOnline: true,
+    );
+    accounts.value = accounts.value.map((a) => a.id == updated.id ? updated : a).toList();
+    if (currentAccount.value.id == updated.id) {
+      currentAccount.value = updated;
+    }
+  }
+
   void switchAccount(String id) {
     final target = accounts.value.firstWhere(
       (a) => a.id == id,
@@ -185,6 +209,16 @@ class AccountManager {
     accounts.value = [...accounts.value, newAcc];
     currentAccount.value = newAcc;
     AppState.selectedChatId.value = getSelectedChat(newAcc.id);
+  }
+
+  void removeAccount(String id) {
+    final list = accounts.value.where((a) => a.id != id).toList();
+    if (list.isEmpty) return;
+    accounts.value = list;
+    if (currentAccount.value.id == id) {
+      currentAccount.value = list.first;
+      AppState.selectedChatId.value = getSelectedChat(list.first.id);
+    }
   }
 }
 

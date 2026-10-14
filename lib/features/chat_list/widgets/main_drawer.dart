@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_avatar.dart';
 import '../../../core/widgets/tg_toast.dart';
@@ -7,112 +8,146 @@ import '../../../data/models/tg_account.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../data/tdlib/tdlib_service.dart';
 import '../../../state/app_state.dart';
+import '../../auth/add_account_dialog.dart';
 import '../../profile/profile_dialog.dart';
 import '../../settings/settings_dialog.dart';
 
 /// Главное меню Telegram Desktop (выдвигается по кнопке ≡).
-class MainDrawer extends StatelessWidget {
+class MainDrawer extends StatefulWidget {
   const MainDrawer({super.key, required this.onClose});
 
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 290,
-      height: double.infinity,
-      color: Tg.sidebar,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _userHeader(context),
-          const Divider(height: 1, color: Tg.hairline),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+  State<MainDrawer> createState() => _MainDrawerState();
+}
+
+class _MainDrawerState extends State<MainDrawer> {
+  bool _accountsExpanded = false;
+
+  void _showLogOutConfirm(BuildContext context, TgAccount currentAcc) {
+    final isPrimary = currentAcc.id == 'sergei';
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: 380,
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Tg.sidebar,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _menuItem(
-                  icon: Icons.account_circle_outlined,
-                  title: 'Мой профиль',
-                  onTap: () {
-                    onClose();
-                    ProfileDialog.show(context);
-                  },
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        isPrimary ? tr('log_out_confirm_title') : tr('delete_account_confirm_title'),
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                _menuItem(
-                  icon: Icons.group_outlined,
-                  title: 'Создать группу',
-                  onTap: () {
-                    onClose();
-                    _showNewChatDialog(context, isGroup: true);
-                  },
+                const SizedBox(height: 14),
+                Text(
+                  (isPrimary ? tr('log_out_confirm_msg') : tr('delete_account_confirm_msg'))
+                      .replaceAll('{name}', currentAcc.name)
+                      .replaceAll('{phone}', currentAcc.phone),
+                  style: const TextStyle(fontSize: 13.5, color: Tg.textDim, height: 1.4),
                 ),
-                _menuItem(
-                  icon: Icons.campaign_outlined,
-                  title: 'Создать канал',
-                  onTap: () {
-                    onClose();
-                    _showNewChatDialog(context, isGroup: false);
-                  },
+                const SizedBox(height: 22),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(
+                        tr('cancel'),
+                        style: const TextStyle(color: Tg.textDim, fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        widget.onClose();
+                        if (isPrimary) {
+                          TdlibService.instance.logOut();
+                          TgToast.show(context, 'Сессия завершена (Log out)');
+                        } else {
+                          AccountManager.instance.removeAccount(currentAcc.id);
+                          TgToast.show(context, 'Аккаунт удален');
+                        }
+                      },
+                      child: Text(isPrimary ? tr('log_out') : tr('delete_account')),
+                    ),
+                  ],
                 ),
-                _menuItem(
-                  icon: Icons.person_outline_rounded,
-                  title: 'Контакты',
-                  onTap: () {
-                    onClose();
-                    _showContactsDialog(context);
-                  },
-                ),
-                _menuItem(
-                  icon: Icons.phone_outlined,
-                  title: 'Звонки',
-                  onTap: () {
-                    onClose();
-                    TgToast.show(
-                      context,
-                      'Журнал звонков пуст',
-                      icon: Icons.phone_disabled_rounded,
-                    );
-                  },
-                ),
-                _menuItem(
-                  icon: Icons.bookmark_border_rounded,
-                  title: 'Избранное',
-                  onTap: () {
-                    onClose();
-                    // Open saved messages (self chat)
-                    final user = TdlibService.instance.currentUser.value;
-                    if (user != null) {
-                      AppState.selectedChatId.value = user.id.toString();
-                    }
-                  },
-                ),
-                _menuItem(
-                  icon: Icons.settings_outlined,
-                  title: 'Настройки',
-                  onTap: () {
-                    onClose();
-                    SettingsDialog.show(context);
-                  },
-                ),
-                const Divider(height: 12, color: Tg.hairline),
-                _nightModeRow(),
               ],
             ),
           ),
-          const Divider(height: 1, color: Tg.hairline),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Text(
-              'TG Answer Desktop 1.0.0 (TDLib)',
-              style: TextStyle(
-                fontSize: 12,
-                color: Tg.textFaint.withValues(alpha: 0.7),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: I18n.instance.currentLanguage,
+      builder: (context, lang, child) {
+        return Container(
+          width: 290,
+          height: double.infinity,
+          color: Tg.sidebar,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _userHeader(context),
+              const Divider(height: 1, color: Tg.hairline),
+              Expanded(
+                child: _accountsExpanded ? _buildAccountsList(context) : _buildMainMenu(context),
               ),
-            ),
+              const Divider(height: 1, color: Tg.hairline),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text(
+                  'TG Answer Desktop 1.0.0 (TDLib)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Tg.textFaint.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -122,8 +157,9 @@ class MainDrawer extends StatelessWidget {
       builder: (context, acc, _) {
         return InkWell(
           onTap: () {
-            onClose();
-            ProfileDialog.show(context);
+            setState(() {
+              _accountsExpanded = !_accountsExpanded;
+            });
           },
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
@@ -161,7 +197,7 @@ class MainDrawer extends StatelessWidget {
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, size: 20, color: Tg.textDim),
-                      onPressed: onClose,
+                      onPressed: widget.onClose,
                       splashRadius: 18,
                     ),
                   ],
@@ -190,10 +226,15 @@ class MainDrawer extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Tg.textDim),
+                      icon: AnimatedRotation(
+                        duration: const Duration(milliseconds: 200),
+                        turns: _accountsExpanded ? 0.5 : 0.0,
+                        child: const Icon(Icons.keyboard_arrow_down_rounded, color: Tg.textDim),
+                      ),
                       onPressed: () {
-                        onClose();
-                        SettingsDialog.show(context);
+                        setState(() {
+                          _accountsExpanded = !_accountsExpanded;
+                        });
                       },
                       splashRadius: 18,
                     ),
@@ -207,18 +248,188 @@ class MainDrawer extends StatelessWidget {
     );
   }
 
+  Widget _buildAccountsList(BuildContext context) {
+    final current = AccountManager.instance.currentAccount.value;
+    final all = AccountManager.instance.accounts.value;
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            tr('accounts'),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF55A5EB)),
+          ),
+        ),
+        ...all.map((acc) {
+          final isSelected = acc.id == current.id;
+          return ListTile(
+            dense: true,
+            leading: TgAvatar(
+              emoji: acc.avatarEmoji,
+              color: acc.avatarColor,
+              imagePath: acc.avatarPath,
+              size: 34,
+              fontSize: 14,
+            ),
+            title: Text(
+              acc.name,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? const Color(0xFF55A5EB) : Tg.text,
+              ),
+            ),
+            subtitle: Text(
+              acc.phone,
+              style: const TextStyle(fontSize: 12, color: Tg.textDim),
+            ),
+            trailing: isSelected
+                ? const Icon(Icons.check_rounded, color: Color(0xFF55A5EB), size: 18)
+                : (acc.unreadBadge > 0
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2F6FA8),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${acc.unreadBadge}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+                        ),
+                      )
+                    : null),
+            onTap: () {
+              AccountManager.instance.switchAccount(acc.id);
+              TgToast.show(context, 'Активный аккаунт: ${acc.name}');
+              setState(() {
+                _accountsExpanded = false;
+              });
+            },
+          );
+        }),
+        const Divider(height: 12, color: Tg.hairline),
+        _menuItem(
+          icon: Icons.add_rounded,
+          title: tr('add_account'),
+          iconColor: const Color(0xFF55A5EB),
+          textColor: const Color(0xFF55A5EB),
+          onTap: () {
+            widget.onClose();
+            AddAccountDialog.show(context);
+          },
+        ),
+        _menuItem(
+          icon: Icons.logout_rounded,
+          title: tr('log_out'),
+          iconColor: Colors.redAccent,
+          textColor: Colors.redAccent,
+          onTap: () {
+            _showLogOutConfirm(context, current);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainMenu(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      children: [
+        _menuItem(
+          icon: Icons.account_circle_outlined,
+          title: tr('profile'),
+          onTap: () {
+            widget.onClose();
+            ProfileDialog.show(context);
+          },
+        ),
+        _menuItem(
+          icon: Icons.group_outlined,
+          title: I18n.instance.isRu ? 'Создать группу' : 'New Group',
+          onTap: () {
+            widget.onClose();
+            _showNewChatDialog(context, isGroup: true);
+          },
+        ),
+        _menuItem(
+          icon: Icons.campaign_outlined,
+          title: I18n.instance.isRu ? 'Создать канал' : 'New Channel',
+          onTap: () {
+            widget.onClose();
+            _showNewChatDialog(context, isGroup: false);
+          },
+        ),
+        _menuItem(
+          icon: Icons.person_outline_rounded,
+          title: tr('contacts'),
+          onTap: () {
+            widget.onClose();
+            _showContactsDialog(context);
+          },
+        ),
+        _menuItem(
+          icon: Icons.phone_outlined,
+          title: tr('calls'),
+          onTap: () {
+            widget.onClose();
+            TgToast.show(
+              context,
+              I18n.instance.isRu ? 'Журнал звонков пуст' : 'Call log is empty',
+              icon: Icons.phone_disabled_rounded,
+            );
+          },
+        ),
+        _menuItem(
+          icon: Icons.bookmark_border_rounded,
+          title: I18n.instance.isRu ? 'Избранное' : 'Saved Messages',
+          onTap: () {
+            widget.onClose();
+            final user = TdlibService.instance.currentUser.value;
+            if (user != null) {
+              AppState.selectedChatId.value = user.id.toString();
+            }
+          },
+        ),
+        _menuItem(
+          icon: Icons.settings_outlined,
+          title: tr('settings_title'),
+          onTap: () {
+            widget.onClose();
+            SettingsDialog.show(context);
+          },
+        ),
+        const Divider(height: 12, color: Tg.hairline),
+        _menuItem(
+          icon: Icons.add_rounded,
+          title: tr('add_account'),
+          iconColor: const Color(0xFF55A5EB),
+          textColor: const Color(0xFF55A5EB),
+          onTap: () {
+            widget.onClose();
+            AddAccountDialog.show(context);
+          },
+        ),
+        _nightModeRow(),
+      ],
+    );
+  }
+
   Widget _menuItem({
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    Color? iconColor,
+    Color? textColor,
   }) {
     return ListTile(
       dense: true,
       visualDensity: const VisualDensity(vertical: -2),
-      leading: Icon(icon, color: Tg.textDim, size: 21),
+      leading: Icon(icon, color: iconColor ?? Tg.textDim, size: 21),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 14, color: Tg.text),
+        style: TextStyle(fontSize: 14, color: textColor ?? Tg.text),
       ),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -233,22 +444,21 @@ class MainDrawer extends StatelessWidget {
         children: [
           const Icon(Icons.nightlight_round, color: Tg.textDim, size: 21),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Ночной режим',
-              style: TextStyle(fontSize: 14, color: Tg.text),
+              I18n.instance.isRu ? 'Ночной режим' : 'Night Mode',
+              style: const TextStyle(fontSize: 14, color: Tg.text),
             ),
           ),
           Switch(
             value: true,
-            activeTrackColor: const Color(0xFF8774E1),
+            activeThumbColor: const Color(0xFF8774E1),
             onChanged: (val) {},
           ),
         ],
       ),
     );
   }
-
 
   void _showNewChatDialog(BuildContext context, {required bool isGroup}) {
     final titleController = TextEditingController();
@@ -269,7 +479,9 @@ class MainDrawer extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isGroup ? 'Создать группу' : 'Создать канал',
+                isGroup
+                    ? (I18n.instance.isRu ? 'Создать группу' : 'New Group')
+                    : (I18n.instance.isRu ? 'Создать канал' : 'New Channel'),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -307,7 +519,9 @@ class MainDrawer extends StatelessWidget {
                         style: const TextStyle(color: Colors.white, fontSize: 14),
                         decoration: InputDecoration(
                           border: InputBorder.none,
-                          hintText: isGroup ? 'Название группы' : 'Название канала',
+                          hintText: isGroup
+                              ? (I18n.instance.isRu ? 'Название группы' : 'Group Name')
+                              : (I18n.instance.isRu ? 'Название канала' : 'Channel Name'),
                           hintStyle: const TextStyle(color: Tg.textFaint, fontSize: 13.5),
                         ),
                       ),
@@ -318,8 +532,12 @@ class MainDrawer extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 isGroup
-                    ? 'Вы сможете пригласить участников сразу после создания.'
-                    : 'Каналы используются для трансляции сообщений неограниченной аудитории.',
+                    ? (I18n.instance.isRu
+                        ? 'Вы сможете пригласить участников сразу после создания.'
+                        : 'You can add members after creating the group.')
+                    : (I18n.instance.isRu
+                        ? 'Каналы используются для трансляции сообщений неограниченной аудитории.'
+                        : 'Channels are for broadcasting messages to unlimited audiences.'),
                 style: const TextStyle(fontSize: 12, color: Tg.textDim),
               ),
               const SizedBox(height: 22),
@@ -332,7 +550,7 @@ class MainDrawer extends StatelessWidget {
                       foregroundColor: Tg.textDim,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     ),
-                    child: const Text('Отмена', style: TextStyle(fontSize: 13.5)),
+                    child: Text(tr('cancel'), style: const TextStyle(fontSize: 13.5)),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -350,9 +568,9 @@ class MainDrawer extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                     ),
-                    child: const Text(
-                      'Создать',
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+                    child: Text(
+                      I18n.instance.isRu ? 'Создать' : 'Create',
+                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -384,9 +602,9 @@ class MainDrawer extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Контакты',
-                    style: TextStyle(
+                  Text(
+                    tr('contacts'),
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
@@ -406,7 +624,12 @@ class MainDrawer extends StatelessWidget {
                   valueListenable: TdlibService.instance.chats,
                   builder: (context, chats, _) {
                     if (chats.isEmpty) {
-                      return const Center(child: Text('Контакты загружаются…', style: TextStyle(color: Tg.textDim)));
+                      return Center(
+                        child: Text(
+                          I18n.instance.isRu ? 'Контакты загружаются…' : 'Loading contacts…',
+                          style: const TextStyle(color: Tg.textDim),
+                        ),
+                      );
                     }
                     return ListView.separated(
                       itemCount: chats.length,
