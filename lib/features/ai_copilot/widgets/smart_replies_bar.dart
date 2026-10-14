@@ -3,11 +3,16 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/tg_theme.dart';
 import '../../../data/models/tg_chat.dart';
+import '../../../state/app_state.dart';
+import '../models/contact_dossier.dart';
+import '../models/copilot_session.dart';
+import '../services/copilot_session_store.dart';
 import '../services/smart_reply_engine.dart';
 
-/// Всплывающее меню AI Reply с двумя действиями:
-/// 1. «Автоответ» — мгновенно формирует ответ на основе контекста чата.
+/// Всплывающее меню AI Reply с тремя действиями:
+/// 1. «Автоответ» — мгновенно формирует ответ на основе контекста чата и целей из досье.
 /// 2. «Надиктовать» — позволяет надиктовать голосом или ввести личную инструкцию (контекст задачи) и сгенерировать ответ.
+/// 3. «Copilot чат» — открывает или создает отдельный постоянный диалог с Copilot по данному контакту со всеми целями и досье.
 class SmartRepliesBar extends StatefulWidget {
   const SmartRepliesBar({
     super.key,
@@ -44,11 +49,13 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
 
   void _handleAutoReply() {
     setState(() => _isGenerating = true);
+    final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
       final reply = SmartReplyEngine.generateAutoReply(
         chatTitle: widget.chat.title,
         messages: widget.messages,
+        dossier: dossier,
       );
       setState(() => _isGenerating = false);
       widget.onSelected(reply);
@@ -92,6 +99,7 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
         ? text
         : 'Мне этот человек неприятен, ответь вежливо, чтобы он отстал без грубости';
 
+    final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
     setState(() => _isGenerating = true);
     Future.delayed(const Duration(milliseconds: 350), () {
       if (!mounted) return;
@@ -99,10 +107,62 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
         chatTitle: widget.chat.title,
         messages: widget.messages,
         instruction: query,
+        dossier: dossier,
       );
       setState(() => _isGenerating = false);
       widget.onSelected(reply);
     });
+  }
+
+  void _openCopilotSession(BuildContext context) {
+    widget.onClose();
+    final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
+    final sessionId = 'contact_${widget.chat.id}';
+    final existing = CopilotSessionStore.instance.sessions.value
+        .where((s) => s.id == sessionId)
+        .firstOrNull;
+
+    final prompt = '''
+Ты персональный AI-ассистент по общению с контактом "${widget.chat.title}".
+Твоя задача — помогать вести диалог, анализировать скрытые мотивы, составлять точные ответы и вести контакт к цели.
+
+🎯 Цель общения с контактом: ${dossier.goal.isNotEmpty ? dossier.goal : "Установить контакт и выявить потребности"}
+🗣️ Тон и стиль общения: ${dossier.tone}
+🧠 Психотип и особенности восприятия: ${dossier.psychotype.isNotEmpty ? dossier.psychotype : "Прагматик"}
+📋 Известные факты из CRM:
+${dossier.facts.map((f) => '• $f').join('\n')}
+📊 Резюме переписки (Шерлок): ${dossier.summary}
+''';
+
+    if (existing == null) {
+      final newSession = CopilotSession(
+        id: sessionId,
+        title: '👤 ${widget.chat.title}',
+        agentRole: 'Ассистент по ${widget.chat.title}',
+        systemPrompt: prompt,
+        avatarIcon: Icons.person_pin_rounded,
+        avatarColor: const Color(0xFF8774E1),
+        messages: [
+          CopilotMessage(
+            text: 'Привет! Я твой персональный AI-копилот по контакту **${widget.chat.title}**.\n\n'
+                '🎯 **Наша цель**: *"${dossier.goal.isNotEmpty ? dossier.goal : "Установить контакт"}"*\n'
+                '🧠 **Психотип**: *"${dossier.psychotype.isNotEmpty ? dossier.psychotype : "Прагматик"}"*\n'
+                '🗣️ **Тон**: *"${dossier.tone}"*\n\n'
+                'Я держу в контексте всю историю вашей переписки, CRM-факты и досье. '
+                'Ты можешь надиктовать мне любую задачу (например: *"как ему мягко отказать"*, *"составь оффер"* или *"проанализируй его последнее сообщение"*), и я помогу сформулировать идеальный ответ!',
+            isUser: false,
+          ),
+        ],
+      );
+      final updated = List<CopilotSession>.from(CopilotSessionStore.instance.sessions.value)..insert(0, newSession);
+      CopilotSessionStore.instance.sessions.value = updated;
+      CopilotSessionStore.instance.activeSessionId.value = sessionId;
+    } else {
+      CopilotSessionStore.instance.updateSessionPrompt(sessionId, prompt);
+      CopilotSessionStore.instance.selectSession(sessionId);
+    }
+
+    AppState.activeSidebarTab.value = SidebarTab.copilot;
   }
 
   @override
@@ -254,6 +314,41 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: Tg.text,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Кнопка 3: Открыть персональный чат с Copilot по контакту
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _openCopilotSession(context),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8774E1).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(
+                  color: const Color(0xFF8774E1).withValues(alpha: 0.4),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.forum_outlined, size: 14, color: Color(0xFF8774E1)),
+                  SizedBox(width: 5),
+                  Text(
+                    'Copilot чат',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF8774E1),
                     ),
                   ),
                 ],

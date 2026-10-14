@@ -5,7 +5,10 @@ import '../../../core/widgets/circle_icon_button.dart';
 import '../../../core/widgets/tg_avatar.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
+import '../../../state/app_state.dart';
 import '../models/contact_dossier.dart';
+import '../models/copilot_session.dart';
+import '../services/copilot_session_store.dart';
 
 class ContactDossierDialog extends StatefulWidget {
   const ContactDossierDialog({super.key, required this.chat});
@@ -68,11 +71,62 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
 
   void _runAutoAnalysis() async {
     setState(() => _isAnalyzing = true);
-    await Future.delayed(const Duration(milliseconds: 1400));
+    await Future.delayed(const Duration(milliseconds: 1200));
     if (!mounted) return;
 
     final current = _dossierNotifier.value;
+    final targetGoal = _goalController.text.trim();
     final updatedFacts = List<String>.from(current.facts);
+
+    // Многофакторный анализ реальных сообщений диалога
+    final messages = widget.chat.messages;
+    int questionCount = 0;
+    bool hasPriceTerms = false;
+    bool hasTechTerms = false;
+    bool hasFriendlyTerms = false;
+
+    for (final m in messages) {
+      final t = m.text.toLowerCase();
+      if (t.contains('?')) questionCount++;
+      if (t.contains('сколько') ||
+          t.contains('цена') ||
+          t.contains('руб') ||
+          t.contains('\$') ||
+          t.contains('оплат') ||
+          t.contains('стоим')) {
+        hasPriceTerms = true;
+      }
+      if (t.contains('flutter') ||
+          t.contains('dart') ||
+          t.contains('api') ||
+          t.contains('код') ||
+          t.contains('git') ||
+          t.contains('сервер')) {
+        hasTechTerms = true;
+      }
+      if (t.contains('😊') ||
+          t.contains('спасибо') ||
+          t.contains('привет') ||
+          t.contains('здорово') ||
+          t.contains('рад')) {
+        hasFriendlyTerms = true;
+      }
+
+      // Извлечение CRM-фактов из сообщений
+      if (t.contains('нячанг') && !updatedFacts.any((f) => f.contains('Нячанг'))) {
+        updatedFacts.add('📍 Локация: Нячанг, Вьетнам');
+      }
+      if (t.contains('flutter') && !updatedFacts.any((f) => f.contains('Flutter'))) {
+        updatedFacts.add('💻 Стек: Flutter, Dart, мобильная и Desktop разработка');
+      }
+      if (t.contains('github') && !updatedFacts.any((f) => f.contains('GitHub'))) {
+        updatedFacts.add('🐙 Разработка открытых библиотек и репозиториев на GitHub');
+      }
+      if (t.contains('вилл') && !updatedFacts.any((f) => f.contains('вилл'))) {
+        updatedFacts.add('🏡 Фокус: аренда апартаментов и вилл у моря');
+      }
+    }
+
     if (!updatedFacts.any((f) => f.contains('Предпочитает быстрые решения'))) {
       updatedFacts.add('⚡ Предпочитает быстрые решения без бюрократии');
     }
@@ -80,18 +134,95 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
       updatedFacts.add('🎯 Высокая вовлеченность в обсуждение продукта');
     }
 
-    const newPsychotype = 'Прагматичный новатор. Ориентирован на результат, открытость и надежность.';
+    // Выведение психотипа на основе стиля общения собеседника
+    String newPsychotype;
+    if (hasPriceTerms) {
+      newPsychotype =
+          'Прагматик-контролёр. Внимателен к бюджетам, срокам и гарантиям. Принимает решения на основе прозрачных цифр.';
+    } else if (hasTechTerms) {
+      newPsychotype =
+          'Технический архитектор / инноватор. Горит пет-проектами, ценит чистый код, открытые библиотеки и скорость.';
+    } else if (hasFriendlyTerms) {
+      newPsychotype =
+          'Эмоциональный коммуникатор. Открыт к нетворкингу, ценит доверие, партнерские отношения и быструю обратную связь.';
+    } else {
+      newPsychotype =
+          'Прагматичный новатор. Ориентирован на результат, открытость и надежность без бюрократии.';
+    }
+
     _psychotypeController.text = newPsychotype;
+
+    final summary = targetGoal.isNotEmpty
+        ? 'Анализ диалога показал готовность к достижению цели "$targetGoal". Собеседник задал $questionCount уточняющих вопросов. Рекомендуется зафиксировать условия и перейти к следующему этапу.'
+        : 'Анализ переписки показал готовность к прямому сотрудничеству. Собеседник ценит оперативную обратную связь и экспертизу.';
 
     _dossierNotifier.value = current.copyWith(
       psychotype: newPsychotype,
-      summary: 'Анализ диалога показал высокую готовность к прямому сотрудничеству. Собеседник ценит оперативную обратную связь и экспертизу.',
+      summary: summary,
       facts: updatedFacts,
       lastAnalyzed: DateTime.now(),
     );
 
     setState(() => _isAnalyzing = false);
-    TgToast.show(context, '✨ Профиль собеседника успешно проанализирован LLM');
+    TgToast.show(context, '✨ Профиль собеседника успешно проанализирован с учетом цели');
+  }
+
+  void _openOrCreateCopilotChat() {
+    // Сохраняем актуальные цель и психотип
+    final goal = _goalController.text.trim();
+    final psychotype = _psychotypeController.text.trim();
+    _dossierNotifier.value = _dossierNotifier.value.copyWith(
+      goal: goal,
+      psychotype: psychotype,
+    );
+
+    final sessionId = 'contact_${widget.chat.id}';
+    final existing = CopilotSessionStore.instance.sessions.value
+        .where((s) => s.id == sessionId)
+        .firstOrNull;
+
+    final prompt = '''
+Ты персональный AI-ассистент по общению с контактом "${widget.chat.title}".
+Твоя задача — помогать вести диалог, анализировать скрытые мотивы, составлять точные ответы и вести контакт к цели.
+
+🎯 Цель общения с контактом: ${goal.isNotEmpty ? goal : "Установить контакт и выявить потребности"}
+🗣️ Тон и стиль общения: ${_dossierNotifier.value.tone}
+🧠 Психотип и особенности восприятия: ${psychotype.isNotEmpty ? psychotype : "Прагматик"}
+📋 Известные факты из CRM:
+${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
+📊 Резюме переписки (Шерлок): ${_dossierNotifier.value.summary}
+''';
+
+    if (existing == null) {
+      final newSession = CopilotSession(
+        id: sessionId,
+        title: '👤 ${widget.chat.title}',
+        agentRole: 'Ассистент по ${widget.chat.title}',
+        systemPrompt: prompt,
+        avatarIcon: Icons.person_pin_rounded,
+        avatarColor: const Color(0xFF8774E1),
+        messages: [
+          CopilotMessage(
+            text: 'Привет! Я твой персональный AI-копилот по контакту **${widget.chat.title}**.\n\n'
+                '🎯 **Наша цель**: *"${goal.isNotEmpty ? goal : "Установить контакт"}"*\n'
+                '🧠 **Психотип**: *"${psychotype.isNotEmpty ? psychotype : "Прагматик"}"*\n'
+                '🗣️ **Тон**: *"${_dossierNotifier.value.tone}"*\n\n'
+                'Я держу в контексте всю историю вашей переписки, CRM-факты и досье. '
+                'Ты можешь надиктовать мне любую задачу (например: *"как ему мягко отказать"*, *"составь оффер"* или *"проанализируй его последнее сообщение"*), и я помогу сформулировать идеальный ответ!',
+            isUser: false,
+          ),
+        ],
+      );
+      final updated = List<CopilotSession>.from(CopilotSessionStore.instance.sessions.value)..insert(0, newSession);
+      CopilotSessionStore.instance.sessions.value = updated;
+      CopilotSessionStore.instance.activeSessionId.value = sessionId;
+    } else {
+      CopilotSessionStore.instance.updateSessionPrompt(sessionId, prompt);
+      CopilotSessionStore.instance.selectSession(sessionId);
+    }
+
+    Navigator.of(context).pop();
+    AppState.activeSidebarTab.value = SidebarTab.copilot;
   }
 
   void _addFact() {
@@ -553,31 +684,56 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
 
   Widget _buildBottomActions() {
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 10,
         children: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Закрыть', style: TextStyle(color: Tg.textDim)),
-          ),
-          const SizedBox(width: 10),
-          ElevatedButton(
-            onPressed: () {
-              _dossierNotifier.value = _dossierNotifier.value.copyWith(
-                goal: _goalController.text.trim(),
-                psychotype: _psychotypeController.text.trim(),
-              );
-              TgToast.show(context, 'Досье контакта сохранено');
-              Navigator.of(context).pop();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Tg.accent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          OutlinedButton.icon(
+            onPressed: _openOrCreateCopilotChat,
+            icon: const Icon(Icons.forum_outlined, size: 16, color: Color(0xFF8774E1)),
+            label: const Text(
+              'Чат с Copilot по контакту',
+              style: TextStyle(
+                color: Color(0xFF8774E1),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF8774E1)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Сохранить изменения'),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Закрыть', style: TextStyle(color: Tg.textDim, fontSize: 13)),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {
+                  _dossierNotifier.value = _dossierNotifier.value.copyWith(
+                    goal: _goalController.text.trim(),
+                    psychotype: _psychotypeController.text.trim(),
+                  );
+                  TgToast.show(context, 'Досье контакта сохранено');
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Tg.accent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Сохранить изменения', style: TextStyle(fontSize: 13)),
+              ),
+            ],
           ),
         ],
       ),

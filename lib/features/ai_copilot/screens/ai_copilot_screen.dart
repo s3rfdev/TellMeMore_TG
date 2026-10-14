@@ -59,7 +59,35 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
     String? output;
 
     final lower = query.toLowerCase();
-    if (lower.contains('ваканси') || lower.contains('работ')) {
+    final isContactSession = session.id.startsWith('contact_');
+
+    if (isContactSession) {
+      final contactTitle = session.title.replaceFirst('👤 ', '');
+      if (lower.contains('ответить') ||
+          lower.contains('написать') ||
+          lower.contains('сообщени') ||
+          lower.contains('предложи') ||
+          lower.contains('отказ') ||
+          lower.contains('соглас') ||
+          lower.contains('ответь') ||
+          lower.contains('отшить') ||
+          lower.contains('напиши')) {
+        reply = '💡 **Предлагаемый вариант ответа для $contactTitle:**\n\n'
+            '«Добрый день! По нашему вопросу всё в силе. Предлагаю зафиксировать ключевые условия и двигаться дальше по плану.»\n\n'
+            '🎯 *Обоснование*: сообщение составлено с учетом вашей цели контакта и точно ведет к следующему шагу.';
+      } else if (lower.contains('проанализируй') ||
+          lower.contains('психотип') ||
+          lower.contains('кто он') ||
+          lower.contains('что думает') ||
+          lower.contains('характер')) {
+        reply = '🧠 **Психологический срез контакта $contactTitle:**\n\n'
+            '• Собеседник действует прагматично, ценит быстрые решения и ясность условий.\n'
+            '• Не рекомендую перегружать текст лишними подробностями — предлагай конкретный выбор без давления.';
+      } else {
+        reply = 'Принял задачу по контакту **$contactTitle** в контексте цели и психотипа: "$query".\n\n'
+            'Рекомендую придерживаться установленного тона общения и фиксировать любые новые договоренности в CRM-фактах.';
+      }
+    } else if (lower.contains('ваканси') || lower.contains('работ')) {
       tool = 'tdlib.searchMessages("flutter вакансия remote")';
       output = 'Сканирование 35 сообщений в @flutter_jobs_channel';
       reply = 'Нашел 2 новых предложения за последние 24 часа! Подходит под стек Flutter Desktop/Linux.';
