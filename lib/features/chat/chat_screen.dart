@@ -19,6 +19,8 @@ import '../../data/models/tg_account.dart';
 import '../../state/app_state.dart';
 import '../ai_copilot/widgets/contact_dossier_sheet.dart';
 import '../ai_copilot/widgets/smart_replies_bar.dart';
+import 'services/chat_export_service.dart';
+import 'widgets/chat_export_dialog.dart';
 import 'widgets/emoji_picker_popup.dart';
 import 'widgets/forward_dialog.dart';
 import 'widgets/message_bubble.dart';
@@ -324,11 +326,24 @@ class _Header extends StatelessWidget {
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert_rounded, size: 20, color: Tg.textDim),
           color: const Color(0xFF212D3B),
+          constraints: const BoxConstraints(minWidth: 260, maxWidth: 320),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           onSelected: (val) {
             if (val == 'select') {
               AppState.messageSelectionMode.value = true;
               AppState.selectedMessages.value = {};
+            } else if (val == 'export_advisor') {
+              ChatExportDialog.show(
+                context,
+                chat,
+                initialType: ExportContentType.advisorProfile,
+              );
+            } else if (val == 'export_chat') {
+              ChatExportDialog.show(
+                context,
+                chat,
+                initialType: ExportContentType.chatHistory,
+              );
             } else if (val == 'clear') {
               _confirmClearHistory(context);
             } else if (val == 'delete') {
@@ -342,28 +357,58 @@ class _Header extends StatelessWidget {
                 children: [
                   Icon(Icons.checklist_rounded, size: 18, color: Tg.textDim),
                   SizedBox(width: 12),
-                  Text('Выбрать сообщения', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                  Expanded(
+                    child: Text('Выбрать сообщения', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                  ),
                 ],
               ),
             ),
+            const PopupMenuItem(
+              value: 'export_advisor',
+              child: Row(
+                children: [
+                  Icon(Icons.badge_outlined, size: 18, color: Color(0xFF8774E1)),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text('Экспорт профиля (AI-эдвайзер)', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'export_chat',
+              child: Row(
+                children: [
+                  Icon(Icons.file_download_outlined, size: 18, color: Color(0xFF4FAAFF)),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text('Экспорт переписки (.txt)', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(height: 1),
             const PopupMenuItem(
               value: 'clear',
               child: Row(
                 children: [
                   Icon(Icons.cleaning_services_rounded, size: 18, color: Tg.textDim),
                   SizedBox(width: 12),
-                  Text('Очистить историю', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                  Expanded(
+                    child: Text('Очистить историю', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                  ),
                 ],
               ),
             ),
-            const PopupMenuDivider(height: 1),
             const PopupMenuItem(
               value: 'delete',
               child: Row(
                 children: [
                   Icon(Icons.delete_outline_rounded, size: 18, color: Tg.danger),
                   SizedBox(width: 12),
-                  Text('Удалить чат', style: TextStyle(color: Tg.danger, fontSize: 13.5)),
+                  Expanded(
+                    child: Text('Удалить чат', style: TextStyle(color: Tg.danger, fontSize: 13.5)),
+                  ),
                 ],
               ),
             ),

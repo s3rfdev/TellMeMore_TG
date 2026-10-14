@@ -6,6 +6,8 @@ import '../../../core/widgets/tg_avatar.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../state/app_state.dart';
+import '../../chat/services/chat_export_service.dart';
+import '../../chat/widgets/chat_export_dialog.dart';
 import '../models/contact_dossier.dart';
 import '../models/copilot_session.dart';
 import '../services/copilot_session_store.dart';
@@ -167,14 +169,29 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
     TgToast.show(context, '✨ Профиль собеседника успешно проанализирован с учетом цели');
   }
 
-  void _openOrCreateCopilotChat() {
-    // Сохраняем актуальные цель и психотип
+  void _saveCurrentState() {
     final goal = _goalController.text.trim();
     final psychotype = _psychotypeController.text.trim();
     _dossierNotifier.value = _dossierNotifier.value.copyWith(
       goal: goal,
       psychotype: psychotype,
     );
+  }
+
+  void _openExportDialog() {
+    _saveCurrentState();
+    ChatExportDialog.show(
+      context,
+      widget.chat,
+      initialType: ExportContentType.advisorProfile,
+    );
+  }
+
+  void _openOrCreateCopilotChat() {
+    // Сохраняем актуальные цель и психотип
+    _saveCurrentState();
+    final goal = _goalController.text.trim();
+    final psychotype = _psychotypeController.text.trim();
 
     final sessionId = 'contact_${widget.chat.id}';
     final existing = CopilotSessionStore.instance.sessions.value
@@ -360,6 +377,16 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
               ],
             ),
           ),
+          Tooltip(
+            message: 'Экспорт досье для AI-эдвайзера',
+            child: CircleIconButton(
+              icon: Icons.ios_share_rounded,
+              iconSize: 18,
+              color: const Color(0xFF8774E1),
+              onTap: _openExportDialog,
+            ),
+          ),
+          const SizedBox(width: 6),
           CircleIconButton(
             icon: Icons.close_rounded,
             iconSize: 20,
@@ -704,6 +731,24 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             ),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Color(0xFF8774E1)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: _openExportDialog,
+            icon: const Icon(Icons.badge_outlined, size: 16, color: Color(0xFFB1A4FF)),
+            label: const Text(
+              'Экспорт для эдвайзера',
+              style: TextStyle(
+                color: Color(0xFFB1A4FF),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: const Color(0xFF8774E1).withValues(alpha: 0.6)),
+              backgroundColor: const Color(0xFF8774E1).withValues(alpha: 0.1),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
