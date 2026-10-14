@@ -27,7 +27,9 @@ class ContactDossierDialog extends StatefulWidget {
 class _ContactDossierDialogState extends State<ContactDossierDialog> {
   late final ValueNotifier<ContactDossier> _dossierNotifier;
   final TextEditingController _goalController = TextEditingController();
+  final TextEditingController _psychotypeController = TextEditingController();
   final TextEditingController _newFactController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _isAnalyzing = false;
 
   final List<String> _goalPresets = [
@@ -52,12 +54,15 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
     super.initState();
     _dossierNotifier = ContactDossierStore.instance.getDossier(widget.chat.id);
     _goalController.text = _dossierNotifier.value.goal;
+    _psychotypeController.text = _dossierNotifier.value.psychotype;
   }
 
   @override
   void dispose() {
     _goalController.dispose();
+    _psychotypeController.dispose();
     _newFactController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -75,8 +80,11 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
       updatedFacts.add('🎯 Высокая вовлеченность в обсуждение продукта');
     }
 
+    const newPsychotype = 'Прагматичный новатор. Ориентирован на результат, открытость и надежность.';
+    _psychotypeController.text = newPsychotype;
+
     _dossierNotifier.value = current.copyWith(
-      psychotype: 'Прагматичный новатор. Ориентирован на результат, открытость и надежность.',
+      psychotype: newPsychotype,
       summary: 'Анализ диалога показал высокую готовность к прямому сотрудничеству. Собеседник ценит оперативную обратную связь и экспертизу.',
       facts: updatedFacts,
       lastAnalyzed: DateTime.now(),
@@ -105,33 +113,50 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final maxModalHeight = (screenHeight * 0.88).clamp(380.0, 780.0);
+
     return Dialog(
       backgroundColor: Tg.sidebar,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 720),
+        constraints: BoxConstraints(
+          maxWidth: 640,
+          maxHeight: maxModalHeight,
+        ),
         child: ValueListenableBuilder<ContactDossier>(
           valueListenable: _dossierNotifier,
           builder: (context, dossier, _) {
             return Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 _buildHeader(dossier),
                 const Divider(height: 1, color: Tg.hairline),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-                    children: [
-                      _buildAiAnalysisBanner(dossier),
-                      const SizedBox(height: 20),
-                      _buildGoalSection(dossier),
-                      const SizedBox(height: 20),
-                      _buildToneSection(dossier),
-                      const SizedBox(height: 20),
-                      _buildPsychotypeSection(dossier),
-                      const SizedBox(height: 20),
-                      _buildFactsSection(dossier),
-                    ],
+                Flexible(
+                  child: RawScrollbar(
+                    controller: _scrollController,
+                    thumbVisibility: true,
+                    trackVisibility: false,
+                    thumbColor: Colors.white.withValues(alpha: 0.2),
+                    radius: const Radius.circular(4),
+                    thickness: 6,
+                    child: ListView(
+                      controller: _scrollController,
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                      children: [
+                        _buildAiAnalysisBanner(dossier),
+                        const SizedBox(height: 20),
+                        _buildGoalSection(dossier),
+                        const SizedBox(height: 20),
+                        _buildToneSection(dossier),
+                        const SizedBox(height: 20),
+                        _buildPsychotypeSection(dossier),
+                        const SizedBox(height: 20),
+                        _buildFactsSection(dossier),
+                      ],
+                    ),
                   ),
                 ),
                 const Divider(height: 1, color: Tg.hairline),
@@ -333,20 +358,25 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
           decoration: BoxDecoration(
             color: Tg.field,
             borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: TextField(
             controller: _goalController,
+            minLines: 1,
+            maxLines: 7,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
             onChanged: (val) {
               _dossierNotifier.value = dossier.copyWith(goal: val);
             },
-            style: const TextStyle(fontSize: 13, color: Tg.text),
+            style: const TextStyle(fontSize: 13, color: Tg.text, height: 1.35),
             decoration: const InputDecoration(
               hintText: 'Или укажите свою цель общения…',
               hintStyle: TextStyle(fontSize: 13, color: Tg.textFaint),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: EdgeInsets.symmetric(vertical: 10),
+              contentPadding: EdgeInsets.symmetric(vertical: 8),
             ),
           ),
         ),
@@ -416,15 +446,29 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Tg.field,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
-          child: Text(
-            dossier.psychotype,
-            style: const TextStyle(fontSize: 12.5, color: Tg.text, height: 1.3),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: TextField(
+            controller: _psychotypeController,
+            minLines: 1,
+            maxLines: 7,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            onChanged: (val) {
+              _dossierNotifier.value = dossier.copyWith(psychotype: val);
+            },
+            style: const TextStyle(fontSize: 13, color: Tg.text, height: 1.35),
+            decoration: const InputDecoration(
+              hintText: 'Опишите психотип, характер или особенности восприятия…',
+              hintStyle: TextStyle(fontSize: 13, color: Tg.textFaint),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 8),
+            ),
           ),
         ),
       ],
@@ -520,6 +564,10 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
           const SizedBox(width: 10),
           ElevatedButton(
             onPressed: () {
+              _dossierNotifier.value = _dossierNotifier.value.copyWith(
+                goal: _goalController.text.trim(),
+                psychotype: _psychotypeController.text.trim(),
+              );
               TgToast.show(context, 'Досье контакта сохранено');
               Navigator.of(context).pop();
             },
