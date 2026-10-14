@@ -471,6 +471,8 @@ class _MessageListState extends State<_MessageList> {
     }
   }
 
+  DateTime? _lastScrollLoadTime;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -481,6 +483,12 @@ class _MessageListState extends State<_MessageList> {
     if (!widget.realMode) return;
     final pos = _controller.position;
     if (pos.pixels >= pos.maxScrollExtent - 600) {
+      final now = DateTime.now();
+      if (_lastScrollLoadTime != null &&
+          now.difference(_lastScrollLoadTime!).inMilliseconds < 500) {
+        return;
+      }
+      _lastScrollLoadTime = now;
       TdlibService.instance.loadMore(widget.chat.id);
     }
   }

@@ -438,6 +438,9 @@ class _Store {
         final rawMsg = m['message'] as String? ?? 'Неизвестная ошибка';
         // ignore: avoid_print
         print('[tdlib] ERROR: $rawMsg');
+        for (final st in _chats.values) {
+          st.loadingMore = false;
+        }
         _ui.send({'type': 'error', 'message': _translateError(rawMsg)});
         return;
       case 'updateAuthorizationState':
@@ -713,15 +716,12 @@ class _Store {
         // while initiating network download from Telegram MTProto servers.
         // We chain requests until we have at least 20 messages or history is exhausted.
         if (action == 'history' && st.history.length < 20 && st.hasMore) {
-          if (newItems.isEmpty && page.isNotEmpty) {
-            Timer(const Duration(milliseconds: 600), () {
-              if (st.history.length < 20 && st.hasMore) {
-                _fetchHistoryBatch(st, isInitial: true);
-              }
-            });
-          } else if (newItems.isNotEmpty) {
-            _fetchHistoryBatch(st, isInitial: true);
-          }
+          final delayMs = (newItems.isEmpty && page.isNotEmpty) ? 600 : 350;
+          Timer(Duration(milliseconds: delayMs), () {
+            if (st.history.length < 20 && st.hasMore) {
+              _fetchHistoryBatch(st, isInitial: true);
+            }
+          });
         }
         return;
       case 'call':
