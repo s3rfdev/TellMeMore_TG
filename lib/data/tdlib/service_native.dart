@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/services/call_sound_service.dart';
 import '../../core/services/desktop_notification_service.dart';
 import '../../core/utils/session_paths.dart';
 import '../../state/app_state.dart';
@@ -173,7 +174,14 @@ class TdlibService {
         final call = msg['call'] as TgCallInfo?;
         if (call != null) {
           AppState.activeCall.value = call;
-          if (call.state == TgCallState.discarded) {
+          if (call.state == TgCallState.ready) {
+            CallSoundService.stop();
+          } else if (call.state == TgCallState.discarded) {
+            CallSoundService.stop();
+            CallSoundService.playBusy();
+            if (AppState.incomingCall.value?.callId == call.callId) {
+              AppState.incomingCall.value = null;
+            }
             Future.delayed(const Duration(milliseconds: 1600), () {
               if (AppState.activeCall.value?.callId == call.callId) {
                 AppState.activeCall.value = null;
@@ -185,6 +193,7 @@ class TdlibService {
         final call = msg['call'] as TgCallInfo?;
         if (call != null) {
           AppState.incomingCall.value = call;
+          CallSoundService.startIncomingRingtone();
           DesktopNotificationService.show(
             title: 'Входящий звонок',
             body: '${call.userName} звонит вам',
@@ -387,6 +396,7 @@ class TdlibService {
 
   /// Завершить / отклонить аудиозвонок
   void discardCall(int callId, {int duration = 0}) {
+    CallSoundService.stop();
     _sendCmd({'type': 'discardCall', 'callId': callId, 'duration': duration});
     if (AppState.activeCall.value?.callId == callId) {
       AppState.activeCall.value = null;
@@ -398,6 +408,7 @@ class TdlibService {
 
   /// Принять входящий звонок
   void acceptCall(int callId) {
+    CallSoundService.stop();
     _sendCmd({'type': 'acceptCall', 'callId': callId});
     if (AppState.incomingCall.value?.callId == callId) {
       AppState.incomingCall.value = null;

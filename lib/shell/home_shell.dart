@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../core/services/call_sound_service.dart';
 import '../core/widgets/tg_avatar.dart';
 import '../data/models/tg_chat.dart';
 import '../data/tdlib/td_content.dart';
@@ -264,6 +265,7 @@ class _IncomingCallBanner extends StatelessWidget {
                 message: 'Отклонить вызов',
                 child: GestureDetector(
                   onTap: () {
+                    CallSoundService.stop();
                     TdlibService.instance.discardCall(call.callId);
                   },
                   child: Container(
@@ -283,6 +285,7 @@ class _IncomingCallBanner extends StatelessWidget {
                 message: 'Принять звонок',
                 child: GestureDetector(
                   onTap: () {
+                    CallSoundService.stop();
                     TdlibService.instance.acceptCall(call.callId);
                     final matchingChat = TdlibService.instance.chats.value.firstWhere(
                       (c) => c.userId == call.userId || c.id == call.userId.toString(),

@@ -112,6 +112,7 @@ class _Store {
   bool _paramsSent = false;
   bool _chatsDirty = false;
   final Set<String> _dirtyHistories = {};
+  final Map<int, Map<String, dynamic>> _callProtocols = {};
   int? _currentOpenChatId;
 
   void _openChat(int chatId) {
@@ -376,7 +377,7 @@ class _Store {
               'udp_reflector': true,
               'min_layer': 65,
               'max_layer': 92,
-              'library_versions': ['1.2.0'],
+              'library_versions': ['3.0.0', '2.7.7', '2.4.4', '1.2.0'],
             },
             'is_video': false,
           });
@@ -399,19 +400,21 @@ class _Store {
       case 'acceptCall':
         final callId = cmd['callId'] as int?;
         if (callId != null) {
+          final savedProto = _callProtocols[callId];
+          final proto = savedProto ?? {
+            '@type': 'callProtocol',
+            'udp_p2p': true,
+            'udp_reflector': true,
+            'min_layer': 65,
+            'max_layer': 92,
+            'library_versions': ['3.0.0', '2.7.7', '2.4.4', '1.2.0'],
+          };
           // ignore: avoid_print
-          print('[worker] acceptCall call_id=$callId');
+          print('[worker] acceptCall call_id=$callId with proto: $proto');
           _send({
             '@type': 'acceptCall',
             'call_id': callId,
-            'protocol': {
-              '@type': 'callProtocol',
-              'udp_p2p': true,
-              'udp_reflector': true,
-              'min_layer': 65,
-              'max_layer': 92,
-              'library_versions': ['1.2.0'],
-            },
+            'protocol': proto,
           });
         }
     }
@@ -736,6 +739,14 @@ class _Store {
     final stateObj = call['state'] as Map<String, dynamic>? ?? {};
     final stateType = stateObj['@type'] as String? ?? '';
 
+    // Сохраняем протокол звонка для точного согласования при acceptCall
+    final incomingProto = (call['protocol'] as Map<String, dynamic>?) ?? (stateObj['protocol'] as Map<String, dynamic>?);
+    if (incomingProto != null) {
+      _callProtocols[callId] = incomingProto;
+      // ignore: avoid_print
+      print('[worker] saved incoming call protocol for call $callId: $incomingProto');
+    }
+
     TgCallState state = TgCallState.pending;
     List<String> emojis = [];
     String discardReason = '';
@@ -753,6 +764,14 @@ class _Store {
       }
     } else if (stateType == 'callStateHangingUp') {
       state = TgCallState.hangingUp;
+    } else if (stateType == 'callStateError') {
+      state = TgCallState.discarded;
+      final err = stateObj['error'] as Map<String, dynamic>?;
+      final errMsg = err?['message'] as String? ?? 'Ошибка соединения';
+      final errCode = err?['code'];
+      // ignore: avoid_print
+      print('[worker] callStateError: $errMsg (code: $errCode), full: $stateObj');
+      discardReason = errMsg;
     } else if (stateType == 'callStateDiscarded') {
       state = TgCallState.discarded;
       final reasonObj = stateObj['reason'] as Map<String, dynamic>?;

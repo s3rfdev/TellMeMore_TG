@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import '../../../core/services/call_sound_service.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_avatar.dart';
 import '../../../core/widgets/tg_toast.dart';
@@ -74,10 +75,14 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
       case TgCallState.ringing:
         _status = 'Идет вызов…';
         _connected = false;
+        if (call.isOutgoing) {
+          CallSoundService.startOutgoingRingback();
+        }
       case TgCallState.exchangingKeys:
         _status = 'Обмен ключами шифрования…';
         _connected = false;
       case TgCallState.ready:
+        CallSoundService.stop();
         if (!_connected) {
           _connected = true;
           _status = '00:00';
@@ -86,6 +91,7 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
       case TgCallState.hangingUp:
         _status = 'Завершение…';
       case TgCallState.discarded:
+        CallSoundService.stop();
         _status = call.discardReason.isNotEmpty ? call.discardReason : 'Вызов завершен';
         _durationTimer?.cancel();
         _autoCloseTimer?.cancel();
@@ -110,6 +116,7 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    CallSoundService.stop();
     AppState.activeCall.removeListener(_onCallUpdate);
     _pulseController.dispose();
     _durationTimer?.cancel();
@@ -118,6 +125,7 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
   }
 
   void _endCall() {
+    CallSoundService.stop();
     final call = AppState.activeCall.value;
     if (call != null) {
       TdlibService.instance.discardCall(call.callId, duration: _seconds);
