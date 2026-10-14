@@ -1,9 +1,9 @@
 import 'dart:io';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/link_handler.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../data/tdlib/tdlib_service.dart';
@@ -532,7 +532,16 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _textBody(BuildContext context, String text, bool out, {double topPadding = 0}) {
-    final spans = _buildTextSpans(context, text, out);
+    final spans = LinkHandler.buildSpans(
+      context: context,
+      text: text,
+      outgoing: out,
+      baseStyle: const TextStyle(
+        fontSize: 14.5,
+        height: 1.25,
+        color: Colors.white,
+      ),
+    );
 
     return Padding(
       padding: EdgeInsets.fromLTRB(12, 7 + topPadding, 12, 7),
@@ -562,57 +571,6 @@ class MessageBubble extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  List<InlineSpan> _buildTextSpans(BuildContext context, String text, bool out) {
-    final regex = RegExp(r'(@[a-zA-Z0-9_]{3,}|https?://[^\s]+)');
-    final matches = regex.allMatches(text);
-    if (matches.isEmpty) {
-      return [TextSpan(text: text)];
-    }
-
-    final spans = <InlineSpan>[];
-    int lastEnd = 0;
-
-    for (final m in matches) {
-      if (m.start > lastEnd) {
-        spans.add(TextSpan(text: text.substring(lastEnd, m.start)));
-      }
-      final matchedText = m.group(0)!;
-      if (matchedText.startsWith('@')) {
-        final username = matchedText.substring(1);
-        spans.add(
-          TextSpan(
-            text: matchedText,
-            style: TextStyle(
-              color: out ? const Color(0xFFD4CCFF) : const Color(0xFF8774E1),
-              fontWeight: FontWeight.w600,
-            ),
-            recognizer: TapGestureRecognizer()
-              ..onTap = () {
-                TdlibService.instance.openUserByUsername(username);
-              },
-          ),
-        );
-      } else {
-        spans.add(
-          TextSpan(
-            text: matchedText,
-            style: TextStyle(
-              color: out ? const Color(0xFFD4CCFF) : const Color(0xFF8774E1),
-              decoration: TextDecoration.underline,
-            ),
-          ),
-        );
-      }
-      lastEnd = m.end;
-    }
-
-    if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd)));
-    }
-
-    return spans;
   }
 
   Widget _timeRow(bool out, {bool forceWhite = false}) {

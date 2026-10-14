@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
+import '../../../core/utils/link_handler.dart';
 import '../../../core/widgets/circle_icon_button.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../models/ai_settings_model.dart';
@@ -773,9 +774,19 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                 ),
               ),
             ],
-            SelectableText(
-              msg.text,
-              style: const TextStyle(fontSize: 13.5, color: Tg.text, height: 1.35),
+            SelectableText.rich(
+              TextSpan(
+                style: const TextStyle(fontSize: 13.5, color: Tg.text, height: 1.35),
+                children: LinkHandler.buildSpans(
+                  context: context,
+                  text: msg.text,
+                  outgoing: msg.isUser,
+                  linkColor: msg.isUser ? const Color(0xFFE0D8FF) : const Color(0xFF51B2FF),
+                  baseStyle: const TextStyle(fontSize: 13.5, color: Tg.text, height: 1.35),
+                ),
+              ),
+              cursorColor: Tg.accent,
+              selectionColor: Tg.accent.withValues(alpha: 0.35),
             ),
           ],
         ),
