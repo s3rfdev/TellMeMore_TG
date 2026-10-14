@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:record/record.dart';
 import '../../core/theme/tg_theme.dart';
 import '../../core/widgets/circle_icon_button.dart';
 import '../../core/widgets/tg_avatar.dart';
+import '../../core/widgets/tg_toast.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../data/mock_data.dart';
 import '../../state/app_state.dart';
@@ -351,8 +353,10 @@ class _InputBarState extends State<_InputBar> {
     final hasPerm = await _audioRecorder.hasPermission();
     if (!hasPerm) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Разрешение на микрофон не предоставлено')),
+        TgToast.show(
+          context,
+          'Разрешение на микрофон не предоставлено',
+          icon: Icons.mic_off_rounded,
         );
       }
       return;
@@ -375,8 +379,10 @@ class _InputBarState extends State<_InputBar> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка старта записи: $e')),
+        TgToast.show(
+          context,
+          'Ошибка старта записи: $e',
+          icon: Icons.error_outline_rounded,
         );
       }
     }
@@ -436,8 +442,10 @@ class _InputBarState extends State<_InputBar> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка при выборе файла: $e')),
+        TgToast.show(
+          context,
+          'Ошибка при выборе файла: $e',
+          icon: Icons.error_outline_rounded,
         );
       }
     }
@@ -476,30 +484,45 @@ class _InputBarState extends State<_InputBar> {
           valueListenable: AppState.replyingTo,
           builder: (context, replyMsg, _) {
             if (replyMsg == null) return const SizedBox.shrink();
+            final hasThumb = replyMsg.thumbnailPath.isNotEmpty && File(replyMsg.thumbnailPath).existsSync();
             return Container(
               color: Tg.sidebar,
-              padding: const EdgeInsets.fromLTRB(14, 6, 10, 4),
+              padding: const EdgeInsets.fromLTRB(14, 6, 12, 4),
               child: Row(
                 children: [
+                  const Icon(Icons.reply_rounded, color: Tg.accent, size: 20),
+                  const SizedBox(width: 8),
                   Container(
                     width: 3,
-                    height: 30,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: Tg.accent,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (hasThumb) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.file(
+                        File(replyMsg.thumbnailPath),
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Text(
-                          'Ответ',
+                          'Ответ на сообщение',
                           style: TextStyle(
                             color: Tg.accent,
-                            fontSize: 11.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -507,21 +530,27 @@ class _InputBarState extends State<_InputBar> {
                         Text(
                           replyMsg.text.isNotEmpty
                               ? replyMsg.text
-                              : (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : 'Медиа'),
+                              : (replyMsg.kind == MessageKind.video
+                                  ? (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : 'Видеозапись')
+                                  : (replyMsg.kind == MessageKind.image
+                                      ? 'Фотография'
+                                      : (replyMsg.kind == MessageKind.voice
+                                          ? 'Голосовое сообщение'
+                                          : (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : 'Файл')))),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Tg.textDim,
-                            fontSize: 11.5,
+                            fontSize: 11.8,
                           ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 16, color: Tg.textDim),
+                    icon: const Icon(Icons.close, size: 18, color: Tg.textDim),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                     splashRadius: 14,
                     onPressed: () => AppState.replyingTo.value = null,
                   ),

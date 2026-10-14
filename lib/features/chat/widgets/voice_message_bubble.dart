@@ -3,6 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/tg_theme.dart';
+import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 
 /// Голосовое сообщение в стиле Telegram Desktop:
@@ -64,11 +65,10 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
   Future<void> _togglePlay() async {
     final path = widget.message.mediaPath;
     if (path.isEmpty || !File(path).existsSync()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Аудиофайл еще загружается или недоступен локально.'),
-          duration: Duration(seconds: 2),
-        ),
+      TgToast.show(
+        context,
+        'Аудиофайл еще загружается или недоступен локально.',
+        icon: Icons.hourglass_top_rounded,
       );
       return;
     }

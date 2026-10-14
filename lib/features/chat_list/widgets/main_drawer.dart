@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_avatar.dart';
+import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../data/tdlib/tdlib_service.dart';
 import '../../../state/app_state.dart';
@@ -64,8 +65,10 @@ class MainDrawer extends StatelessWidget {
                   title: 'Звонки',
                   onTap: () {
                     onClose();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Журнал звонков пуст')),
+                    TgToast.show(
+                      context,
+                      'Журнал звонков пуст',
+                      icon: Icons.phone_disabled_rounded,
                     );
                   },
                 ),

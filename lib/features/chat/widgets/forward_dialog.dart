@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_avatar.dart';
+import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../data/tdlib/tdlib_service.dart';
 
@@ -150,12 +151,10 @@ class _ForwardDialogState extends State<ForwardDialog> {
                       } else if (widget.message.text.isNotEmpty) {
                         TdlibService.instance.sendMessage(targetId, widget.message.text);
                       }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('✓ Переслано в "${c.title}"'),
-                          backgroundColor: const Color(0xFF27A7E7),
-                          duration: const Duration(seconds: 2),
-                        ),
+                      TgToast.show(
+                        context,
+                        '✓ Переслано в "${c.title}"',
+                        icon: Icons.forward_rounded,
                       );
                     }
                   },

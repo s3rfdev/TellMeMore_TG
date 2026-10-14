@@ -7,6 +7,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../state/app_state.dart';
 import 'forward_dialog.dart';
@@ -117,8 +118,10 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
       final file = File(widget.videoPath);
       if (!await file.exists()) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Файл видео не найден')),
+          TgToast.show(
+            context,
+            'Файл видеозаписи не найден',
+            icon: Icons.error_outline_rounded,
           );
         }
         return;
@@ -135,18 +138,18 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
       final destPath = '${downloadsDir.path}/$base';
       await file.copy(destPath);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Видео сохранено в Загрузки ($base)'),
-            backgroundColor: const Color(0xFF27A7E7),
-            duration: const Duration(seconds: 3),
-          ),
+        TgToast.show(
+          context,
+          '✓ Видео сохранено в Загрузки',
+          icon: Icons.check_circle_rounded,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка сохранения: $e')),
+        TgToast.show(
+          context,
+          'Ошибка сохранения: $e',
+          icon: Icons.error_outline_rounded,
         );
       }
     }

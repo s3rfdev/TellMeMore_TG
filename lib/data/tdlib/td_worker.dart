@@ -105,6 +105,8 @@ class _Store {
   final Map<int, Map<String, dynamic>> _users = {};
   final Map<int, String> _downloadedFiles = {};
   final Set<int> _downloadingFiles = {};
+  final Map<int, Map<String, dynamic>> _allMessages = {};
+  final Set<int> _requestedReplyMessages = {};
   int _myId = 0;
   bool _paramsSent = false;
   bool _chatsDirty = false;
@@ -505,13 +507,14 @@ class _Store {
       case 'updateNewMessage':
         final msg = m['message'] as Map<String, dynamic>?;
         if (msg == null) return;
+        final newId = msg['id'] as int;
+        _allMessages[newId] = msg;
         final chatId = msg['chat_id'] as int;
         final st = _chatById(chatId);
         if (st != null) {
           st.last = msg;
           _chatsDirty = true;
           if (st.history.isNotEmpty) {
-            final newId = msg['id'] as int;
             if (!st.history.any((e) => e['id'] == newId)) {
               st.history.insert(0, msg);
               st.history.sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
@@ -521,10 +524,23 @@ class _Store {
           }
         }
         return;
+      case 'message':
+        final msgId = m['id'] as int?;
+        if (msgId != null) {
+          _allMessages[msgId] = m;
+          final cId = m['chat_id'] as int?;
+          if (cId != null) {
+            _dirtyHistories.add(cId.toString());
+          }
+        }
+        return;
       case 'updateDeleteMessages':
         final chatId = m['chat_id'] as int?;
         final ids = (m['message_ids'] as List?)?.cast<int>().toSet();
         if (chatId != null && ids != null && ids.isNotEmpty) {
+          for (final id in ids) {
+            _allMessages.remove(id);
+          }
           final st = _chatById(chatId);
           if (st != null) {
             st.history.removeWhere((msg) => ids.contains(msg['id']));
@@ -553,6 +569,10 @@ class _Store {
         }
 
         final page = list.cast<Map<String, dynamic>>().toList();
+        for (final item in page) {
+          final id = item['id'] as int?;
+          if (id != null) _allMessages[id] = item;
+        }
         final knownIds = st.history.map((e) => e['id']).toSet();
         final newItems = page.where((e) => !knownIds.contains(e['id'])).toList();
 
@@ -948,6 +968,114 @@ class _Store {
           }
         }
 
+        // Обработка ответа на сообщение (Reply / Quote)
+        int replyToMessageId = 0;
+        String replySenderName = '';
+        String replyText = '';
+        String replyThumbnailPath = '';
+        MessageKind? replyKind;
+
+        final replyTo = msg['reply_to'] is Map ? msg['reply_to'] as Map : null;
+        if (replyTo != null) {
+          replyToMessageId = (replyTo['message_id'] as num?)?.toInt() ?? 0;
+          if (replyTo['quote'] is Map) {
+            final quote = replyTo['quote'] as Map;
+            final qText = quote['text'] is Map ? (quote['text']['text'] as String?) : null;
+            if (qText != null && qText.isNotEmpty) {
+              replyText = qText;
+            }
+          }
+        }
+        if (replyToMessageId == 0) {
+          replyToMessageId = (msg['reply_to_message_id'] as num?)?.toInt() ?? 0;
+        }
+
+        if (replyToMessageId > 0) {
+          Map<String, dynamic>? repliedMsg;
+          for (final m in st.history) {
+            if (m['id'] == replyToMessageId) {
+              repliedMsg = m;
+              break;
+            }
+          }
+          repliedMsg ??= _allMessages[replyToMessageId];
+
+          if (repliedMsg == null) {
+            if (!_requestedReplyMessages.contains(replyToMessageId)) {
+              _requestedReplyMessages.add(replyToMessageId);
+              _send({
+                '@type': 'getMessage',
+                'chat_id': st.chat['id'],
+                'message_id': replyToMessageId,
+              });
+            }
+          } else {
+            replySenderName = _senderName(repliedMsg);
+            if (replySenderName.isEmpty) {
+              replySenderName = repliedMsg['is_outgoing'] == true ? 'Вы' : 'Пользователь';
+            }
+            replyKind = TdContent.messageKind(repliedMsg);
+            if (replyText.isEmpty) {
+              if (replyKind == MessageKind.video) {
+                final rContent = repliedMsg['content'] as Map?;
+                final isVideoNote = rContent?['video_note'] != null;
+                final txt = TdContent.fullText(repliedMsg);
+                replyText = isVideoNote ? 'Видеосообщение' : (txt.isNotEmpty ? txt : 'Видеозапись');
+              } else if (replyKind == MessageKind.image) {
+                final txt = TdContent.fullText(repliedMsg);
+                replyText = txt.isNotEmpty ? txt : 'Фотография';
+              } else if (replyKind == MessageKind.voice) {
+                replyText = 'Голосовое сообщение';
+              } else if (replyKind == MessageKind.document) {
+                final txt = TdContent.fullText(repliedMsg);
+                replyText = txt.isNotEmpty ? txt : 'Файл';
+              } else {
+                replyText = TdContent.fullText(repliedMsg);
+              }
+            }
+
+            final rContent = repliedMsg['content'] as Map?;
+            if (rContent != null) {
+              final vn = (rContent['video_note'] ?? rContent['video'] ?? rContent['animation']) as Map?;
+              if (vn != null) {
+                final thumb = vn['thumbnail'] as Map?;
+                final tf = thumb?['file'] as Map?;
+                if (tf != null) {
+                  final tfId = (tf['id'] as num?)?.toInt() ?? 0;
+                  final loc = tf['local'] as Map?;
+                  final p = (loc?['path'] as String?) ?? '';
+                  if (_downloadedFiles[tfId] != null && File(_downloadedFiles[tfId]!).existsSync()) {
+                    replyThumbnailPath = _downloadedFiles[tfId]!;
+                  } else if (p.isNotEmpty && File(p).existsSync()) {
+                    replyThumbnailPath = p;
+                  } else {
+                    _downloadFileIfNeeded(tf, priority: 25);
+                  }
+                }
+              } else if (rContent['photo'] is Map) {
+                final photo = rContent['photo'] as Map;
+                final sizes = photo['sizes'] as List?;
+                if (sizes != null && sizes.isNotEmpty) {
+                  final small = sizes.first as Map?;
+                  final sf = small?['photo'] as Map?;
+                  if (sf != null) {
+                    final sfId = (sf['id'] as num?)?.toInt() ?? 0;
+                    final loc = sf['local'] as Map?;
+                    final p = (loc?['path'] as String?) ?? '';
+                    if (_downloadedFiles[sfId] != null && File(_downloadedFiles[sfId]!).existsSync()) {
+                      replyThumbnailPath = _downloadedFiles[sfId]!;
+                    } else if (p.isNotEmpty && File(p).existsSync()) {
+                      replyThumbnailPath = p;
+                    } else {
+                      _downloadFileIfNeeded(sf, priority: 25);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
         out.add(TgMessage(
           id: (msg['id'] as num?)?.toInt() ?? 0,
           kind: kind,
@@ -966,6 +1094,11 @@ class _Store {
           height: height,
           isDownloading: isDownloading,
           isDownloaded: isDownloaded,
+          replyToMessageId: replyToMessageId,
+          replySenderName: replySenderName,
+          replyText: replyText,
+          replyThumbnailPath: replyThumbnailPath,
+          replyKind: replyKind,
         ));
       } catch (e, stack) {
         // ignore: avoid_print

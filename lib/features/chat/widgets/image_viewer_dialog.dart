@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/tg_theme.dart';
+import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../data/tdlib/tdlib_service.dart';
 
@@ -38,8 +39,10 @@ class ImageViewerDialog extends StatelessWidget {
       final file = File(imagePath);
       if (!await file.exists()) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Файл изображения не найден')),
+          TgToast.show(
+            context,
+            'Файл изображения не найден',
+            icon: Icons.error_outline_rounded,
           );
         }
         return;
@@ -54,18 +57,18 @@ class ImageViewerDialog extends StatelessWidget {
       final destPath = '${downloadsDir.path}/$destName';
       await file.copy(destPath);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Сохранено в Загрузки ($destName)'),
-            backgroundColor: const Color(0xFF27A7E7),
-            duration: const Duration(seconds: 3),
-          ),
+        TgToast.show(
+          context,
+          '✓ Сохранено в Загрузки',
+          icon: Icons.check_circle_rounded,
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка сохранения: $e')),
+        TgToast.show(
+          context,
+          'Ошибка сохранения: $e',
+          icon: Icons.error_outline_rounded,
         );
       }
     }
@@ -99,8 +102,10 @@ class ImageViewerDialog extends StatelessWidget {
                       final id = int.tryParse(c.id);
                       if (id != null) {
                         TdlibService.instance.sendFile(id, imagePath);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('✓ Переслано в "${c.title}"')),
+                        TgToast.show(
+                          context,
+                          '✓ Переслано в "${c.title}"',
+                          icon: Icons.shortcut_rounded,
                         );
                       }
                     },

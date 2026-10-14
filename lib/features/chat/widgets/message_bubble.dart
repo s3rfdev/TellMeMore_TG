@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../data/tdlib/tdlib_service.dart';
 import 'image_viewer_dialog.dart';
@@ -142,9 +143,109 @@ class MessageBubble extends StatelessWidget {
                   bottomRight: Radius.circular(out ? 4 : 14),
                 ),
               ),
-              child: content,
+              child: (message.replyToMessageId > 0 || message.replySenderName.isNotEmpty)
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _replyBox(context, out),
+                        content,
+                      ],
+                    )
+                  : content,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _replyBox(BuildContext context, bool out) {
+    final hasThumb = message.replyThumbnailPath.isNotEmpty && File(message.replyThumbnailPath).existsSync();
+    IconData? mediaIcon;
+    if (message.replyKind == MessageKind.video) {
+      mediaIcon = Icons.videocam_rounded;
+    } else if (message.replyKind == MessageKind.image) {
+      mediaIcon = Icons.image_rounded;
+    } else if (message.replyKind == MessageKind.voice) {
+      mediaIcon = Icons.mic_rounded;
+    } else if (message.replyKind == MessageKind.document) {
+      mediaIcon = Icons.insert_drive_file_rounded;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(8, 5, 10, 5),
+        decoration: BoxDecoration(
+          color: out ? Colors.black.withValues(alpha: 0.14) : Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 3,
+              height: 32,
+              decoration: BoxDecoration(
+                color: out ? Colors.white : Tg.accent,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (hasThumb) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.file(
+                  File(message.replyThumbnailPath),
+                  width: 32,
+                  height: 32,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ] else if (mediaIcon != null) ...[
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: out ? Colors.white.withValues(alpha: 0.12) : Tg.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(mediaIcon, size: 18, color: out ? Colors.white : Tg.accent),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message.replySenderName.isNotEmpty ? message.replySenderName : 'Ответ',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: out ? Colors.white : Tg.accent,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    message.replyText.isNotEmpty ? message.replyText : 'Сообщение',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: out ? Colors.white.withValues(alpha: 0.82) : Tg.textDim,
+                      fontSize: 11.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -183,20 +284,18 @@ class MessageBubble extends StatelessWidget {
                   );
                 } else if (isDownloading) {
                   AppLogger.log('[message_bubble] Video is downloading...');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Видеозапись загружается из Telegram…'),
-                      duration: Duration(seconds: 2),
-                    ),
+                  TgToast.show(
+                    context,
+                    'Видеозапись загружается из Telegram…',
+                    icon: Icons.downloading_rounded,
                   );
                 } else if (message.fileId > 0) {
                   AppLogger.log('[message_bubble] Starting manual download for fileId=${message.fileId}...');
                   TdlibService.instance.downloadFile(message.fileId);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Загрузка видеозаписи начата…'),
-                      duration: Duration(seconds: 2),
-                    ),
+                  TgToast.show(
+                    context,
+                    'Загрузка видеозаписи начата…',
+                    icon: Icons.download_rounded,
                   );
                 }
               },

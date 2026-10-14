@@ -48,6 +48,11 @@ class TgMessage {
     this.height = 0,
     this.isDownloading = false,
     this.isDownloaded = false,
+    this.replyToMessageId = 0,
+    this.replySenderName = '',
+    this.replyText = '',
+    this.replyThumbnailPath = '',
+    this.replyKind,
   });
 
   final int id;
@@ -67,6 +72,11 @@ class TgMessage {
   final int height;
   final bool isDownloading;
   final bool isDownloaded;
+  final int replyToMessageId;
+  final String replySenderName;
+  final String replyText;
+  final String replyThumbnailPath;
+  final MessageKind? replyKind;
 }
 
 class TgReaction {

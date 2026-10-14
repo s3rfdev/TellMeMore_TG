@@ -53,5 +53,14 @@ ThemeData buildTgTheme() {
       radius: const Radius.circular(2),
       thumbColor: WidgetStateProperty.all(Colors.white.withValues(alpha: 0.16)),
     ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: const Color(0xEE1A222D),
+      contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w500),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.14), width: 1),
+      ),
+    ),
   );
 }

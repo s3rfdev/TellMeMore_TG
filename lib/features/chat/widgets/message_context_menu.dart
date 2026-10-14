@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/tg_theme.dart';
+import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../data/tdlib/tdlib_service.dart';
 import '../../../state/app_state.dart';
@@ -72,15 +73,19 @@ class _ContextMenuDialog extends StatelessWidget {
     String sourcePath = message.mediaPath;
     if (sourcePath.isEmpty && message.fileId > 0) {
       TdlibService.instance.downloadFile(message.fileId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Файл скачивается из Telegram…')),
+      TgToast.show(
+        context,
+        'Файл скачивается из Telegram…',
+        icon: Icons.downloading_rounded,
       );
       return;
     }
 
     if (sourcePath.isEmpty || !File(sourcePath).existsSync()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Файл ещё не загружен или не найден')),
+      TgToast.show(
+        context,
+        'Файл ещё не загружен или не найден',
+        icon: Icons.error_outline_rounded,
       );
       return;
     }
@@ -98,18 +103,18 @@ class _ContextMenuDialog extends StatelessWidget {
       final destPath = '${downloadsDir.path}/$base';
       await file.copy(destPath);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Сохранено в Загрузки ($base)'),
-            backgroundColor: const Color(0xFF27A7E7),
-            duration: const Duration(seconds: 3),
-          ),
+        TgToast.show(
+          context,
+          '✓ Сохранено в Загрузки',
+          icon: Icons.check_circle_rounded,
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка сохранения: $e')),
+        TgToast.show(
+          context,
+          'Ошибка сохранения: $e',
+          icon: Icons.error_outline_rounded,
         );
       }
     }
@@ -134,11 +139,10 @@ class _ContextMenuDialog extends StatelessWidget {
     final text = message.text.isNotEmpty ? message.text : message.fileName;
     if (text.isNotEmpty) {
       Clipboard.setData(ClipboardData(text: text));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✓ Скопировано в буфер обмена'),
-          duration: Duration(seconds: 2),
-        ),
+      TgToast.show(
+        context,
+        '✓ Скопировано в буфер обмена',
+        icon: Icons.copy_rounded,
       );
     }
   }
@@ -148,11 +152,10 @@ class _ContextMenuDialog extends StatelessWidget {
     final cid = int.tryParse(chatId);
     if (cid != null && message.id > 0) {
       TdlibService.instance.pinMessage(cid, message.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✓ Сообщение закреплено'),
-          duration: Duration(seconds: 2),
-        ),
+      TgToast.show(
+        context,
+        '✓ Сообщение закреплено',
+        icon: Icons.push_pin_rounded,
       );
     }
   }
@@ -162,11 +165,10 @@ class _ContextMenuDialog extends StatelessWidget {
     final cid = int.tryParse(chatId);
     if (cid != null && message.id > 0) {
       TdlibService.instance.deleteMessage(cid, message.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Сообщение удалено'),
-          duration: Duration(seconds: 2),
-        ),
+      TgToast.show(
+        context,
+        'Сообщение удалено',
+        icon: Icons.delete_outline_rounded,
       );
     }
   }
