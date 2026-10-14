@@ -15,7 +15,8 @@ import '../../core/widgets/tg_toast.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../data/mock_data.dart';
 import '../../state/app_state.dart';
-import 'widgets/call_dialog.dart';
+import '../ai_copilot/widgets/contact_dossier_sheet.dart';
+import '../ai_copilot/widgets/smart_replies_bar.dart';
 import 'widgets/emoji_picker_popup.dart';
 import 'widgets/forward_dialog.dart';
 import 'widgets/message_bubble.dart';
@@ -297,11 +298,14 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-        CircleIconButton(
-          icon: Icons.phone_outlined,
-          iconSize: 20,
-          color: Tg.textDim,
-          onTap: () => CallDialog.show(context, chat),
+        Tooltip(
+          message: 'AI Досье контакта & CRM',
+          child: CircleIconButton(
+            icon: Icons.auto_awesome,
+            iconSize: 19,
+            color: const Color(0xFF8774E1),
+            onTap: () => ContactDossierDialog.show(context, chat),
+          ),
         ),
         CircleIconButton(
           icon: Icons.search,
@@ -718,6 +722,7 @@ class _InputBarState extends State<_InputBar> {
   Timer? _recordTimer;
   String? _voicePath;
   bool _showEmoji = false;
+  bool _showSmartReplies = false;
 
   @override
   void dispose() {
@@ -993,6 +998,18 @@ class _InputBarState extends State<_InputBar> {
               );
             },
           ),
+          if (_showSmartReplies)
+            SmartRepliesBar(
+              chatId: widget.chat.id,
+              onSelected: (text) {
+                _controller.text = text;
+                _controller.selection = TextSelection.fromPosition(
+                  TextPosition(offset: text.length),
+                );
+                setState(() => _showSmartReplies = false);
+              },
+              onClose: () => setState(() => _showSmartReplies = false),
+            ),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: _isRecordingVoice
@@ -1239,7 +1256,17 @@ class _InputBarState extends State<_InputBar> {
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
+        Tooltip(
+          message: 'AI Smart Reply (быстрые ответы)',
+          child: CircleIconButton(
+            icon: Icons.auto_awesome,
+            iconSize: 20,
+            color: _showSmartReplies ? const Color(0xFF8774E1) : Tg.textDim,
+            onTap: () => setState(() => _showSmartReplies = !_showSmartReplies),
+          ),
+        ),
+        const SizedBox(width: 4),
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: _controller,
           builder: (context, value, _) {

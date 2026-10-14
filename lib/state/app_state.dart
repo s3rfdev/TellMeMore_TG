@@ -1,9 +1,20 @@
 import 'package:flutter/foundation.dart';
 import '../data/models/tg_chat.dart';
 
+enum SidebarTab {
+  contacts,
+  chats,
+  copilot,
+  settings,
+}
+
 /// Глобальное состояние приложения (до подключения реального API).
 class AppState {
   AppState._();
+
+  /// Активная вкладка в нижней панели навигации слева.
+  static final ValueNotifier<SidebarTab> activeSidebarTab =
+      ValueNotifier<SidebarTab>(SidebarTab.chats);
 
   static final ValueNotifier<String?> selectedChatId =
       ValueNotifier<String?>('taras');

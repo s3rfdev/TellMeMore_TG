@@ -7,6 +7,7 @@ import '../../core/widgets/circle_icon_button.dart';
 import '../../data/mock_data.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../state/app_state.dart';
+import '../contacts/contacts_list_view.dart';
 import 'chat_row.dart';
 
 /// Левая колонка: шапка, профиль, поиск, архив, список чатов, нижняя панель.
@@ -55,13 +56,24 @@ class _ChatListScreenState extends State<ChatListScreen> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          _header(),
-          _archivedRow(),
-          Expanded(child: _chatList()),
-          _bottomBar(),
-        ],
+      child: ValueListenableBuilder<SidebarTab>(
+        valueListenable: AppState.activeSidebarTab,
+        builder: (context, activeTab, _) {
+          return Column(
+            children: [
+              if (activeTab == SidebarTab.contacts)
+                Expanded(
+                  child: ContactsListView(onContactOpened: widget.onChatOpened),
+                )
+              else ...[
+                _header(),
+                _archivedRow(),
+                Expanded(child: _chatList()),
+              ],
+              _bottomBar(),
+            ],
+          );
+        },
       ),
     );
 
@@ -245,56 +257,112 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   Widget _bottomBar() {
     return Container(
-      height: 46,
+      height: 48,
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: Tg.hairline)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          const CircleIconButton(
-              icon: Icons.person_outline, iconSize: 21, color: Tg.textFaint),
-          const CircleIconButton(
-              icon: Icons.phone_outlined, iconSize: 19, color: Tg.textFaint),
-          _chatTab(),
-          const CircleIconButton(
-              icon: Icons.settings_outlined, iconSize: 20, color: Tg.textFaint),
-        ],
+      child: ValueListenableBuilder<SidebarTab>(
+        valueListenable: AppState.activeSidebarTab,
+        builder: (context, activeTab, _) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _bottomTabButton(
+                tab: SidebarTab.contacts,
+                active: activeTab == SidebarTab.contacts,
+                icon: Icons.people_alt_outlined,
+                activeIcon: Icons.people_alt_rounded,
+                tooltip: 'Контакты',
+              ),
+              _chatsTabButton(active: activeTab == SidebarTab.chats),
+              _bottomTabButton(
+                tab: SidebarTab.copilot,
+                active: activeTab == SidebarTab.copilot,
+                icon: Icons.auto_awesome_outlined,
+                activeIcon: Icons.auto_awesome,
+                tooltip: 'AI Copilot',
+                activeColor: const Color(0xFF8774E1),
+              ),
+              _bottomTabButton(
+                tab: SidebarTab.settings,
+                active: activeTab == SidebarTab.settings,
+                icon: Icons.settings_outlined,
+                activeIcon: Icons.settings_rounded,
+                tooltip: 'Настройки',
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _chatTab() {
-    return SizedBox(
-      width: 36,
-      height: 32,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Center(
-            child: Icon(Icons.chat_bubble,
-                size: 20, color: Tg.accent.withValues(alpha: 0.9)),
+  Widget _bottomTabButton({
+    required SidebarTab tab,
+    required bool active,
+    required IconData icon,
+    required IconData activeIcon,
+    required String tooltip,
+    Color? activeColor,
+  }) {
+    final color = active ? (activeColor ?? Tg.accent) : Tg.textFaint;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => AppState.activeSidebarTab.value = tab,
+        child: SizedBox(
+          width: 44,
+          height: 38,
+          child: Center(
+            child: Icon(active ? activeIcon : icon, size: 21, color: color),
           ),
-          Positioned(
-            right: -2,
-            top: -3,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: Tg.accent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                '33',
-                style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _chatsTabButton({required bool active}) {
+    return Tooltip(
+      message: 'Чаты',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => AppState.activeSidebarTab.value = SidebarTab.chats,
+        child: SizedBox(
+          width: 44,
+          height: 38,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(
+                child: Icon(
+                  active ? Icons.chat_bubble : Icons.chat_bubble_outline,
+                  size: 20,
+                  color: active ? Tg.accent : Tg.textFaint,
                 ),
               ),
-            ),
+              Positioned(
+                right: 2,
+                top: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Tg.accent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '33',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -6,6 +6,8 @@ import '../core/widgets/tg_avatar.dart';
 import '../data/models/tg_chat.dart';
 import '../data/tdlib/td_content.dart';
 import '../data/tdlib/tdlib_service.dart';
+import '../features/ai_copilot/screens/ai_copilot_screen.dart';
+import '../features/ai_copilot/screens/ai_settings_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/chat/chat_screen.dart';
 import '../features/chat/widgets/call_dialog.dart';
@@ -70,7 +72,22 @@ class _HomeShellState extends State<HomeShell> {
                       (AppState.sidebarWidth.value + dx)
                           .clamp(_minSidebar, _maxSidebar),
                 ),
-                const Expanded(child: ChatScreen()),
+                Expanded(
+                  child: ValueListenableBuilder<SidebarTab>(
+                    valueListenable: AppState.activeSidebarTab,
+                    builder: (context, tab, _) {
+                      switch (tab) {
+                        case SidebarTab.copilot:
+                          return const AiCopilotScreen();
+                        case SidebarTab.settings:
+                          return const AiSettingsScreen();
+                        case SidebarTab.contacts:
+                        case SidebarTab.chats:
+                          return const ChatScreen();
+                      }
+                    },
+                  ),
+                ),
               ],
             );
           },
@@ -78,9 +95,22 @@ class _HomeShellState extends State<HomeShell> {
       } else {
         mainContent = Stack(
           children: [
-            ChatScreen(
-              showBack: true,
-              onBack: () => setState(() => _overlayOpen = true),
+            ValueListenableBuilder<SidebarTab>(
+              valueListenable: AppState.activeSidebarTab,
+              builder: (context, tab, _) {
+                switch (tab) {
+                  case SidebarTab.copilot:
+                    return const AiCopilotScreen();
+                  case SidebarTab.settings:
+                    return const AiSettingsScreen();
+                  case SidebarTab.contacts:
+                  case SidebarTab.chats:
+                    return ChatScreen(
+                      showBack: true,
+                      onBack: () => setState(() => _overlayOpen = true),
+                    );
+                }
+              },
             ),
             AnimatedSlide(
               offset: _overlayOpen ? Offset.zero : const Offset(-1, 0),
