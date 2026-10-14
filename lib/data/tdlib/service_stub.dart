@@ -41,6 +41,7 @@ class TdlibService {
   void sendFile(int chatId, String path, [String caption = '']) {}
   void searchChats(String query) {}
   void loadMe() {}
+  void syncUserProfile() {}
   void openUserByUsername(String username) {}
   void createGroup(String title) {}
   void openChat(int chatId) {}

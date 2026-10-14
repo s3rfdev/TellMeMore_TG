@@ -57,6 +57,50 @@ class TgAccount {
   }
 }
 
+class TgPost {
+  const TgPost({
+    required this.id,
+    required this.text,
+    this.mediaPath = '',
+    this.mediaUrl = '',
+    required this.date,
+    this.views = 0,
+    this.likes = 0,
+    this.isArchived = false,
+  });
+
+  final String id;
+  final String text;
+  final String mediaPath;
+  final String mediaUrl;
+  final DateTime date;
+  final int views;
+  final int likes;
+  final bool isArchived;
+
+  TgPost copyWith({
+    String? id,
+    String? text,
+    String? mediaPath,
+    String? mediaUrl,
+    DateTime? date,
+    int? views,
+    int? likes,
+    bool? isArchived,
+  }) {
+    return TgPost(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      mediaPath: mediaPath ?? this.mediaPath,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      date: date ?? this.date,
+      views: views ?? this.views,
+      likes: likes ?? this.likes,
+      isArchived: isArchived ?? this.isArchived,
+    );
+  }
+}
+
 class AccountManager {
   AccountManager._() {
     _initDefaults();
@@ -76,9 +120,9 @@ class AccountManager {
       id: 'sergei',
       name: 'Сергей',
       phone: '+7 928 296 50 54',
-      username: '@sergei_amos',
-      bio: 'Developer & Team Lead | AMOS',
-      avatarPath: 'assets/images/sergei_avatar.png',
+      username: '',
+      bio: '',
+      avatarPath: '',
       avatarEmoji: 'S',
       avatarColor: Color(0xFF2F6FA8),
       unreadBadge: 0,
@@ -86,15 +130,19 @@ class AccountManager {
     ),
   );
 
+  final ValueNotifier<List<TgPost>> myPosts = ValueNotifier<List<TgPost>>([]);
+  final ValueNotifier<List<TgPost>> myArchivedPosts = ValueNotifier<List<TgPost>>([]);
+  final ValueNotifier<bool> isSyncingProfile = ValueNotifier<bool>(false);
+
   void _initDefaults() {
     accounts.value = [
       const TgAccount(
         id: 'sergei',
         name: 'Сергей',
         phone: '+7 928 296 50 54',
-        username: '@sergei_amos',
-        bio: 'Developer & Team Lead | AMOS',
-        avatarPath: 'assets/images/sergei_avatar.png',
+        username: '',
+        bio: '',
+        avatarPath: '',
         avatarEmoji: 'S',
         avatarColor: Color(0xFF2F6FA8),
         unreadBadge: 0,
@@ -153,7 +201,7 @@ class AccountManager {
     return mockContacts;
   }
 
-  void syncAuthorizedUser(TgUser user) {
+  void syncAuthorizedUser(TgUser user, {String? bio, String? avatarPath}) {
     final cur = accounts.value.firstWhere(
       (a) => a.id == 'sergei',
       orElse: () => accounts.value.first,
@@ -165,15 +213,79 @@ class AccountManager {
         ? (rawPhone.startsWith('+') ? rawPhone : '+$rawPhone')
         : cur.phone;
     final username = user.username.isNotEmpty ? '@${user.username}' : cur.username;
+    final newBio = bio ?? cur.bio;
+    final newAvatar = avatarPath ?? cur.avatarPath;
     final updated = cur.copyWith(
       name: name,
       phone: phone,
       username: username,
+      bio: newBio,
+      avatarPath: newAvatar,
       isOnline: true,
     );
     accounts.value = accounts.value.map((a) => a.id == updated.id ? updated : a).toList();
     if (currentAccount.value.id == updated.id) {
       currentAccount.value = updated;
+    }
+  }
+
+  void syncBio(String bio) {
+    final cur = currentAccount.value;
+    final updated = cur.copyWith(bio: bio);
+    currentAccount.value = updated;
+    accounts.value = accounts.value.map((a) => a.id == updated.id ? updated : a).toList();
+  }
+
+  void syncAvatar(String avatarPath) {
+    final cur = currentAccount.value;
+    final updated = cur.copyWith(avatarPath: avatarPath);
+    currentAccount.value = updated;
+    accounts.value = accounts.value.map((a) => a.id == updated.id ? updated : a).toList();
+  }
+
+  void mergeProfilePhotos(List<TgPost> activePhotoPosts, List<TgPost> archivedPhotoPosts) {
+    myArchivedPosts.value = archivedPhotoPosts;
+    final current = myPosts.value;
+    final channelPosts = current.where((p) => !p.text.contains('Фото профиля')).toList();
+    final combined = <TgPost>[...channelPosts, ...activePhotoPosts];
+    final seen = <String>{};
+    final unique = <TgPost>[];
+    for (final p in combined) {
+      if (seen.add(p.id)) unique.add(p);
+    }
+    myPosts.value = unique;
+  }
+
+  void setChannelPosts(List<TgPost> channelPosts) {
+    final current = myPosts.value;
+    final photoPosts = current.where((p) => p.text.contains('Фото профиля')).toList();
+    final combined = <TgPost>[...channelPosts, ...photoPosts];
+    final seen = <String>{};
+    final unique = <TgPost>[];
+    for (final p in combined) {
+      if (seen.add(p.id)) unique.add(p);
+    }
+    myPosts.value = unique;
+  }
+
+  void updatePostMedia(String postId, String path) {
+    myPosts.value = myPosts.value.map((p) => p.id == postId ? p.copyWith(mediaPath: path) : p).toList();
+    myArchivedPosts.value = myArchivedPosts.value.map((p) => p.id == postId ? p.copyWith(mediaPath: path) : p).toList();
+  }
+
+  void setPosts(List<TgPost> posts, {bool isArchived = false}) {
+    if (isArchived) {
+      myArchivedPosts.value = posts;
+    } else {
+      myPosts.value = posts;
+    }
+  }
+
+  void addPost(TgPost post, {bool isArchived = false}) {
+    if (isArchived) {
+      myArchivedPosts.value = [post, ...myArchivedPosts.value];
+    } else {
+      myPosts.value = [post, ...myPosts.value];
     }
   }
 

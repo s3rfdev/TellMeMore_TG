@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../core/localization/app_locale.dart';
@@ -5,6 +7,7 @@ import '../../core/theme/tg_theme.dart';
 import '../../core/widgets/tg_avatar.dart';
 import '../../core/widgets/tg_toast.dart';
 import '../../data/models/tg_account.dart';
+import '../../data/tdlib/tdlib_service.dart';
 import '../../state/app_state.dart';
 import 'edit_account_dialog.dart';
 
@@ -27,6 +30,27 @@ class _ProfileDialogState extends State<ProfileDialog> {
   int _activeTab = 0; // 0: Posts, 1: Archived Posts
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-sync real Telegram profile data upon opening dialog
+    TdlibService.instance.syncUserProfile();
+  }
+
+  String _formatPostDate(DateTime date) {
+    if (date.year <= 1970) return '';
+    final now = DateTime.now();
+    const months = [
+      'янв', 'фев', 'мар', 'апр', 'май', 'июн',
+      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+    ];
+    final mName = (date.month >= 1 && date.month <= 12) ? months[date.month - 1] : '';
+    if (date.year == now.year) {
+      return '${date.day} $mName';
+    }
+    return '${date.day} $mName ${date.year}';
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -39,7 +63,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
             builder: (context, acc, _) {
               return Container(
                 width: 440,
-                constraints: const BoxConstraints(maxHeight: 720),
+                constraints: const BoxConstraints(maxHeight: 740),
                 decoration: BoxDecoration(
                   color: Tg.sidebar,
                   borderRadius: BorderRadius.circular(20),
@@ -68,8 +92,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
                             _buildInfoCard(acc),
                             const SizedBox(height: 18),
                             _buildPostsTabs(),
-                            const SizedBox(height: 24),
-                            _buildEmptyPostsState(),
+                            const SizedBox(height: 18),
+                            _buildPostsSection(),
                           ],
                         ),
                       ),
@@ -109,6 +133,29 @@ class _ProfileDialogState extends State<ProfileDialog> {
               ),
             ),
           ),
+          ValueListenableBuilder<bool>(
+            valueListenable: AccountManager.instance.isSyncingProfile,
+            builder: (context, syncing, _) {
+              if (syncing) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Tg.accent),
+                  ),
+                );
+              }
+              return IconButton(
+                icon: const Icon(Icons.sync_rounded, color: Tg.accent, size: 21),
+                tooltip: 'Синхронизировать с Telegram',
+                onPressed: () {
+                  TdlibService.instance.syncUserProfile();
+                  TgToast.show(context, '🔄 Синхронизация профиля...');
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: Tg.accent, size: 20),
             tooltip: tr('edit_info'),
@@ -139,21 +186,24 @@ class _ProfileDialogState extends State<ProfileDialog> {
               Positioned(
                 bottom: 2,
                 right: 2,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF2F6FA8),
-                    shape: BoxShape.circle,
+                child: GestureDetector(
+                  onTap: () => TgToast.show(context, '📸 ${tr('set_photo')}'),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF2F6FA8),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
                   ),
-                  child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            acc.name,
+            acc.name.isNotEmpty ? acc.name : 'Пользователь',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -249,19 +299,20 @@ class _ProfileDialogState extends State<ProfileDialog> {
       child: Column(
         children: [
           _infoRow(
-            title: acc.phone,
+            title: acc.phone.isNotEmpty ? acc.phone : '—',
             subtitle: tr('phone'),
             onTap: () => TgToast.show(context, 'Номер скопирован'),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           _infoRow(
-            title: acc.bio.isNotEmpty ? acc.bio : '—',
+            title: acc.bio.isNotEmpty ? acc.bio : (I18n.instance.isRu ? 'О себе не указано' : 'No bio'),
             subtitle: tr('bio'),
+            isPlaceholder: acc.bio.isEmpty,
             onTap: () => EditAccountDialog.show(context),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           _infoRow(
-            title: acc.username,
+            title: acc.username.isNotEmpty ? acc.username : '—',
             subtitle: tr('username'),
             onTap: () => TgToast.show(context, 'Юзернейм скопирован'),
           ),
@@ -270,7 +321,12 @@ class _ProfileDialogState extends State<ProfileDialog> {
     );
   }
 
-  Widget _infoRow({required String title, required String subtitle, required VoidCallback onTap}) {
+  Widget _infoRow({
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isPlaceholder = false,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -284,7 +340,12 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w500,
+                      color: isPlaceholder ? Tg.textDim : Colors.white,
+                      fontStyle: isPlaceholder ? FontStyle.italic : FontStyle.normal,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -356,12 +417,401 @@ class _ProfileDialogState extends State<ProfileDialog> {
     );
   }
 
+  Widget _buildPostsSection() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: AccountManager.instance.isSyncingProfile,
+      builder: (context, syncing, _) {
+        return ValueListenableBuilder<List<TgPost>>(
+          valueListenable: _activeTab == 0
+              ? AccountManager.instance.myPosts
+              : AccountManager.instance.myArchivedPosts,
+          builder: (context, posts, _) {
+            if (syncing && posts.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 36),
+                child: Center(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Tg.accent),
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Синхронизация постов с Telegram...',
+                        style: TextStyle(fontSize: 13, color: Tg.textDim),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+            if (posts.isEmpty) {
+              return _buildEmptyPostsState();
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _activeTab == 0
+                          ? 'Публикации (${posts.length})'
+                          : 'Архив (${posts.length})',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Tg.textDim),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _showCreatePostDialog(context),
+                      icon: const Icon(Icons.add_rounded, size: 16, color: Color(0xFF55A5EB)),
+                      label: Text(
+                        tr('add_post'),
+                        style: const TextStyle(fontSize: 12.5, color: Color(0xFF55A5EB), fontWeight: FontWeight.w600),
+                      ),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildPostsGrid(posts),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPostsGrid(List<TgPost> posts) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.82,
+      ),
+      itemCount: posts.length,
+      itemBuilder: (context, index) {
+        final post = posts[index];
+        return _buildPostCard(post);
+      },
+    );
+  }
+
+  Widget _buildPostCard(TgPost post) {
+    final hasMedia = post.mediaPath.isNotEmpty && File(post.mediaPath).existsSync();
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _showPostDetail(context, post),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2B38),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: hasMedia
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(
+                          File(post.mediaPath),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => _mediaFallback(post),
+                        ),
+                        if (post.views > 0)
+                          Positioned(
+                            bottom: 6,
+                            right: 6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.visibility_outlined, size: 12, color: Colors.white),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${post.views}',
+                                    style: const TextStyle(fontSize: 10.5, color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    )
+                  : _mediaFallback(post),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (post.text.isNotEmpty)
+                    Text(
+                      post.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: Tg.text, fontWeight: FontWeight.w500),
+                    ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _formatPostDate(post.date),
+                        style: const TextStyle(fontSize: 10.5, color: Tg.textDim),
+                      ),
+                      if (!hasMedia && post.views > 0)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.visibility_outlined, size: 11, color: Tg.textFaint),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${post.views}',
+                              style: const TextStyle(fontSize: 10.5, color: Tg.textFaint),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mediaFallback(TgPost post) {
+    return Container(
+      color: const Color(0xFF17212B),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            post.mediaPath.isNotEmpty ? Icons.image_rounded : Icons.article_rounded,
+            size: 32,
+            color: Tg.textFaint,
+          ),
+          if (post.mediaPath.isNotEmpty && !File(post.mediaPath).existsSync()) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'Загрузка...',
+              style: TextStyle(fontSize: 11, color: Tg.textDim),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showPostDetail(BuildContext context, TgPost post) {
+    final hasMedia = post.mediaPath.isNotEmpty && File(post.mediaPath).existsSync();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: Container(
+            width: 440,
+            constraints: const BoxConstraints(maxHeight: 640),
+            decoration: BoxDecoration(
+              color: Tg.sidebar,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          _formatPostDate(post.date),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+                        ),
+                        const Spacer(),
+                        if (post.views > 0) ...[
+                          const Icon(Icons.visibility_outlined, size: 14, color: Tg.textDim),
+                          const SizedBox(width: 4),
+                          Text('${post.views}', style: const TextStyle(fontSize: 12, color: Tg.textDim)),
+                          const SizedBox(width: 12),
+                        ],
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textDim),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (hasMedia)
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 380),
+                              child: Image.file(
+                                File(post.mediaPath),
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          if (post.text.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: SelectableText(
+                                post.text,
+                                style: const TextStyle(fontSize: 14.5, color: Colors.white, height: 1.4),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCreatePostDialog(BuildContext context) {
+    final textController = TextEditingController();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: 400,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Tg.sidebar,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      tr('add_post'),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textDim),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF17212B),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: TextField(
+                    controller: textController,
+                    maxLines: 4,
+                    autofocus: true,
+                    style: const TextStyle(fontSize: 14, color: Colors.white),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: I18n.instance.isRu ? 'Текст публикации...' : 'Post text...',
+                      hintStyle: const TextStyle(color: Tg.textDim),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2F6FA8),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () {
+                        final text = textController.text.trim();
+                        if (text.isNotEmpty) {
+                          final newPost = TgPost(
+                            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+                            text: text,
+                            date: DateTime.now(),
+                            views: 1,
+                            isArchived: _activeTab == 1,
+                          );
+                          AccountManager.instance.addPost(newPost, isArchived: _activeTab == 1);
+                          Navigator.of(ctx).pop();
+                          TgToast.show(context, '✅ Публикация добавлена');
+                        }
+                      },
+                      child: Text(I18n.instance.isRu ? 'Опубликовать' : 'Publish'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildEmptyPostsState() {
+    final isArchived = _activeTab == 1;
     return Column(
       children: [
         const SizedBox(height: 14),
         Text(
-          tr('no_posts_yet'),
+          isArchived
+              ? (I18n.instance.isRu ? 'В архиве нет постов' : 'No archived posts')
+              : tr('no_posts_yet'),
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -370,15 +820,19 @@ class _ProfileDialogState extends State<ProfileDialog> {
         ),
         const SizedBox(height: 6),
         Text(
-          I18n.instance.isRu
-              ? 'Публикуйте фотографии и видео для вашей страницы'
-              : 'Publish photos and videos to display on your profile page',
+          isArchived
+              ? (I18n.instance.isRu
+                  ? 'Здесь будут сохранены ваши архивные публикации и фото'
+                  : 'Your archived posts and photos will be stored here')
+              : (I18n.instance.isRu
+                  ? 'Публикуйте фотографии и видео для вашей страницы'
+                  : 'Publish photos and videos to display on your profile page'),
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13, color: Tg.textDim),
         ),
         const SizedBox(height: 18),
         ElevatedButton.icon(
-          onPressed: () => TgToast.show(context, 'Создание нового поста'),
+          onPressed: () => _showCreatePostDialog(context),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF2F6FA8),
             foregroundColor: Colors.white,

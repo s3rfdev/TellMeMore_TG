@@ -139,6 +139,53 @@ class TdlibService {
         );
         currentUser.value = user;
         AccountManager.instance.syncAuthorizedUser(user);
+      case 'userFullInfo':
+        final bio = msg['bio'] as String? ?? '';
+        AccountManager.instance.syncBio(bio);
+        AccountManager.instance.isSyncingProfile.value = false;
+      case 'myAvatar':
+        final path = msg['path'] as String? ?? '';
+        AccountManager.instance.syncAvatar(path);
+      case 'profilePhotos':
+        final rawPhotos = (msg['photos'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final activePhotos = <TgPost>[];
+        final archivedPhotos = <TgPost>[];
+        for (final p in rawPhotos) {
+          final isArch = p['isArchived'] as bool? ?? false;
+          final post = TgPost(
+            id: p['id'].toString(),
+            text: p['text'] as String? ?? '',
+            mediaPath: p['mediaPath'] as String? ?? '',
+            date: DateTime.fromMillisecondsSinceEpoch(((p['date'] as num?)?.toInt() ?? 0) * 1000),
+            views: (p['views'] as num?)?.toInt() ?? 0,
+            likes: (p['likes'] as num?)?.toInt() ?? 0,
+            isArchived: isArch,
+          );
+          if (isArch) {
+            archivedPhotos.add(post);
+          } else {
+            activePhotos.add(post);
+          }
+        }
+        AccountManager.instance.mergeProfilePhotos(activePhotos, archivedPhotos);
+        AccountManager.instance.isSyncingProfile.value = false;
+      case 'personalPosts':
+        final rawPosts = (msg['posts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final posts = rawPosts.map((p) => TgPost(
+          id: p['id'].toString(),
+          text: p['text'] as String? ?? '',
+          mediaPath: p['mediaPath'] as String? ?? '',
+          date: DateTime.fromMillisecondsSinceEpoch(((p['date'] as num?)?.toInt() ?? 0) * 1000),
+          views: (p['views'] as num?)?.toInt() ?? 0,
+          likes: (p['likes'] as num?)?.toInt() ?? 0,
+          isArchived: false,
+        )).toList();
+        AccountManager.instance.setChannelPosts(posts);
+        AccountManager.instance.isSyncingProfile.value = false;
+      case 'postMediaDownloaded':
+        final postId = msg['postId'] as String;
+        final path = msg['path'] as String;
+        AccountManager.instance.updatePostMedia(postId, path);
       case 'searchResults':
         final ids = (msg['chatIds'] as List).cast<int>().toSet();
         final all = chats.value;
@@ -312,6 +359,11 @@ class TdlibService {
 
   void loadMe() {
     _sendCmd({'type': 'getMe'});
+  }
+
+  void syncUserProfile() {
+    AccountManager.instance.isSyncingProfile.value = true;
+    _sendCmd({'type': 'syncProfile'});
   }
 
   void openUserByUsername(String username) {

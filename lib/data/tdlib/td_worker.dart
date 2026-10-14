@@ -108,6 +108,8 @@ class _Store {
   final Map<int, Map<String, dynamic>> _allMessages = {};
   final Set<int> _requestedReplyMessages = {};
   int _myId = 0;
+  int _myAvatarFileId = 0;
+  final Map<int, String> _postPhotoFiles = {};
   bool _authorized = false;
   bool _paramsSent = false;
   bool _chatsDirty = false;
@@ -419,7 +421,62 @@ class _Store {
             'protocol': proto,
           });
         }
+      case 'syncProfile':
+        if (_myId > 0 && _users.containsKey(_myId)) {
+          _syncUserProfile(_users[_myId]!);
+        } else {
+          _send({'@type': 'getMe'});
+        }
     }
+  }
+
+  void _syncUserProfile(Map<String, dynamic> userMap) {
+    if (_myId == 0) return;
+
+    // 1. Check profile photo on user object
+    final profilePhoto = userMap['profile_photo'] as Map<String, dynamic>?;
+    if (profilePhoto != null) {
+      final big = profilePhoto['big'] as Map<String, dynamic>?;
+      final small = profilePhoto['small'] as Map<String, dynamic>?;
+      final target = big ?? small;
+      if (target != null) {
+        final fId = (target['id'] as num?)?.toInt() ?? 0;
+        if (fId > 0) {
+          _myAvatarFileId = fId;
+          final local = target['local'] as Map<String, dynamic>?;
+          final isDone = local?['is_downloading_completed'] == true;
+          final path = (local?['path'] as String?) ?? '';
+          if (isDone && path.isNotEmpty && File(path).existsSync()) {
+            // ignore: avoid_print
+            print('[worker] user profile avatar already downloaded: $path');
+            _ui.send({'type': 'myAvatar', 'path': path});
+          } else {
+            // ignore: avoid_print
+            print('[worker] downloading user profile avatar fileId=$fId');
+            _downloadFileIfNeeded(target, priority: 32);
+          }
+        }
+      }
+    } else {
+      // Clear any previous mock avatar if user has no photo
+      _ui.send({'type': 'myAvatar', 'path': ''});
+    }
+
+    // 2. Request user full info for bio & personal_chat_id
+    // ignore: avoid_print
+    print('[worker] requesting getUserFullInfo for user_id=$_myId');
+    _send({'@type': 'getUserFullInfo', 'user_id': _myId});
+
+    // 3. Request user profile photos history
+    // ignore: avoid_print
+    print('[worker] requesting getUserProfilePhotos for user_id=$_myId');
+    _send({
+      '@type': 'getUserProfilePhotos',
+      'user_id': _myId,
+      'offset': 0,
+      'limit': 50,
+      '@extra': {'action': 'profilePhotos', 'user_id': _myId},
+    });
   }
 
   // ------------------------------------------------------------ receiving
@@ -475,16 +532,21 @@ class _Store {
           _users[id] = m;
           _myId = id;
           _chatsDirty = true;
+          final fn = m['first_name'] as String? ?? '';
+          final ln = m['last_name'] as String? ?? '';
+          final username = (m['usernames']?['active_usernames'] as List?)?.firstOrNull ?? m['username'] as String? ?? '';
+          final phone = m['phone_number'] as String? ?? '';
           _ui.send({
             'type': 'me',
             'user': {
               'id': id,
-              'first_name': m['first_name'] as String? ?? '',
-              'last_name': m['last_name'] as String? ?? '',
-              'username': (m['usernames']?['active_usernames'] as List?)?.firstOrNull ?? m['username'] as String? ?? '',
-              'phone_number': m['phone_number'] as String? ?? '',
+              'first_name': fn,
+              'last_name': ln,
+              'username': username,
+              'phone_number': phone,
             },
           });
+          _syncUserProfile(m);
         }
         return;
       case 'updateUser':
@@ -494,18 +556,93 @@ class _Store {
           _users[id] = user!;
           _chatsDirty = true;
           if (_myId == id) {
+            final fn = user['first_name'] as String? ?? '';
+            final ln = user['last_name'] as String? ?? '';
+            final username = (user['usernames']?['active_usernames'] as List?)?.firstOrNull ?? user['username'] as String? ?? '';
+            final phone = user['phone_number'] as String? ?? '';
             _ui.send({
               'type': 'me',
               'user': {
                 'id': id,
-                'first_name': user['first_name'] as String? ?? '',
-                'last_name': user['last_name'] as String? ?? '',
-                'username': (user['usernames']?['active_usernames'] as List?)?.firstOrNull ?? user['username'] as String? ?? '',
-                'phone_number': user['phone_number'] as String? ?? '',
+                'first_name': fn,
+                'last_name': ln,
+                'username': username,
+                'phone_number': phone,
               },
             });
+            _syncUserProfile(user);
           }
         }
+        return;
+      case 'userFullInfo':
+      case 'updateUserFullInfo':
+        final full = (m['user_full_info'] ?? m) as Map<String, dynamic>;
+        final bioObj = full['bio'] as Map<String, dynamic>?;
+        final bioText = (bioObj?['text'] as String?) ?? '';
+        final personalChatId = (full['personal_chat_id'] as num?)?.toInt() ?? 0;
+        // ignore: avoid_print
+        print('[worker] userFullInfo: bio="$bioText", personalChatId=$personalChatId');
+        _ui.send({
+          'type': 'userFullInfo',
+          'bio': bioText,
+          'personalChatId': personalChatId,
+        });
+        if (personalChatId != 0) {
+          _send({
+            '@type': 'getChatHistory',
+            'chat_id': personalChatId,
+            'from_message_id': 0,
+            'offset': 0,
+            'limit': 30,
+            'only_local': false,
+            '@extra': {'action': 'personalPosts', 'chat_id': personalChatId},
+          });
+        }
+        return;
+      case 'userProfilePhotos':
+        final photos = (m['photos'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final totalCount = (m['total_count'] as num?)?.toInt() ?? photos.length;
+        // ignore: avoid_print
+        print('[worker] userProfilePhotos count: ${photos.length}, total: $totalCount');
+        final postList = <Map<String, dynamic>>[];
+        for (int i = 0; i < photos.length; i++) {
+          final p = photos[i];
+          final photoId = p['id'].toString();
+          final addedDate = (p['added_date'] as num?)?.toInt() ?? 0;
+          final sizes = (p['sizes'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          String path = '';
+          int fileId = 0;
+          if (sizes.isNotEmpty) {
+            final bigSize = sizes.last;
+            final photoFile = bigSize['photo'] as Map<String, dynamic>?;
+            if (photoFile != null) {
+              fileId = (photoFile['id'] as num?)?.toInt() ?? 0;
+              final local = photoFile['local'] as Map<String, dynamic>?;
+              final isDone = local?['is_downloading_completed'] == true;
+              final localPath = (local?['path'] as String?) ?? '';
+              if (isDone && localPath.isNotEmpty && File(localPath).existsSync()) {
+                path = localPath;
+              } else if (fileId > 0) {
+                _postPhotoFiles[fileId] = photoId;
+                _downloadFileIfNeeded(photoFile, priority: 20);
+              }
+            }
+          }
+          postList.add({
+            'id': photoId,
+            'text': i == 0 ? 'Фото профиля' : 'Архивное фото профиля',
+            'mediaPath': path,
+            'date': addedDate,
+            'views': 0,
+            'likes': 0,
+            'fileId': fileId,
+            'isArchived': i > 0,
+          });
+        }
+        _ui.send({
+          'type': 'profilePhotos',
+          'photos': postList,
+        });
         return;
       case 'chats':
         final extra = m['@extra'] as Map<String, dynamic>?;
@@ -533,6 +670,19 @@ class _Store {
               print('[td_worker] File download complete: fileId=$fileId, path=$path');
               _downloadingFiles.remove(fileId);
               _downloadedFiles[fileId] = path;
+              if (fileId == _myAvatarFileId) {
+                // ignore: avoid_print
+                print('[worker] My avatar downloaded: $path');
+                _ui.send({'type': 'myAvatar', 'path': path});
+              }
+              if (_postPhotoFiles.containsKey(fileId)) {
+                final pId = _postPhotoFiles[fileId]!;
+                _ui.send({
+                  'type': 'postMediaDownloaded',
+                  'postId': pId,
+                  'path': path,
+                });
+              }
               _chatsDirty = true;
               for (final st in _chats.values) {
                 if (st.history.isNotEmpty) {
@@ -677,6 +827,57 @@ class _Store {
 
         // ignore: avoid_print
         print('[worker] got messages for chat $extraChatId: count=${list?.length}, action=$action');
+
+        if (action == 'personalPosts') {
+          final msgs = (m['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          // ignore: avoid_print
+          print('[worker] got personal channel posts: count=${msgs.length}');
+          final channelPosts = <Map<String, dynamic>>[];
+          for (final msg in msgs) {
+            final postId = msg['id'].toString();
+            final date = (msg['date'] as num?)?.toInt() ?? 0;
+            final text = TdContent.fullText(msg);
+            String mediaPath = '';
+            int fileId = 0;
+            final kind = TdContent.messageKind(msg);
+            if (kind == MessageKind.image) {
+              final content = msg['content'] as Map<String, dynamic>?;
+              final photo = content?['photo'] as Map<String, dynamic>?;
+              final sizes = (photo?['sizes'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+              if (sizes.isNotEmpty) {
+                final target = sizes.last;
+                final file = target['photo'] as Map<String, dynamic>?;
+                if (file != null) {
+                  fileId = (file['id'] as num?)?.toInt() ?? 0;
+                  final local = file['local'] as Map<String, dynamic>?;
+                  if (local?['is_downloading_completed'] == true && (local?['path'] as String? ?? '').isNotEmpty) {
+                    mediaPath = local!['path'] as String;
+                  } else if (fileId > 0) {
+                    _postPhotoFiles[fileId] = postId;
+                    _downloadFileIfNeeded(file, priority: 25);
+                  }
+                }
+              }
+            }
+            final interactionInfo = msg['interaction_info'] as Map<String, dynamic>?;
+            final viewCount = (interactionInfo?['view_count'] as num?)?.toInt() ?? 0;
+            channelPosts.add({
+              'id': postId,
+              'text': text,
+              'mediaPath': mediaPath,
+              'date': date,
+              'views': viewCount,
+              'likes': 0,
+              'fileId': fileId,
+              'isArchived': false,
+            });
+          }
+          _ui.send({
+            'type': 'personalPosts',
+            'posts': channelPosts,
+          });
+          return;
+        }
 
         if (extraChatId == null) return;
         final st = _chatById(extraChatId);
