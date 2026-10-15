@@ -759,7 +759,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(tr('ai_comp_volume_threshold'), style: Tg.caption),
+                    Expanded(
+                      child: Text(
+                        tr('ai_comp_volume_threshold'),
+                        style: Tg.caption,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       tr('ai_comp_volume_tokens', {
                         'tokens': settings.compressionVolumeThreshold.toString(),
@@ -789,7 +796,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(tr('ai_comp_msg_threshold'), style: Tg.caption),
+                    Expanded(
+                      child: Text(
+                        tr('ai_comp_msg_threshold'),
+                        style: Tg.caption,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       tr('ai_comp_msgs_count', {'count': settings.contextMessageCount.toString()}),
                       style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium, color: Tg.accent),
@@ -817,7 +831,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(tr('ai_comp_raw_window'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
+                  Expanded(
+                    child: Text(
+                      tr('ai_comp_raw_window'),
+                      style: const TextStyle(fontSize: 13, color: Tg.textDim),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(
                     tr('ai_comp_raw_count', {'count': settings.compressionKeepRawCount.toString()}),
                     style: const TextStyle(fontSize: 12.5, fontWeight: Tg.fontMedium, color: Tg.accent),

@@ -148,5 +148,52 @@ void main() {
       expect(store.sessions.value.length, countBefore - 1);
       expect(store.activeSessionId.value, isNot(toDeleteId));
     });
+
+    test('CopilotSession serialization toJson and fromJson preserves all fields', () {
+      final msg = CopilotMessage(
+        id: 'msg-1',
+        text: 'Привет от пользователя',
+        isUser: true,
+        toolName: 'search',
+        toolOutput: 'result',
+      );
+      final session = CopilotSession(
+        id: 'session-serialize-test',
+        title: 'Тестовая сессия',
+        agentRole: 'Tester',
+        systemPrompt: 'Будь краток',
+        avatarIcon: Icons.bolt,
+        avatarColor: Colors.blue,
+        messages: [msg],
+        contextSummary: 'Краткая выжимка',
+        summaryTokenCount: 15,
+        messageLimit: 40,
+        ragPrompt: 'Факты',
+        ragFactSummary: 'Сухие факты',
+        ragFactSummaryCount: 5,
+        autoCompressEnabled: false,
+        autoCompressThreshold: 25,
+        keepRawCount: 8,
+      );
+
+      final json = session.toJson();
+      final restored = CopilotSession.fromJson(json);
+
+      expect(restored.id, session.id);
+      expect(restored.title, session.title);
+      expect(restored.agentRole, session.agentRole);
+      expect(restored.systemPrompt, session.systemPrompt);
+      expect(restored.avatarIcon.codePoint, session.avatarIcon.codePoint);
+      expect(restored.avatarColor.value, session.avatarColor.value);
+      expect(restored.messages.length, 1);
+      expect(restored.messages.first.id, msg.id);
+      expect(restored.messages.first.text, msg.text);
+      expect(restored.messages.first.toolName, msg.toolName);
+      expect(restored.contextSummary, session.contextSummary);
+      expect(restored.summaryTokenCount, 15);
+      expect(restored.messageLimit, 40);
+      expect(restored.autoCompressEnabled, isFalse);
+      expect(restored.keepRawCount, 8);
+    });
   });
 }

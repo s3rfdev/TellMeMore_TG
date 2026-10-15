@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/localization/app_locale.dart';
+import '../../../core/utils/session_paths.dart';
 import '../../../data/models/tg_chat.dart';
 import '../models/ai_settings_model.dart';
 import '../models/contact_dossier.dart';
@@ -13,12 +17,20 @@ import 'voice_transcription_service.dart';
 class CopilotSessionStore {
   CopilotSessionStore._() {
     _initDefaultSessions();
+    _initFuture = _loadFromDisk();
   }
 
   static final CopilotSessionStore instance = CopilotSessionStore._();
 
+  late final Future<void> _initFuture;
+  Future<void> init() => _initFuture;
+
   late final ValueNotifier<List<CopilotSession>> sessions;
   late final ValueNotifier<String> activeSessionId;
+
+  bool _isLoading = false;
+  bool _isSaving = false;
+  bool _hasPendingSave = false;
 
   void _initDefaultSessions() {
     final isRu = I18n.instance.isRu;
@@ -47,6 +59,70 @@ class CopilotSessionStore {
     activeSessionId = ValueNotifier<String>(list.first.id);
   }
 
+  Future<void> _loadFromDisk() async {
+    try {
+      _isLoading = true;
+      final base = await SessionPaths.getAppStorageDirectory();
+      final file = File('$base/copilot_sessions.json');
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        if (content.trim().isNotEmpty) {
+          final data = jsonDecode(content);
+          if (data is Map<String, dynamic>) {
+            final rawList = data['sessions'] as List<dynamic>?;
+            final activeId = data['activeSessionId'] as String?;
+            if (rawList != null && rawList.isNotEmpty) {
+              final loaded = rawList
+                  .map((e) => CopilotSession.fromJson(e as Map<String, dynamic>))
+                  .toList();
+              sessions.value = loaded;
+              if (activeId != null && loaded.any((s) => s.id == activeId)) {
+                activeSessionId.value = activeId;
+              } else {
+                activeSessionId.value = loaded.first.id;
+              }
+              return;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading copilot sessions: $e');
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  Future<void> _saveToDisk() async {
+    if (_isLoading) return;
+    if (_isSaving) {
+      _hasPendingSave = true;
+      return;
+    }
+    _isSaving = true;
+    try {
+      final base = await SessionPaths.getAppStorageDirectory();
+      final file = File('$base/copilot_sessions.json');
+      final tempFile = File('$base/copilot_sessions_${DateTime.now().microsecondsSinceEpoch}.tmp');
+      final data = {
+        'activeSessionId': activeSessionId.value,
+        'sessions': sessions.value.map((s) => s.toJson()).toList(),
+      };
+      await tempFile.writeAsString(jsonEncode(data), encoding: utf8, flush: true);
+      if (await tempFile.exists()) {
+        await tempFile.rename(file.path);
+      }
+    } catch (e) {
+      debugPrint('Error saving copilot sessions: $e');
+    } finally {
+      _isSaving = false;
+      if (_hasPendingSave) {
+        _hasPendingSave = false;
+        _saveToDisk();
+      }
+    }
+  }
+
   /// Получить активную сессию Copilot.
   CopilotSession get activeSession {
     final id = activeSessionId.value;
@@ -60,6 +136,7 @@ class CopilotSessionStore {
   void selectSession(String id) {
     if (sessions.value.any((s) => s.id == id)) {
       activeSessionId.value = id;
+      _saveToDisk();
     }
   }
 
@@ -94,6 +171,7 @@ class CopilotSessionStore {
     final updated = List<CopilotSession>.from(sessions.value)..insert(0, newSession);
     sessions.value = updated;
     activeSessionId.value = newSession.id;
+    _saveToDisk();
     return newSession;
   }
 
@@ -105,6 +183,7 @@ class CopilotSessionStore {
     if (activeSessionId.value == id) {
       activeSessionId.value = updated.first.id;
     }
+    _saveToDisk();
   }
 
   /// Переименовать сессию.
@@ -117,6 +196,7 @@ class CopilotSessionStore {
       current[idx].title = trimmed;
       current[idx].updatedAt = DateTime.now();
       sessions.value = List.from(current);
+      _saveToDisk();
     }
   }
 
@@ -128,6 +208,7 @@ class CopilotSessionStore {
       current[idx].systemPrompt = newPrompt.trim();
       current[idx].updatedAt = DateTime.now();
       sessions.value = List.from(current);
+      _saveToDisk();
     }
   }
 
@@ -139,6 +220,7 @@ class CopilotSessionStore {
       current[idx].messageLimit = limit;
       current[idx].updatedAt = DateTime.now();
       sessions.value = List.from(current);
+      _saveToDisk();
     }
   }
 
@@ -161,6 +243,7 @@ class CopilotSessionStore {
       if (count != null) s.ragFactSummaryCount = count;
       s.updatedAt = DateTime.now();
       sessions.value = List.from(current);
+      _saveToDisk();
     }
   }
 
@@ -182,6 +265,7 @@ class CopilotSessionStore {
       if (prompt != null) s.dialogueCompressionPrompt = prompt.trim();
       s.updatedAt = DateTime.now();
       sessions.value = List.from(current);
+      _saveToDisk();
     }
   }
 
@@ -205,6 +289,7 @@ class CopilotSessionStore {
       );
       s.updatedAt = DateTime.now();
       sessions.value = List.from(current);
+      _saveToDisk();
     }
   }
 
@@ -217,6 +302,7 @@ class CopilotSessionStore {
       s.messages.add(message);
       s.updatedAt = DateTime.now();
       sessions.value = List.from(current);
+      _saveToDisk();
     }
   }
 
@@ -262,6 +348,7 @@ class CopilotSessionStore {
     session.updatedAt = DateTime.now();
 
     sessions.value = List.from(current);
+    _saveToDisk();
   }
 
   /// Интеллектуальное сжатие истории диалога с Копилотом (фоновое или ручное).
@@ -333,6 +420,7 @@ class CopilotSessionStore {
     session.updatedAt = DateTime.now();
 
     sessions.value = List.from(current);
+    _saveToDisk();
     return true;
   }
 

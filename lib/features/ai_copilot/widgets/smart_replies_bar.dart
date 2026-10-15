@@ -411,106 +411,111 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
 
   /// Кнопки действий
   Widget _buildTwoActionButtons() {
-    return Row(
-      children: [
-        // Кнопка 1: Автоответ по контексту чата
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _handleAutoReply,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Tg.accentDark,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Tg.border),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
-                  const SizedBox(width: 5),
-                  Text(
-                    tr('ai_reply_auto'),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: Tg.fontMedium,
-                      color: Colors.white,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Кнопка 1: Автоответ по контексту чата
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _handleAutoReply,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Tg.accentDark,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Tg.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
+                    const SizedBox(width: 5),
+                    Text(
+                      tr('ai_reply_auto'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: Tg.fontMedium,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
+          const SizedBox(width: 8),
 
-        // Кнопка 2: Надиктовать голосом с учётом сказанного
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => setState(() => _isDictationMode = true),
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Tg.field,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Tg.border),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.mic_rounded, size: 14, color: Tg.accent),
-                  const SizedBox(width: 5),
-                  Text(
-                    tr('ai_reply_dictate'),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: Tg.fontMedium,
-                      color: Tg.text,
+          // Кнопка 2: Надиктовать голосом с учётом сказанного
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _isDictationMode = true),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Tg.field,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Tg.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.mic_rounded, size: 14, color: Tg.accent),
+                    const SizedBox(width: 5),
+                    Text(
+                      tr('ai_reply_dictate'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: Tg.fontMedium,
+                        color: Tg.text,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
+          const SizedBox(width: 8),
 
-        // Кнопка 3: Открыть персональный чат с Copilot по контакту
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => _openCopilotSession(context),
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Tg.field,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Tg.border),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.forum_outlined, size: 14, color: Tg.accent),
-                  const SizedBox(width: 5),
-                  Text(
-                    tr('ai_reply_copilot_chat'),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: Tg.fontMedium,
-                      color: Tg.text,
+          // Кнопка 3: Открыть персональный чат с Copilot по контакту
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _openCopilotSession(context),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Tg.field,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Tg.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.forum_outlined, size: 14, color: Tg.accent),
+                    const SizedBox(width: 5),
+                    Text(
+                      tr('ai_reply_copilot_chat'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: Tg.fontMedium,
+                        color: Tg.text,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

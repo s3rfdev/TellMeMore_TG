@@ -814,10 +814,14 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  isRu ? 'Глубина сбора фактов (RAG):' : 'Fact extraction depth (RAG):',
-                                  style: const TextStyle(fontSize: 12, color: Tg.text, fontWeight: FontWeight.w500),
+                                Expanded(
+                                  child: Text(
+                                    isRu ? 'Глубина сбора фактов (RAG):' : 'Fact extraction depth (RAG):',
+                                    style: const TextStyle(fontSize: 12, color: Tg.text, fontWeight: FontWeight.w500),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
@@ -1055,10 +1059,14 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    isRu ? 'Порог срабатывания сжатия:' : 'Compression trigger threshold:',
-                                    style: const TextStyle(fontSize: 11.5, color: Tg.textDim),
+                                  Expanded(
+                                    child: Text(
+                                      isRu ? 'Порог срабатывания сжатия:' : 'Compression trigger threshold:',
+                                      style: const TextStyle(fontSize: 11.5, color: Tg.textDim),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                     decoration: BoxDecoration(
@@ -1095,10 +1103,14 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    isRu ? 'Свежих сообщений без сжатия (окно):' : 'Raw recent window:',
-                                    style: const TextStyle(fontSize: 11.5, color: Tg.textDim),
+                                  Expanded(
+                                    child: Text(
+                                      isRu ? 'Свежих сообщений без сжатия (окно):' : 'Raw recent window:',
+                                      style: const TextStyle(fontSize: 11.5, color: Tg.textDim),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                     decoration: BoxDecoration(
@@ -1560,18 +1572,22 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: session.avatarColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        session.agentRole,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: session.avatarColor,
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: session.avatarColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          session.agentRole,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: session.avatarColor,
+                          ),
                         ),
                       ),
                     ),
@@ -1579,6 +1595,8 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                 ),
                 Text(
                   '${session.model ?? settings.model} • ${settings.provider}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 11, color: Tg.textDim),
                 ),
               ],

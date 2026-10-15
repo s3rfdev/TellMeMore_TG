@@ -8,6 +8,9 @@ import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
 import 'data/tdlib/tdlib_service.dart';
+import 'features/ai_copilot/models/ai_settings_model.dart';
+import 'features/ai_copilot/models/contact_dossier.dart';
+import 'features/ai_copilot/services/copilot_session_store.dart';
 import 'platform/window_init.dart';
 
 import 'core/utils/app_logger.dart';
@@ -45,6 +48,15 @@ Future<void> main() async {
     }
   }
   await initDesktopWindow();
+  try {
+    await Future.wait([
+      CopilotSessionStore.instance.init(),
+      AiSettingsStore.instance.init(),
+      ContactDossierStore.instance.init(),
+    ]);
+  } catch (e) {
+    AppLogger.error('Store initialization error: $e');
+  }
   if (!kIsWeb) {
     // TDLib живёт в своём изоляте; UI только получает готовые снимки.
     unawaited(TdlibService.instance.init());

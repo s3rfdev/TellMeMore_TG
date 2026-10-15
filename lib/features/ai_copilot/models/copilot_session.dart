@@ -70,6 +70,36 @@ class CopilotMessage {
       tokenCount: tokenCount ?? this.tokenCount,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'text': text,
+        'isUser': isUser,
+        'toolName': toolName,
+        'toolOutput': toolOutput,
+        'attachmentPath': attachmentPath,
+        'attachmentName': attachmentName,
+        'isImageAttachment': isImageAttachment,
+        'isError': isError,
+        'time': time.toIso8601String(),
+        'tokenCount': tokenCount,
+      };
+
+  factory CopilotMessage.fromJson(Map<String, dynamic> json) {
+    return CopilotMessage(
+      id: json['id'] as String?,
+      text: json['text'] as String? ?? '',
+      isUser: json['isUser'] as bool? ?? false,
+      toolName: json['toolName'] as String?,
+      toolOutput: json['toolOutput'] as String?,
+      attachmentPath: json['attachmentPath'] as String?,
+      attachmentName: json['attachmentName'] as String?,
+      isImageAttachment: json['isImageAttachment'] as bool? ?? false,
+      isError: json['isError'] as bool? ?? false,
+      time: json['time'] != null ? DateTime.tryParse(json['time'] as String) : null,
+      tokenCount: json['tokenCount'] as int?,
+    );
+  }
 }
 
 /// Модель чата/сессии с автономным агентом Copilot.
@@ -186,6 +216,72 @@ class CopilotSession {
       dialogueCompressionPrompt: dialogueCompressionPrompt ?? this.dialogueCompressionPrompt,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'agentRole': agentRole,
+        'systemPrompt': systemPrompt,
+        'model': model,
+        'avatarIcon': avatarIcon.codePoint,
+        'avatarFontFamily': avatarIcon.fontFamily,
+        'avatarColor': avatarColor.value,
+        'messages': messages.map((m) => m.toJson()).toList(),
+        'contextSummary': contextSummary,
+        'summaryTokenCount': summaryTokenCount,
+        'messageLimit': messageLimit,
+        'ragPrompt': ragPrompt,
+        'ragFactSummary': ragFactSummary,
+        'ragFactSummaryCount': ragFactSummaryCount,
+        'ragFactUpdatedAt': ragFactUpdatedAt?.toIso8601String(),
+        'autoCompressEnabled': autoCompressEnabled,
+        'autoCompressThreshold': autoCompressThreshold,
+        'keepRawCount': keepRawCount,
+        'dialogueCompressionPrompt': dialogueCompressionPrompt,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory CopilotSession.fromJson(Map<String, dynamic> json) {
+    final iconCode = json['avatarIcon'] as int? ?? Icons.auto_awesome.codePoint;
+    final iconFont = json['avatarFontFamily'] as String? ?? 'MaterialIcons';
+    final colorVal = json['avatarColor'] as int? ?? 0xFF5288C1;
+
+    final msgs = (json['messages'] as List<dynamic>?)
+            ?.map((m) => CopilotMessage.fromJson(m as Map<String, dynamic>))
+            .toList() ??
+        [];
+
+    return CopilotSession(
+      id: json['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      title: json['title'] as String? ?? 'Copilot',
+      agentRole: json['agentRole'] as String? ?? 'Copilot',
+      systemPrompt: json['systemPrompt'] as String? ?? '',
+      model: json['model'] as String?,
+      avatarIcon: IconData(iconCode, fontFamily: iconFont),
+      avatarColor: Color(colorVal),
+      messages: msgs,
+      contextSummary: json['contextSummary'] as String?,
+      summaryTokenCount: json['summaryTokenCount'] as int? ?? 0,
+      messageLimit: json['messageLimit'] as int? ?? 30,
+      ragPrompt: json['ragPrompt'] as String?,
+      ragFactSummary: json['ragFactSummary'] as String?,
+      ragFactSummaryCount: json['ragFactSummaryCount'] as int? ?? 0,
+      ragFactUpdatedAt: json['ragFactUpdatedAt'] != null
+          ? DateTime.tryParse(json['ragFactUpdatedAt'] as String)
+          : null,
+      autoCompressEnabled: json['autoCompressEnabled'] as bool? ?? true,
+      autoCompressThreshold: json['autoCompressThreshold'] as int? ?? 20,
+      keepRawCount: json['keepRawCount'] as int? ?? 6,
+      dialogueCompressionPrompt: json['dialogueCompressionPrompt'] as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 }

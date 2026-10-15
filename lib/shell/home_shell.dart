@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemNavigator;
 
 import '../core/localization/app_locale.dart';
 import '../core/services/call_sound_service.dart';
 import '../core/theme/tg_theme.dart';
 import '../core/widgets/tg_avatar.dart';
+import '../core/widgets/tg_toast.dart';
 import '../data/models/tg_chat.dart';
 import '../data/tdlib/td_content.dart';
 import '../data/tdlib/tdlib_service.dart';
@@ -29,6 +31,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   bool _overlayOpen = true;
+  DateTime? _lastBackPressTime;
 
   static const _minSidebar = 280.0;
   static const _maxSidebar = 640.0;
@@ -51,6 +54,40 @@ class _HomeShellState extends State<HomeShell> {
     super.dispose();
   }
 
+  Future<void> _handleBackPress() async {
+    // 1. Если открыта боковая шторка (Drawer) — закрываем её
+    if (AppState.drawerOpen.value) {
+      AppState.drawerOpen.value = false;
+      return;
+    }
+
+    // 2. На мобильных устройствах (узкий экран): если открыт чат / копилот / настройки — возвращаемся к списку чатов
+    if (!_overlayOpen) {
+      setState(() => _overlayOpen = true);
+      return;
+    }
+
+    // 3. Если открыта вкладка отличная от чатов (контакты, копилот, настройки) — переключаемся на чаты
+    if (AppState.activeSidebarTab.value != SidebarTab.chats) {
+      AppState.activeSidebarTab.value = SidebarTab.chats;
+      return;
+    }
+
+    // 4. На главном экране списка чатов — двойное нажатие назад для выхода
+    final now = DateTime.now();
+    if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+      _lastBackPressTime = now;
+      TgToast.show(
+        context,
+        I18n.instance.isRu ? 'Нажмите «Назад» еще раз для выхода' : 'Press back again to exit',
+      );
+      return;
+    }
+
+    // Повторное нажатие в течение 2 секунд: сворачиваем приложение
+    await SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -63,7 +100,14 @@ class _HomeShellState extends State<HomeShell> {
             AppState.demoMode.value ||
             TdlibService.instance.phase.value == AuthPhase.ready;
         if (!loggedIn) return const LoginScreen();
-        return _layout();
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) return;
+            _handleBackPress();
+          },
+          child: _layout(),
+        );
       },
     );
   }
