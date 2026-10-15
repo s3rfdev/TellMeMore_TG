@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = tg_answer
+PRODUCT_NAME = TellMeMore TG
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = dev.tganswer.tgAnswer
+PRODUCT_BUNDLE_IDENTIFIER = com.tellmemore.tg
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 dev.tganswer. All rights reserved.
