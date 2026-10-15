@@ -1,25 +1,203 @@
+import 'dart:async';
 import '../../../core/localization/app_locale.dart';
 import '../../../data/models/tg_chat.dart';
 import '../models/contact_dossier.dart';
+import 'ai_model_service.dart';
+import 'image_description_service.dart';
+import 'voice_transcription_service.dart';
 
 /// Движок генерации контекстных ответов на базе:
 /// 1. Истории диалога (сообщения, вопросы, контекст)
 /// 2. Досье контакта (цель общения, психотип, Tone of Voice, CRM-факты, саммари)
 /// 3. Личных голосовых/текстовых директив пользователя
 class SmartReplyEngine {
+  /// Извлечение эффективного текста из сообщения: текст, расшифровка голосового или описание фото.
+  static String getEffectiveMessageText(TgMessage m) {
+    if (m.text.trim().isNotEmpty) return m.text.trim();
+    if (m.kind == MessageKind.voice) {
+      final trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
+          VoiceTranscriptionService.instance.getCachedTranscription(m.mediaPath);
+      if (trans != null && trans.isNotEmpty && !trans.startsWith('[')) {
+        return trans;
+      }
+      return I18n.instance.isRu ? 'голосовое сообщение' : 'voice message';
+    }
+    if (ImageDescriptionService.isImageMessage(m)) {
+      final desc = ImageDescriptionService.instance.getCachedDescription(m.id) ??
+          ImageDescriptionService.instance.getCachedDescription(m.mediaPath) ??
+          ImageDescriptionService.instance.getCachedDescription(m.thumbnailPath);
+      if (desc != null && desc.isNotEmpty) {
+        return desc;
+      }
+      final nameHint = m.fileName.isNotEmpty ? ': ${m.fileName}' : '';
+      return I18n.instance.isRu ? 'фотография$nameHint' : 'photo$nameHint';
+    }
+    if (m.kind == MessageKind.video) {
+      return I18n.instance.isRu ? 'видеозапись' : 'video';
+    }
+    if (m.kind == MessageKind.document) {
+      return I18n.instance.isRu ? 'документ ${m.fileName}' : 'document ${m.fileName}';
+    }
+    return '';
+  }
+
+  /// Асинхронная умная генерация ответа через LLM с откатом на эвристический движок.
+  static Future<String> generateAutoReplyAsync({
+    required String chatTitle,
+    required List<TgMessage> messages,
+    ContactDossier? dossier,
+  }) async {
+    final isRu = I18n.instance.isRu;
+    try {
+      final realMsgs = messages.where((m) => m.kind != MessageKind.date && m.kind != MessageKind.unreadDivider).toList();
+      final recent = realMsgs.length > 15
+          ? realMsgs.sublist(realMsgs.length - 15)
+          : realMsgs;
+
+      if (recent.isNotEmpty) {
+        final formattedHistory = <String>[];
+        for (final m in recent) {
+          final sender = m.outgoing
+              ? (isRu ? 'Вы' : 'You')
+              : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
+          final content = getEffectiveMessageText(m);
+          if (content.isNotEmpty) {
+            formattedHistory.add('$sender: $content');
+          }
+        }
+
+        if (formattedHistory.isNotEmpty) {
+          final prompt = isRu
+              ? '''
+Вот последние реплики переписки с "$chatTitle":
+${formattedHistory.join('\n')}
+
+${dossier != null && dossier.goal.isNotEmpty ? "Цель общения: ${dossier.goal}\n" : ""}${dossier != null && dossier.tone.isNotEmpty ? "Тон: ${dossier.tone}\n" : ""}
+Напиши один естественный, готовый к отправке ответ собеседнику. Ответ должен быть лаконичным (1-2 предложения), живым, без вводных слов и без кавычек.
+'''
+              : '''
+Recent messages with "$chatTitle":
+${formattedHistory.join('\n')}
+
+${dossier != null && dossier.goal.isNotEmpty ? "Goal: ${dossier.goal}\n" : ""}${dossier != null && dossier.tone.isNotEmpty ? "Tone: ${dossier.tone}\n" : ""}
+Write a natural, ready-to-send reply. Keep it concise (1-2 sentences), conversational, without preamble or quotation marks.
+''';
+
+          final reply = await AiModelService.instance
+              .generateChatCompletion(
+                prompt: prompt,
+                systemPrompt: isRu
+                    ? 'Ты — умный помощник по быстрым ответам в Telegram. Твоя задача — сгенерировать идеальный ответ на последнее сообщение.'
+                    : 'You are a smart Telegram assistant generating the ideal quick reply to the latest message.',
+              )
+              .timeout(const Duration(seconds: 4));
+
+          final cleaned = reply.trim().replaceAll('"', '').replaceAll('«', '').replaceAll('»', '');
+          if (cleaned.isNotEmpty && !cleaned.toLowerCase().contains('яндекс') && !cleaned.toLowerCase().contains('openai')) {
+            return cleaned;
+          }
+        }
+      }
+    } catch (_) {}
+
+    return generateAutoReply(
+      chatTitle: chatTitle,
+      messages: messages,
+      dossier: dossier,
+    );
+  }
+
+  /// Асинхронная умная генерация по личной директиве через LLM с откатом на эвристический движок.
+  static Future<String> generateInstructionReplyAsync({
+    required String chatTitle,
+    required List<TgMessage> messages,
+    required String instruction,
+    ContactDossier? dossier,
+  }) async {
+    final isRu = I18n.instance.isRu;
+    try {
+      final realMsgs = messages.where((m) => m.kind != MessageKind.date && m.kind != MessageKind.unreadDivider).toList();
+      final recent = realMsgs.length > 15
+          ? realMsgs.sublist(realMsgs.length - 15)
+          : realMsgs;
+
+      if (recent.isNotEmpty) {
+        final formattedHistory = <String>[];
+        for (final m in recent) {
+          final sender = m.outgoing
+              ? (isRu ? 'Вы' : 'You')
+              : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
+          final content = getEffectiveMessageText(m);
+          if (content.isNotEmpty) {
+            formattedHistory.add('$sender: $content');
+          }
+        }
+
+        final prompt = isRu
+            ? '''
+Контекст последних реплик с "$chatTitle":
+${formattedHistory.join('\n')}
+
+${dossier != null && dossier.goal.isNotEmpty ? "Цель: ${dossier.goal}\n" : ""}${dossier != null && dossier.tone.isNotEmpty ? "Тон: ${dossier.tone}\n" : ""}
+Инструкция пользователя, как нужно ответить: "$instruction"
+
+Сформулируй готовый текст ответа от лица пользователя строго по инструкции. Без кавычек, без лишних вводных слов, 1-3 предложения.
+'''
+            : '''
+Context of chat with "$chatTitle":
+${formattedHistory.join('\n')}
+
+${dossier != null && dossier.goal.isNotEmpty ? "Goal: ${dossier.goal}\n" : ""}${dossier != null && dossier.tone.isNotEmpty ? "Tone: ${dossier.tone}\n" : ""}
+User instruction on how to reply: "$instruction"
+
+Draft a ready-to-send reply on behalf of the user following this instruction. No quotes, 1-3 sentences.
+''';
+
+        final reply = await AiModelService.instance
+            .generateChatCompletion(
+              prompt: prompt,
+              systemPrompt: isRu
+                  ? 'Ты — персональный AI-копилот по ответам в Telegram. Сформулируй точный ответ по инструкции пользователя.'
+                  : 'You are a personal Telegram AI assistant. Draft an exact reply based on user instructions.',
+            )
+            .timeout(const Duration(seconds: 4));
+
+        final cleaned = reply.trim().replaceAll('"', '').replaceAll('«', '').replaceAll('»', '');
+        if (cleaned.isNotEmpty) {
+          return cleaned;
+        }
+      }
+    } catch (_) {}
+
+    return generateInstructionReply(
+      chatTitle: chatTitle,
+      messages: messages,
+      instruction: instruction,
+      dossier: dossier,
+    );
+  }
+
   /// Автоответ с глубоким учетом контекста переписки И досье контакта (цели, психотип, тон).
   static String generateAutoReply({
     required String chatTitle,
     required List<TgMessage> messages,
     ContactDossier? dossier,
   }) {
-    final lastIncoming = messages.reversed.firstWhere(
-      (m) => !m.outgoing && m.text.trim().isNotEmpty,
-      orElse: () => messages.isNotEmpty
-          ? messages.last
-          : const TgMessage(kind: MessageKind.text, text: ''),
+    final realMsgs = messages.where((m) => m.kind != MessageKind.date && m.kind != MessageKind.unreadDivider).toList();
+    final recent = realMsgs.length > 20
+        ? realMsgs.sublist(realMsgs.length - 20)
+        : realMsgs;
+
+    final lastIncoming = recent.reversed.firstWhere(
+      (m) => !m.outgoing && getEffectiveMessageText(m).trim().isNotEmpty,
+      orElse: () => recent.reversed.firstWhere(
+        (m) => getEffectiveMessageText(m).trim().isNotEmpty,
+        orElse: () => recent.isNotEmpty
+            ? recent.last
+            : const TgMessage(kind: MessageKind.text, text: ''),
+      ),
     );
-    final text = lastIncoming.text.trim();
+    final text = getEffectiveMessageText(lastIncoming);
     final lower = text.toLowerCase();
 
     final isRu = I18n.instance.isRu;
@@ -202,6 +380,21 @@ class SmartReplyEngine {
       return isRu
           ? 'Здравствуйте! Объект доступен на указанные даты. Подскажите, на какой срок планируете заезд?'
           : 'Hello! The place is available for the specified dates. How long do you plan to stay?';
+    }
+    if (lower.contains('контакт') || lower.contains('телеграм') || lower.contains('список')) {
+      return isRu
+          ? 'Посмотрел скриншот списка контактов, всё понятно. Сейчас сориентируюсь и напишу!'
+          : 'Checked the contact list screenshot, got it. Let me review and follow up shortly!';
+    }
+    if (lower.contains('девушк') || lower.contains('девочк') || lower.contains('портрет')) {
+      return isRu
+          ? 'Отличное фото! 😊'
+          : 'Great photo! 😊';
+    }
+    if (lower.contains('фото') || lower.contains('photo') || lower.contains('скрин') || lower.contains('изображени')) {
+      return isRu
+          ? 'Спасибо за фото, всё вижу! Сейчас изучу подробнее и отвечу.'
+          : 'Thanks for the photo, got it! Let me check the details and reply shortly.';
     }
     if (text.endsWith('?')) {
       return isRu

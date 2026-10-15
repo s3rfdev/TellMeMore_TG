@@ -323,6 +323,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       final activeChat = matchedChat;
       final realHistory = TdlibService.instance.messagesOf(activeChat.id).value;
       final msgs = realHistory.messages.isNotEmpty ? realHistory.messages : activeChat.messages;
+      final realMsgs = msgs.where((m) => m.kind != MessageKind.date && m.kind != MessageKind.unreadDivider).toList();
 
       final chatDossier = ContactDossierStore.instance.getDossier(activeChat.id).value;
       final limit = session.messageLimit > 0
@@ -330,7 +331,9 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
           : (chatDossier.analysisMessageLimit > 0
               ? chatDossier.analysisMessageLimit
               : settings.contextMessageCount);
-      final msgsToAnalyze = msgs.take(limit).toList();
+      final msgsToAnalyze = realMsgs.length > limit
+          ? realMsgs.sublist(realMsgs.length - limit)
+          : realMsgs;
 
       final hasRag = (session.ragFactSummary?.isNotEmpty == true) ||
           (chatDossier.ragFactSummary?.isNotEmpty == true);
@@ -385,11 +388,14 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       systemDirectives.writeln('');
 
       if (hasRag && ragSummary.isNotEmpty) {
-        // 10 recent raw messages for live conversational context
-        final recentRaw = msgs.take(10).toList();
+        // 10 recent raw messages for live conversational context (latest 10 messages)
+        final recentRaw = realMsgs.length > 10
+            ? realMsgs.sublist(realMsgs.length - 10)
+            : realMsgs;
         final recentFormatted = <String>[];
         final ragLiveAllowed = <dynamic>{};
-        for (final m in recentRaw) {
+        // Prioritize live Vision analysis on the latest photos first
+        for (final m in recentRaw.reversed) {
           if (ImageDescriptionService.isImageMessage(m)) {
             final hasCache = (m.id != 0 && ImageDescriptionService.instance.hasDescription(m.id)) ||
                 ImageDescriptionService.instance.hasDescription(m.mediaPath) ||
@@ -403,7 +409,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
             }
           }
         }
-        for (final m in recentRaw.reversed) {
+        for (final m in recentRaw) {
           final sender = m.outgoing
               ? (isRu ? 'Вы' : 'You')
               : (m.senderName.isNotEmpty ? m.senderName : activeChat.title);
@@ -451,9 +457,9 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
             : 'Used RAG summary of $ragCount msgs + ${recentRaw.length} recent replies ("${activeChat.title}")';
       } else {
         // Форматируем сообщения с включением транскрибированных голосовых заметок и описаний фото
-        // Ограничиваем живой Vision-анализ максимум 3 самыми свежими некэшированными фото
+        // Ограничиваем живой Vision-анализ максимум 3 самыми свежими некэшированными фото (проверяем с конца)
         final liveVisionAllowed = <dynamic>{};
-        for (final m in msgsToAnalyze) {
+        for (final m in msgsToAnalyze.reversed) {
           if (ImageDescriptionService.isImageMessage(m)) {
             final hasCache = (m.id != 0 && ImageDescriptionService.instance.hasDescription(m.id)) ||
                 ImageDescriptionService.instance.hasDescription(m.mediaPath) ||
@@ -469,7 +475,8 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
         }
 
         final formattedList = <String>[];
-        for (final m in msgsToAnalyze.reversed) {
+        // Выводим в хронологическом порядке для естественного контекста модели
+        for (final m in msgsToAnalyze) {
           final sender = m.outgoing
               ? (isRu ? 'Вы' : 'You')
               : (m.senderName.isNotEmpty ? m.senderName : activeChat.title);
@@ -869,7 +876,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                                             );
                                             setDialogState(() {
                                               currentRagSummary = summary;
-                                              currentRagCount = msgs.take(messageLimit).length;
+                                              currentRagCount = msgs.length > messageLimit ? messageLimit : msgs.length;
                                               currentRagDate = DateTime.now();
                                             });
                                             if (context.mounted) {

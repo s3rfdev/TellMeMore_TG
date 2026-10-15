@@ -57,10 +57,19 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
     super.dispose();
   }
 
-  void _handleAutoReply() {
+  void _handleAutoReply() async {
     setState(() => _isGenerating = true);
     final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
-    Future.delayed(const Duration(milliseconds: 300), () {
+    try {
+      final reply = await SmartReplyEngine.generateAutoReplyAsync(
+        chatTitle: widget.chat.title,
+        messages: widget.messages,
+        dossier: dossier,
+      );
+      if (!mounted) return;
+      setState(() => _isGenerating = false);
+      widget.onSelected(reply);
+    } catch (_) {
       if (!mounted) return;
       final reply = SmartReplyEngine.generateAutoReply(
         chatTitle: widget.chat.title,
@@ -69,7 +78,7 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
       );
       setState(() => _isGenerating = false);
       widget.onSelected(reply);
-    });
+    }
   }
 
   Future<void> _toggleRecording() async {
@@ -189,7 +198,17 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
 
     final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
     setState(() => _isGenerating = true);
-    Future.delayed(const Duration(milliseconds: 350), () {
+    try {
+      final reply = await SmartReplyEngine.generateInstructionReplyAsync(
+        chatTitle: widget.chat.title,
+        messages: widget.messages,
+        instruction: text,
+        dossier: dossier,
+      );
+      if (!mounted) return;
+      setState(() => _isGenerating = false);
+      widget.onSelected(reply);
+    } catch (_) {
       if (!mounted) return;
       final reply = SmartReplyEngine.generateInstructionReply(
         chatTitle: widget.chat.title,
@@ -199,7 +218,7 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
       );
       setState(() => _isGenerating = false);
       widget.onSelected(reply);
-    });
+    }
   }
 
   void _openCopilotSession(BuildContext context) {

@@ -108,5 +108,49 @@ void main() {
       expect(reply, contains('созвонимся'));
       expect(reply, contains('голосом'));
     });
+
+    test('generateAutoReply evaluates the latest messages when list has 40+ messages', () {
+      // 35 old messages about tickets
+      final messages = List.generate(
+        35,
+        (i) => TgMessage(
+          kind: MessageKind.text,
+          text: 'Старое сообщение про авиабилеты $i',
+          outgoing: false,
+        ),
+      );
+      // Latest message at the end is about contacts screenshot
+      messages.add(
+        const TgMessage(
+          kind: MessageKind.text,
+          text: 'Вот скриншот списка контактов в Телеграм',
+          outgoing: false,
+        ),
+      );
+
+      final reply = SmartReplyEngine.generateAutoReply(
+        chatTitle: 'Коллега',
+        messages: messages,
+      );
+
+      // Must respond to the latest message (contacts screenshot), NOT ancient ticket messages
+      expect(reply, contains('контактов'));
+    });
+
+    test('getEffectiveMessageText handles photo with caption and empty text', () {
+      const photoMsg = TgMessage(
+        kind: MessageKind.image,
+        text: 'Смотри на экран',
+        fileName: 'screen.png',
+      );
+      expect(SmartReplyEngine.getEffectiveMessageText(photoMsg), equals('Смотри на экран'));
+
+      const photoNoCaption = TgMessage(
+        kind: MessageKind.image,
+        text: '',
+        fileName: 'profile.jpg',
+      );
+      expect(SmartReplyEngine.getEffectiveMessageText(photoNoCaption), contains('фото'));
+    });
   });
 }

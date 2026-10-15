@@ -550,7 +550,7 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
                                           );
                                           setState(() {
                                             _currentRagSummary = summary;
-                                            _currentRagCount = msgs.take(_messageLimit).length;
+                                            _currentRagCount = msgs.length > _messageLimit ? _messageLimit : msgs.length;
                                             _currentRagDate = DateTime.now();
                                           });
                                           if (context.mounted) {

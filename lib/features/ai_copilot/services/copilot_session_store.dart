@@ -347,11 +347,14 @@ class CopilotSessionStore {
     AiSettings? settings,
   }) async {
     final aiSettings = settings ?? AiSettingsStore.instance.settings.value;
-    final msgsToAnalyze = messages.take(limit).toList();
+    final realMsgs = messages.where((m) => m.kind != MessageKind.date && m.kind != MessageKind.unreadDivider).toList();
+    final msgsToAnalyze = realMsgs.length > limit
+        ? realMsgs.sublist(realMsgs.length - limit)
+        : realMsgs;
     final isRu = I18n.instance.isRu;
 
     final liveAllowed = <dynamic>{};
-    for (final m in msgsToAnalyze) {
+    for (final m in msgsToAnalyze.reversed) {
       if (ImageDescriptionService.isImageMessage(m)) {
         final hasCache = (m.id != 0 && ImageDescriptionService.instance.hasDescription(m.id)) ||
             ImageDescriptionService.instance.hasDescription(m.mediaPath) ||
@@ -367,7 +370,7 @@ class CopilotSessionStore {
     }
 
     final formatted = <String>[];
-    for (final m in msgsToAnalyze.reversed) {
+    for (final m in msgsToAnalyze) {
       final sender = m.outgoing
           ? (isRu ? 'Вы' : 'You')
           : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
@@ -422,7 +425,10 @@ class CopilotSessionStore {
     if (result.isEmpty) {
       final buffer = StringBuffer();
       buffer.writeln(isRu ? '📌 Факты чата «$chatTitle» (сжато ${msgsToAnalyze.length} сообщ.):' : '📌 Facts of "$chatTitle" (${msgsToAnalyze.length} msgs):');
-      for (final m in msgsToAnalyze.take(20)) {
+      final fallbackRecent = msgsToAnalyze.length > 20
+          ? msgsToAnalyze.sublist(msgsToAnalyze.length - 20)
+          : msgsToAnalyze;
+      for (final m in fallbackRecent) {
         if (m.text.trim().isNotEmpty) {
           final sender = m.outgoing
               ? (isRu ? 'Вы' : 'You')

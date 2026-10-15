@@ -334,9 +334,12 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
 
       final tdlibMsgs = TdlibService.instance.messagesOf(widget.chat.id).value.messages;
       final allMessages = tdlibMsgs.isNotEmpty ? tdlibMsgs : widget.chat.messages;
+      final realMsgs = allMessages.where((m) => m.kind != MessageKind.date && m.kind != MessageKind.unreadDivider).toList();
 
       final limit = _messageLimit > 0 ? _messageLimit : 50;
-      final messagesToAnalyze = allMessages.take(limit).toList();
+      final messagesToAnalyze = realMsgs.length > limit
+          ? realMsgs.sublist(realMsgs.length - limit)
+          : realMsgs;
 
       if (messagesToAnalyze.isEmpty) {
         if (mounted) {
@@ -348,7 +351,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
 
       final isRu = I18n.instance.isRu;
       final liveAllowed = <dynamic>{};
-      for (final m in messagesToAnalyze) {
+      for (final m in messagesToAnalyze.reversed) {
         if (ImageDescriptionService.isImageMessage(m)) {
           final hasCache = (m.id != 0 && ImageDescriptionService.instance.hasDescription(m.id)) ||
               ImageDescriptionService.instance.hasDescription(m.mediaPath) ||
@@ -364,7 +367,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
       }
 
       final formattedList = <String>[];
-      for (final m in messagesToAnalyze.reversed) {
+      for (final m in messagesToAnalyze) {
         final sender = m.outgoing
             ? (isRu ? 'Вы' : 'You')
             : (m.senderName.isNotEmpty ? m.senderName : widget.chat.title);
@@ -1268,7 +1271,7 @@ Format strictly as:
                           );
                           setState(() {
                             _currentRagSummary = summary;
-                            _currentRagCount = msgs.take(_messageLimit).length;
+                            _currentRagCount = msgs.length > _messageLimit ? _messageLimit : msgs.length;
                             _currentRagDate = DateTime.now();
                           });
                           if (!mounted) return;
