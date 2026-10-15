@@ -40,7 +40,9 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    final mainScrollable = find.byType(Scrollable).first;
+    final mainScrollable = find.byWidgetPredicate(
+      (w) => w is Scrollable && (w.axisDirection == AxisDirection.down || w.axisDirection == AxisDirection.up),
+    ).first;
 
     // Verify dialog title & goal section
     expect(find.text('Цель общения с контактом'), findsOneWidget);

@@ -371,35 +371,39 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             // Кнопка записи микрофона
-            GestureDetector(
-              onTap: _toggleRecording,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: _isRecording
-                      ? Tg.danger.withValues(alpha: 0.2)
-                      : Tg.field,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _isRecording ? Tg.danger : Tg.border,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: GestureDetector(
+                onTap: _toggleRecording,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: _isRecording
+                        ? Tg.danger.withValues(alpha: 0.2)
+                        : Tg.field,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: _isRecording ? Tg.danger : Tg.border,
+                    ),
                   ),
-                ),
-                child: Icon(
-                  _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-                  size: 15,
-                  color: _isRecording ? Tg.danger : Tg.accent,
+                  child: Icon(
+                    _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                    size: 15,
+                    color: _isRecording ? Tg.danger : Tg.accent,
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
 
-            // Поле для инструкции / распознанного текста
+            // Поле для инструкции / распознанного текста (1..5 строк с автоматическим ростом и скроллом)
             Expanded(
               child: Container(
-                height: 30,
+                constraints: const BoxConstraints(minHeight: 32, maxHeight: 110),
                 decoration: BoxDecoration(
                   color: Tg.field,
                   borderRadius: BorderRadius.circular(8),
@@ -407,49 +411,55 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
                 ),
                 child: TextField(
                   controller: _instructionController,
-                  style: const TextStyle(fontSize: 11.5, color: Tg.text),
+                  minLines: 1,
+                  maxLines: 5,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  style: const TextStyle(fontSize: 12, color: Tg.text, height: 1.35),
                   decoration: InputDecoration(
                     hintText: _isRecording
                         ? tr('ai_recording_status', {'sec': '$_recordSeconds'})
                         : tr('ai_dictate_placeholder'),
-                    hintStyle: const TextStyle(fontSize: 11, color: Tg.textFaint),
+                    hintStyle: const TextStyle(fontSize: 11.5, color: Tg.textFaint),
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   ),
-                  onSubmitted: (_) => _handleInstructionSubmit(),
                 ),
               ),
             ),
             const SizedBox(width: 6),
 
             // Кнопка применить / сгенерировать ответ
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _handleInstructionSubmit,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Tg.accentDark,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Tg.border),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.auto_awesome, size: 12, color: Colors.white),
-                      const SizedBox(width: 4),
-                      Text(
-                        tr('ai_submit_reply'),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.white,
-                          fontWeight: Tg.fontMedium,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _handleInstructionSubmit,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: Tg.accentDark,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Tg.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome, size: 13, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          tr('ai_submit_reply'),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: Tg.fontMedium,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

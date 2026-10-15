@@ -303,21 +303,12 @@ class _Header extends StatelessWidget {
           ),
         ),
         Tooltip(
-          message: tr('ai_dossier_tooltip'),
+          message: I18n.instance.isRu ? 'AI-ассистент: досье и промпт' : 'AI Assistant: Dossier & Prompt',
           child: CircleIconButton(
-            icon: Icons.auto_awesome,
-            iconSize: 19,
+            icon: Icons.psychology_rounded,
+            iconSize: 20,
             color: Tg.accent,
             onTap: () => ContactDossierDialog.show(context, chat),
-          ),
-        ),
-        Tooltip(
-          message: I18n.instance.isRu ? 'Системный промпт AI' : 'AI System Prompt',
-          child: CircleIconButton(
-            icon: Icons.psychology_outlined,
-            iconSize: 20,
-            color: Tg.accentDark,
-            onTap: () => ChatSystemPromptDialog.show(context, chat),
           ),
         ),
         CircleIconButton(
@@ -979,23 +970,30 @@ class _InputBarState extends State<_InputBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-      decoration: BoxDecoration(
-        color: Tg.sidebar,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Tg.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_showEmoji)
-            EmojiPickerPopup(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (_showEmoji)
+          Padding(
+            padding: const EdgeInsets.only(right: 18, bottom: 6),
+            child: EmojiPickerPopup(
               onEmojiSelected: _onEmoji,
               onClose: () => setState(() => _showEmoji = false),
             ),
-          if (_stagedFiles.isNotEmpty) _buildStagedFilesBar(),
+          ),
+        Container(
+          margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+          decoration: BoxDecoration(
+            color: Tg.sidebar,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Tg.border),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_stagedFiles.isNotEmpty) _buildStagedFilesBar(),
           ValueListenableBuilder<TgMessage?>(
             valueListenable: AppState.replyingTo,
             builder: (context, replyMsg, _) {
@@ -1102,7 +1100,9 @@ class _InputBarState extends State<_InputBar> {
           ),
         ],
       ),
-    );
+    ),
+  ],
+);
   }
 
   Widget _buildStagedFilesBar() {

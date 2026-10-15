@@ -87,7 +87,14 @@ class _EmojiPickerPopupState extends State<EmojiPickerPopup>
       decoration: BoxDecoration(
         color: Tg.sidebar,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Tg.border),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         children: [
