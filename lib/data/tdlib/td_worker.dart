@@ -274,8 +274,11 @@ class _Store {
             'input_message_content': {
               '@type': 'inputMessagePhoto',
               'photo': {
-                '@type': 'inputFileLocal',
-                'path': path,
+                '@type': 'inputPhoto',
+                'photo': {
+                  '@type': 'inputFileLocal',
+                  'path': path,
+                },
               },
               'caption': {'@type': 'formattedText', 'text': caption},
             },

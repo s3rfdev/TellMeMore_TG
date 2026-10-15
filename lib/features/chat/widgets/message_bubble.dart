@@ -61,19 +61,24 @@ class MessageBubble extends StatelessWidget {
       content = _videoBody(context, out);
     } else if (message.kind == MessageKind.image) {
       Widget img;
-      if (message.mediaPath.isNotEmpty && File(message.mediaPath).existsSync()) {
+      final displayPath = (message.mediaPath.isNotEmpty && File(message.mediaPath).existsSync())
+          ? message.mediaPath
+          : ((message.thumbnailPath.isNotEmpty && File(message.thumbnailPath).existsSync())
+              ? message.thumbnailPath
+              : '');
+      if (displayPath.isNotEmpty) {
         img = MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
             onTap: () => ImageViewerDialog.show(
               context,
-              imagePath: message.mediaPath,
+              imagePath: displayPath,
               time: message.time,
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.file(
-                File(message.mediaPath),
+                File(displayPath),
                 width: 280,
                 height: 190,
                 fit: BoxFit.cover,
