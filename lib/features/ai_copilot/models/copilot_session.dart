@@ -11,6 +11,7 @@ class CopilotMessage {
     this.attachmentPath,
     this.attachmentName,
     this.isImageAttachment = false,
+    this.isError = false,
     DateTime? time,
     int? tokenCount,
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
@@ -25,6 +26,7 @@ class CopilotMessage {
   final String? attachmentPath;
   final String? attachmentName;
   final bool isImageAttachment;
+  final bool isError;
   final DateTime time;
   final int tokenCount;
 
@@ -50,6 +52,7 @@ class CopilotMessage {
     String? attachmentPath,
     String? attachmentName,
     bool? isImageAttachment,
+    bool? isError,
     DateTime? time,
     int? tokenCount,
   }) {
@@ -62,6 +65,7 @@ class CopilotMessage {
       attachmentPath: attachmentPath ?? this.attachmentPath,
       attachmentName: attachmentName ?? this.attachmentName,
       isImageAttachment: isImageAttachment ?? this.isImageAttachment,
+      isError: isError ?? this.isError,
       time: time ?? this.time,
       tokenCount: tokenCount ?? this.tokenCount,
     );

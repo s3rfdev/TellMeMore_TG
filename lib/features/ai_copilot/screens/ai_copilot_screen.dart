@@ -43,6 +43,8 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
   final ScrollController _scrollController = ScrollController();
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isLoading = false;
+  String? _loadingStatusText;
+  String? _lastUserQuery;
   bool _summaryExpanded = false;
   bool _isRecordingVoice = false;
   int _recordSeconds = 0;
@@ -204,13 +206,16 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       }
     }
 
+    _lastUserQuery = query;
     _controller.clear();
     setState(() {
       _attachedFilePath = null;
       _attachedFileName = null;
       _isAttachedImage = false;
       _isLoading = true;
+      _loadingStatusText = isRu ? '🧠 Подготовка контекста диалога...' : '🧠 Preparing context...';
     });
+    AppState.aiProcessingStatus.value = _loadingStatusText;
 
     final userMsg = CopilotMessage(
       text: query,
@@ -223,7 +228,8 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
     CopilotSessionStore.instance.addMessage(session.id, userMsg);
     _scrollToBottom();
 
-    // Читаем содержимое неграфических файлов при необходимости
+    try {
+      // Читаем содержимое неграфических файлов при необходимости
     String effectiveQuery = query;
     if (attachedPath != null && !isImg) {
       try {
@@ -534,6 +540,15 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
             : 'Analyzed ${msgsToAnalyze.length} messages from "${activeChat.title}"';
       }
 
+      if (mounted) {
+        setState(() {
+          _loadingStatusText = isRu
+              ? '⚡ Генерация ответа нейросетью (${settings.model})...'
+              : '⚡ Generating response via ${settings.model}...';
+          AppState.aiProcessingStatus.value = _loadingStatusText;
+        });
+      }
+
       reply = await AiModelService.instance.generateChatCompletion(
         prompt: effectiveQuery,
         systemPrompt: systemDirectives.toString(),
@@ -558,6 +573,15 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
         systemDirectives.writeln('</dialogue_memory_summary>');
       }
 
+      if (mounted) {
+        setState(() {
+          _loadingStatusText = isRu
+              ? '⚡ Генерация ответа нейросетью (${settings.model})...'
+              : '⚡ Generating response via ${settings.model}...';
+          AppState.aiProcessingStatus.value = _loadingStatusText;
+        });
+      }
+
       reply = await AiModelService.instance.generateChatCompletion(
         prompt: effectiveQuery,
         systemPrompt: systemDirectives.toString(),
@@ -578,12 +602,32 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
 
     // Проверка автокомпрессии после ответа
     CopilotSessionStore.instance.checkAndAutoCompress(session.id, settings);
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-      _scrollToBottom();
+    } catch (e) {
+      if (mounted) {
+        final errorText = isRu
+            ? '⚠️ Не удалось получить ответ от нейросети.\nПричина: $e\n\nПроверьте подключение к сети и ключ API в Настройках.'
+            : '⚠️ Failed to receive response from AI model.\nReason: $e\n\nPlease check network connection and API key in Settings.';
+        final errAgentMsg = CopilotMessage(
+          text: errorText,
+          isUser: false,
+          isError: true,
+        );
+        CopilotSessionStore.instance.addMessage(session.id, errAgentMsg);
+        TgToast.show(
+          context,
+          isRu ? '⚠️ Ошибка запроса к нейросети' : '⚠️ AI request error',
+          icon: Icons.error_outline_rounded,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadingStatusText = null;
+        });
+        _scrollToBottom();
+      }
+      AppState.aiProcessingStatus.value = null;
     }
   }
 
@@ -1734,12 +1778,67 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
     );
   }
 
+  Widget _buildThinkingBubble(CopilotSession session) {
+    final isRu = I18n.instance.isRu;
+    final statusText = _loadingStatusText ?? (isRu ? '🧠 Формирование ответа...' : '🧠 Thinking...');
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        constraints: const BoxConstraints(maxWidth: 520),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF182533),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: session.avatarColor.withValues(alpha: 0.35),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: session.avatarColor.withValues(alpha: 0.08),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(session.avatarColor),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                statusText,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: session.avatarColor.withValues(alpha: 0.95),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMessagesList(CopilotSession session) {
+    final count = session.messages.length + (_isLoading ? 1 : 0);
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      itemCount: session.messages.length,
+      itemCount: count,
       itemBuilder: (context, index) {
+        if (index == session.messages.length && _isLoading) {
+          return _buildThinkingBubble(session);
+        }
         final msg = session.messages[index];
         return _buildMessageBubble(session, msg);
       },
@@ -1747,6 +1846,106 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
   }
 
   Widget _buildMessageBubble(CopilotSession session, CopilotMessage msg) {
+    if (msg.isError) {
+      final isRu = I18n.instance.isRu;
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          constraints: const BoxConstraints(maxWidth: 580),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2C191D),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Colors.redAccent.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 16, color: Colors.redAccent),
+                  const SizedBox(width: 8),
+                  Text(
+                    isRu ? 'Ошибка генерации ответа' : 'Response generation failed',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SelectableText(
+                msg.text,
+                style: const TextStyle(fontSize: 13, color: Tg.text, height: 1.35),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  if (_lastUserQuery != null)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: _isLoading ? null : () => _sendMessage(session, _lastUserQuery!),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Tg.accent.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Tg.accent.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.refresh_rounded, size: 14, color: Tg.accent),
+                            const SizedBox(width: 6),
+                            Text(
+                              isRu ? 'Повторить попытку' : 'Retry',
+                              style: const TextStyle(fontSize: 12, color: Tg.accent, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () {
+                      AppState.activeSidebarTab.value = SidebarTab.settings;
+                      AppState.activeSettingsSection.value = SettingsSection.general;
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.tune_rounded, size: 14, color: Tg.textDim),
+                          const SizedBox(width: 6),
+                          Text(
+                            isRu ? 'Настройки AI' : 'AI Settings',
+                            style: const TextStyle(fontSize: 12, color: Tg.textDim, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Align(
       alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -2011,8 +2210,12 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.attach_file_rounded, size: 20, color: Tg.textDim),
-                onPressed: _pickAttachment,
+                icon: Icon(
+                  Icons.attach_file_rounded,
+                  size: 20,
+                  color: _isLoading ? Tg.textFaint : Tg.textDim,
+                ),
+                onPressed: _isLoading ? null : _pickAttachment,
                 tooltip: I18n.instance.isRu ? 'Прикрепить файл или фото' : 'Attach file or photo',
                 splashRadius: 18,
                 padding: const EdgeInsets.all(6),
@@ -2022,11 +2225,17 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
               Expanded(
                 child: TextField(
                   controller: _controller,
-                  onSubmitted: (val) => _sendMessage(session, val),
+                  readOnly: _isLoading,
+                  onSubmitted: _isLoading ? null : (val) => _sendMessage(session, val),
                   style: const TextStyle(fontSize: 14, color: Tg.text),
                   decoration: InputDecoration(
-                    hintText: tr('ask_agent_placeholder', {'role': session.agentRole}),
-                    hintStyle: const TextStyle(fontSize: 13.5, color: Tg.textFaint),
+                    hintText: _isLoading
+                        ? (I18n.instance.isRu ? '🧠 Нейросеть генерирует ответ...' : '🧠 AI is generating response...')
+                        : tr('ask_agent_placeholder', {'role': session.agentRole}),
+                    hintStyle: TextStyle(
+                      fontSize: 13.5,
+                      color: _isLoading ? Tg.accent.withValues(alpha: 0.7) : Tg.textFaint,
+                    ),
                     border: InputBorder.none,
                     isDense: true,
                   ),
@@ -2037,7 +2246,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                 Tooltip(
                   message: I18n.instance.isRu ? 'Надиктовать голосом' : 'Voice dictation',
                   child: GestureDetector(
-                    onTap: _startVoice,
+                    onTap: _isLoading ? null : _startVoice,
                     child: Container(
                       width: 36,
                       height: 36,
@@ -2046,18 +2255,22 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                       ),
-                      child: Icon(Icons.mic_none_rounded, size: 20, color: session.avatarColor),
+                      child: Icon(
+                        Icons.mic_none_rounded,
+                        size: 20,
+                        color: _isLoading ? Tg.textFaint : session.avatarColor,
+                      ),
                     ),
                   ),
                 )
               else
                 GestureDetector(
-                  onTap: () => _sendMessage(session, _controller.text),
+                  onTap: _isLoading ? null : () => _sendMessage(session, _controller.text),
                   child: Container(
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: session.avatarColor,
+                      color: _isLoading ? session.avatarColor.withValues(alpha: 0.5) : session.avatarColor,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: _isLoading

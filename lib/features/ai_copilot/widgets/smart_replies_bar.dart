@@ -44,6 +44,7 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
   int _recordSeconds = 0;
   Timer? _recordTimer;
   bool _isGenerating = false;
+  String? _generatingStatus;
   String? _voicePath;
   final AudioRecorder _audioRecorder = AudioRecorder();
 
@@ -58,7 +59,12 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
   }
 
   void _handleAutoReply() async {
-    setState(() => _isGenerating = true);
+    final isRu = I18n.instance.isRu;
+    setState(() {
+      _isGenerating = true;
+      _generatingStatus = isRu ? '🧠 Генерация ответа по контексту диалога...' : '🧠 Generating contextual reply...';
+    });
+    AppState.aiProcessingStatus.value = _generatingStatus;
     final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
     try {
       final reply = await SmartReplyEngine.generateAutoReplyAsync(
@@ -67,17 +73,27 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
         dossier: dossier,
       );
       if (!mounted) return;
-      setState(() => _isGenerating = false);
       widget.onSelected(reply);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       final reply = SmartReplyEngine.generateAutoReply(
         chatTitle: widget.chat.title,
         messages: widget.messages,
         dossier: dossier,
       );
-      setState(() => _isGenerating = false);
+      TgToast.show(
+        context,
+        isRu ? '⚠️ Использован локальный ответ (ошибка AI: $e)' : '⚠️ Used fallback reply (AI error: $e)',
+      );
       widget.onSelected(reply);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGenerating = false;
+          _generatingStatus = null;
+        });
+      }
+      AppState.aiProcessingStatus.value = null;
     }
   }
 
@@ -97,6 +113,9 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
       if (finalPath != null &&
           File(finalPath).existsSync() &&
           (sec > 0 || File(finalPath).lengthSync() > 1000)) {
+        AppState.aiProcessingStatus.value = I18n.instance.isRu
+            ? '🎤 Распознавание голосовой инструкции...'
+            : '🎤 Transcribing voice instruction...';
         if (mounted) {
           TgToast.show(
             context,
@@ -129,6 +148,8 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
           }
         } catch (e) {
           if (mounted) TgToast.show(context, 'Ошибка STT: $e');
+        } finally {
+          AppState.aiProcessingStatus.value = null;
         }
       } else {
         if (mounted) {
@@ -182,6 +203,7 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
   }
 
   void _handleInstructionSubmit() async {
+    final isRu = I18n.instance.isRu;
     if (_isRecording) {
       await _toggleRecording();
     }
@@ -190,14 +212,21 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
       if (mounted) {
         TgToast.show(
           context,
-          I18n.instance.isRu ? 'Надиктуйте или введите инструкцию' : 'Dictate or enter instruction',
+          isRu ? 'Надиктуйте или введите инструкцию' : 'Dictate or enter instruction',
         );
       }
       return;
     }
 
     final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
-    setState(() => _isGenerating = true);
+    setState(() {
+      _isGenerating = true;
+      _generatingStatus = isRu
+          ? '🧠 Генерация ответа по инструкции: "$text"...'
+          : '🧠 Generating reply by instruction: "$text"...';
+    });
+    AppState.aiProcessingStatus.value = _generatingStatus;
+
     try {
       final reply = await SmartReplyEngine.generateInstructionReplyAsync(
         chatTitle: widget.chat.title,
@@ -206,9 +235,8 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
         dossier: dossier,
       );
       if (!mounted) return;
-      setState(() => _isGenerating = false);
       widget.onSelected(reply);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       final reply = SmartReplyEngine.generateInstructionReply(
         chatTitle: widget.chat.title,
@@ -216,8 +244,19 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
         instruction: text,
         dossier: dossier,
       );
-      setState(() => _isGenerating = false);
+      TgToast.show(
+        context,
+        isRu ? '⚠️ Использован локальный ответ (ошибка AI: $e)' : '⚠️ Used fallback reply (AI error: $e)',
+      );
       widget.onSelected(reply);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGenerating = false;
+          _generatingStatus = null;
+        });
+      }
+      AppState.aiProcessingStatus.value = null;
     }
   }
 
@@ -341,14 +380,22 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
+                      strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(Tg.accent),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    tr('ai_reply_generating'),
-                    style: Tg.caption,
+                  Expanded(
+                    child: Text(
+                      _generatingStatus ?? tr('ai_reply_generating'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Tg.accent,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),

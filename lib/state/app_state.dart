@@ -57,4 +57,7 @@ class AppState {
 
   /// Входящий вызов, ожидающий ответа пользователя.
   static final ValueNotifier<TgCallInfo?> incomingCall = ValueNotifier<TgCallInfo?>(null);
+
+  /// Активный глобальный статус AI-обработки (null если не активно)
+  static final ValueNotifier<String?> aiProcessingStatus = ValueNotifier<String?>(null);
 }

@@ -17,6 +17,8 @@ import '../../data/tdlib/tdlib_service.dart';
 import '../../data/mock_data.dart';
 import '../../data/models/tg_account.dart';
 import '../../state/app_state.dart';
+import '../ai_copilot/models/contact_dossier.dart';
+import '../ai_copilot/services/smart_reply_engine.dart';
 import '../ai_copilot/widgets/contact_dossier_sheet.dart';
 import '../ai_copilot/widgets/smart_replies_bar.dart';
 import 'services/chat_export_service.dart';
@@ -893,10 +895,84 @@ class _InputBarState extends State<_InputBar> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
+  Future<void> _handleInlineAiQuery(String query, {required String originalText}) async {
+    final isRu = I18n.instance.isRu;
+    setState(() {
+      _controller.text = isRu ? '🧠 Генерация ответа AI...' : '🧠 Generating AI reply...';
+    });
+    final statusMsg = isRu
+        ? '🧠 Ответ AI на "$query"...'
+        : '🧠 AI reply for "$query"...';
+    AppState.aiProcessingStatus.value = statusMsg;
+
+    try {
+      final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
+      final realMsgs = widget.realMode
+          ? (TdlibService.instance.messagesOf(widget.chat.id).value.messages.isNotEmpty
+              ? TdlibService.instance.messagesOf(widget.chat.id).value.messages
+              : widget.chat.messages)
+          : widget.chat.messages;
+
+      final reply = await SmartReplyEngine.generateInstructionReplyAsync(
+        chatTitle: widget.chat.title,
+        messages: realMsgs,
+        instruction: query,
+        dossier: dossier,
+      );
+
+      if (mounted) {
+        setState(() {
+          _controller.text = reply;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: reply.length),
+          );
+        });
+        TgToast.show(
+          context,
+          isRu ? '💡 Ответ AI подготовлен к отправке' : '💡 AI reply ready to send',
+          icon: Icons.auto_awesome,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _controller.text = originalText;
+        });
+        TgToast.show(
+          context,
+          isRu ? '⚠️ Ошибка запроса к AI: $e' : '⚠️ AI request error: $e',
+          icon: Icons.error_outline_rounded,
+        );
+      }
+    } finally {
+      AppState.aiProcessingStatus.value = null;
+    }
+  }
+
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty && _stagedFiles.isEmpty) return;
     if (!widget.enabled) return;
+
+    if (AppState.aiProcessingStatus.value != null) {
+      TgToast.show(
+        context,
+        I18n.instance.isRu
+            ? '⏳ Пожалуйста, дождитесь завершения AI запроса'
+            : '⏳ Please wait for AI operation to complete',
+        icon: Icons.hourglass_top_rounded,
+      );
+      return;
+    }
+
+    if (text.startsWith('/ai ') || text.startsWith('@ai ') || text.startsWith('/ask ')) {
+      final query = text.replaceFirst(RegExp(r'^(/ai|@ai|/ask)\s+'), '').trim();
+      if (query.isNotEmpty) {
+        _handleInlineAiQuery(query, originalText: text);
+        return;
+      }
+    }
+
     final id = int.tryParse(widget.chat.id);
     if (id == null) return;
 
@@ -1092,6 +1168,43 @@ class _InputBarState extends State<_InputBar> {
               },
               onClose: () => setState(() => _showSmartReplies = false),
             ),
+          ValueListenableBuilder<String?>(
+            valueListenable: AppState.aiProcessingStatus,
+            builder: (context, status, _) {
+              if (status == null) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Tg.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Tg.accent.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Tg.accent),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        status,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Tg.accent,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: _isRecordingVoice
@@ -1357,21 +1470,46 @@ class _InputBarState extends State<_InputBar> {
           valueListenable: _controller,
           builder: (context, value, _) {
             final hasText = value.text.trim().isNotEmpty || _stagedFiles.isNotEmpty;
-            return GestureDetector(
-              onTap: hasText ? _send : _toggleVoice,
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: const BoxDecoration(
-                  gradient: Tg.accentGradient,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  hasText ? Icons.send_rounded : Icons.mic_rounded,
-                  size: 20,
-                  color: Colors.white,
-                ),
-              ),
+            return ValueListenableBuilder<String?>(
+              valueListenable: AppState.aiProcessingStatus,
+              builder: (context, aiStatus, _) {
+                final isAiActive = aiStatus != null;
+                return GestureDetector(
+                  onTap: isAiActive
+                      ? () {
+                          TgToast.show(
+                            context,
+                            I18n.instance.isRu
+                                ? '⏳ Пожалуйста, дождитесь завершения AI запроса'
+                                : '⏳ Please wait for AI operation to complete',
+                            icon: Icons.hourglass_top_rounded,
+                          );
+                        }
+                      : (hasText ? _send : _toggleVoice),
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      gradient: isAiActive ? null : Tg.accentGradient,
+                      color: isAiActive ? Tg.accent.withValues(alpha: 0.5) : null,
+                      shape: BoxShape.circle,
+                    ),
+                    child: isAiActive
+                        ? const Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ),
+                          )
+                        : Icon(
+                            hasText ? Icons.send_rounded : Icons.mic_rounded,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                  ),
+                );
+              },
             );
           },
         ),
