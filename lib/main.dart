@@ -1,4 +1,5 @@
-import 'dart:async';
+import 'dart:async' show unawaited;
+import 'dart:io' show Platform;
 import 'dart:ui' show AppExitResponse, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart';
@@ -36,7 +37,13 @@ void _setupLogging() {
 Future<void> main() async {
   _setupLogging();
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
+  if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+    try {
+      MediaKit.ensureInitialized();
+    } catch (e) {
+      AppLogger.error('MediaKit initialization skipped: $e');
+    }
+  }
   await initDesktopWindow();
   if (!kIsWeb) {
     // TDLib живёт в своём изоляте; UI только получает готовые снимки.

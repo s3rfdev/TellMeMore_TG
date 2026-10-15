@@ -47,6 +47,18 @@ class TdJsonFfi {
 
   /// Ищет libtdjson по стандартным путям системы и бандла приложения.
   static TdJsonFfi? tryOpen() {
+    if (Platform.isAndroid) {
+      try {
+        final lib = DynamicLibrary.open('libtdjson.so');
+        final probe = TdJsonFfi._(lib, Pointer<Void>.fromAddress(0));
+        probe._setLogLevel(2);
+        return probe;
+      } catch (e) {
+        lastError = 'Android DynamicLibrary.open(libtdjson.so) error: $e';
+        return null;
+      }
+    }
+
     final exeDir = File(Platform.resolvedExecutable).parent.path;
     final home = Platform.environment['HOME'] ?? '';
     final candidates = <String>[

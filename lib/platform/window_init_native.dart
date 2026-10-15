@@ -13,7 +13,7 @@ Future<void> initWindowImpl() async {
     size: const Size(1280, 840),
     minimumSize: const Size(800, 540),
     center: true,
-    title: 'TG Answer',
+    title: 'TellMeMore TG',
     titleBarStyle: isMac ? TitleBarStyle.hidden : TitleBarStyle.normal,
   );
   await windowManager.waitUntilReadyToShow(options, () async {

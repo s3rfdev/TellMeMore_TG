@@ -29,7 +29,7 @@ class DesktopNotificationService {
           '/org/freedesktop/Notifications',
           '--method',
           'org.freedesktop.Notifications.Notify',
-          'TG Answer',
+          'TellMeMore TG',
           '0',
           'telegram',
           title,
@@ -48,7 +48,7 @@ class DesktopNotificationService {
   /// Активировать окно приложения и перейти в нужный чат
   static Future<void> activateWindow({String? chatId}) async {
     try {
-      if (!kIsWeb) {
+      if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
         await windowManager.show();
         await windowManager.focus();
       }

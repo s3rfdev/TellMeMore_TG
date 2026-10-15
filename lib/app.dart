@@ -13,7 +13,7 @@ class TgAnswerApp extends StatelessWidget {
       valueListenable: I18n.instance.currentLanguage,
       builder: (context, lang, _) {
         return MaterialApp(
-          title: 'TG Answer',
+          title: 'TellMeMore TG',
           debugShowCheckedModeBanner: false,
           theme: buildTgTheme(),
           home: const Scaffold(body: HomeShell()),
