@@ -137,7 +137,7 @@ class _MainDrawerState extends State<MainDrawer> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Text(
-                  'TG Answer Desktop 1.0.0 (TDLib)',
+                  'TellMeMore TG 1.0.0 (TDLib)',
                   style: TextStyle(
                     fontSize: 12,
                     color: Tg.textFaint.withValues(alpha: 0.7),

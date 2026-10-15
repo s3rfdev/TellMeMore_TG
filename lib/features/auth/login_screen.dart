@@ -105,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 18),
                       const Text(
-                        'TG Answer',
+                        'TellMeMore TG',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w600,

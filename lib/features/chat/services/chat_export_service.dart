@@ -194,7 +194,7 @@ class ChatExportService {
 
     final data = <String, dynamic>{
       'export_metadata': {
-        'source': 'TG Answer AI',
+        'source': 'TellMeMore TG AI',
         'version': '1.0',
         'exported_at': now.toIso8601String(),
         'type': type.name,

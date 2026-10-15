@@ -37,10 +37,16 @@ class TdJsonFfi {
           'td_json_client_destroy')
       .asFunction();
 
-  late final void Function(int) _setLogLevel = _lib
-      .lookup<NativeFunction<Void Function(Int32)>>(
-          'td_set_log_verbosity_level')
-      .asFunction();
+  late final void Function(int)? _setLogLevel = () {
+    try {
+      return _lib
+          .lookup<NativeFunction<Void Function(Int32)>>(
+              'td_set_log_verbosity_level')
+          .asFunction<void Function(int)>();
+    } catch (_) {
+      return null;
+    }
+  }();
 
   /// Причина последней неудачной загрузки — для диагностики в UI.
   static String? lastError;
@@ -51,7 +57,7 @@ class TdJsonFfi {
       try {
         final lib = DynamicLibrary.open('libtdjson.so');
         final probe = TdJsonFfi._(lib, Pointer<Void>.fromAddress(0));
-        probe._setLogLevel(2);
+        probe.setLogLevel(2);
         return probe;
       } catch (e) {
         lastError = 'Android DynamicLibrary.open(libtdjson.so) error: $e';
@@ -88,7 +94,7 @@ class TdJsonFfi {
       try {
         final lib = DynamicLibrary.open(path);
         final probe = TdJsonFfi._(lib, Pointer<Void>.fromAddress(0));
-        probe._setLogLevel(2); // проверяем доступность символа
+        probe.setLogLevel(2); // проверяем доступность вызова
         return probe;
       } catch (e) {
         failures.add('$path → $e');
@@ -143,7 +149,14 @@ class TdJsonFfi {
     return s;
   }
 
-  void setLogLevel(int level) => _setLogLevel(level);
+  void setLogLevel(int level) {
+    final setter = _setLogLevel;
+    if (setter != null) {
+      setter(level);
+    } else {
+      execute({'@type': 'setLogVerbosityLevel', 'new_verbosity_level': level}, useNullClient: true);
+    }
+  }
 
   static Pointer<Utf8> _toNativeUtf8(String s) {
     final units = utf8.encode(s);
