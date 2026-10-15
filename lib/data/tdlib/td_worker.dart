@@ -265,21 +265,38 @@ class _Store {
         final chatId = cmd['chatId'] as int;
         final path = cmd['path'] as String;
         final caption = cmd['caption'] as String? ?? '';
-        _send({
-          '@type': 'sendMessage',
-          'chat_id': chatId,
-          'input_message_content': {
-            '@type': 'inputMessageDocument',
-            'document': {
-              '@type': 'inputDocument',
-              'document': {
+        final ext = path.toLowerCase().split('.').last;
+        final isImage = const ['jpg', 'jpeg', 'png', 'webp', 'bmp'].contains(ext);
+        if (isImage) {
+          _send({
+            '@type': 'sendMessage',
+            'chat_id': chatId,
+            'input_message_content': {
+              '@type': 'inputMessagePhoto',
+              'photo': {
                 '@type': 'inputFileLocal',
                 'path': path,
               },
+              'caption': {'@type': 'formattedText', 'text': caption},
             },
-            'caption': {'@type': 'formattedText', 'text': caption},
-          },
-        });
+          });
+        } else {
+          _send({
+            '@type': 'sendMessage',
+            'chat_id': chatId,
+            'input_message_content': {
+              '@type': 'inputMessageDocument',
+              'document': {
+                '@type': 'inputDocument',
+                'document': {
+                  '@type': 'inputFileLocal',
+                  'path': path,
+                },
+              },
+              'caption': {'@type': 'formattedText', 'text': caption},
+            },
+          });
+        }
       case 'searchChats':
         final q = cmd['query'] as String;
         _send({
@@ -853,6 +870,50 @@ class _Store {
               'body': text.isNotEmpty ? text : 'Новое сообщение',
               'chatId': chatId.toString(),
             });
+          }
+        }
+        return;
+      case 'updateMessageSendSucceeded':
+        final msg = m['message'] as Map<String, dynamic>?;
+        final oldId = m['old_message_id'] as int?;
+        if (msg != null) {
+          final newId = msg['id'] as int;
+          final chatId = msg['chat_id'] as int;
+          _allMessages[newId] = msg;
+          if (oldId != null) _allMessages.remove(oldId);
+          final st = _chatById(chatId);
+          if (st != null) {
+            if (oldId != null) {
+              final idx = st.history.indexWhere((e) => e['id'] == oldId);
+              if (idx != -1) {
+                st.history[idx] = msg;
+              } else if (!st.history.any((e) => e['id'] == newId)) {
+                st.history.insert(0, msg);
+              }
+            } else if (!st.history.any((e) => e['id'] == newId)) {
+              st.history.insert(0, msg);
+            }
+            st.history.sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
+            _dirtyHistories.add(chatId.toString());
+          }
+        }
+        return;
+      case 'updateMessageContent':
+        final chatId = m['chat_id'] as int?;
+        final msgId = m['message_id'] as int?;
+        final newContent = m['new_content'] as Map<String, dynamic>?;
+        if (chatId != null && msgId != null && newContent != null) {
+          final existing = _allMessages[msgId];
+          if (existing != null) {
+            existing['content'] = newContent;
+            final st = _chatById(chatId);
+            if (st != null) {
+              final idx = st.history.indexWhere((e) => e['id'] == msgId);
+              if (idx != -1) {
+                st.history[idx]['content'] = newContent;
+              }
+              _dirtyHistories.add(chatId.toString());
+            }
           }
         }
         return;
@@ -1567,6 +1628,21 @@ class _Store {
               if (!isDownloaded) {
                 _downloadFileIfNeeded(file);
                 isDownloading = _downloadingFiles.contains(fileId) || fLocal?['is_downloading_active'] == true;
+              }
+            }
+            if (thumbnailPath.isEmpty && sizes.isNotEmpty) {
+              final firstSz = sizes.first;
+              if (firstSz is Map) {
+                final file = firstSz['photo'] is Map ? firstSz['photo'] as Map : null;
+                final fId = (file?['id'] as num?)?.toInt();
+                final local = file?['local'] is Map ? file!['local'] as Map : null;
+                final localPath = (local?['path'] as String?) ?? '';
+                final downloaded = fId != null ? _downloadedFiles[fId] : null;
+                if (downloaded != null && downloaded.isNotEmpty && File(downloaded).existsSync()) {
+                  thumbnailPath = downloaded;
+                } else if (local?['is_downloading_completed'] == true && localPath.isNotEmpty && File(localPath).existsSync()) {
+                  thumbnailPath = localPath;
+                }
               }
             }
           }

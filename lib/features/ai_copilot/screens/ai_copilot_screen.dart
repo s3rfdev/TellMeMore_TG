@@ -388,6 +388,21 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
         // 10 recent raw messages for live conversational context
         final recentRaw = msgs.take(10).toList();
         final recentFormatted = <String>[];
+        final ragLiveAllowed = <dynamic>{};
+        for (final m in recentRaw) {
+          if (ImageDescriptionService.isImageMessage(m)) {
+            final hasCache = (m.id != 0 && ImageDescriptionService.instance.hasDescription(m.id)) ||
+                ImageDescriptionService.instance.hasDescription(m.mediaPath) ||
+                ImageDescriptionService.instance.hasDescription(m.thumbnailPath);
+            if (!hasCache) {
+              final key = m.id != 0 ? m.id : (m.mediaPath.isNotEmpty ? m.mediaPath : m.thumbnailPath);
+              if (key.toString().isNotEmpty) {
+                ragLiveAllowed.add(key);
+                if (ragLiveAllowed.length >= 2) break;
+              }
+            }
+          }
+        }
         for (final m in recentRaw.reversed) {
           final sender = m.outgoing
               ? (isRu ? 'Вы' : 'You')
@@ -401,24 +416,23 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
             } else {
               content = isRu ? '[🎤 Голосовое (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
             }
-          } else if (m.kind == MessageKind.image) {
-            String? desc = ImageDescriptionService.instance.getCachedDescription(m.id) ??
-                ImageDescriptionService.instance.getCachedDescription(m.mediaPath);
-            if ((desc == null || desc.isEmpty) && m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
-              try {
-                desc = await ImageDescriptionService.instance.describeImage(
-                  filePath: m.mediaPath,
-                  messageId: m.id,
-                );
-              } catch (_) {}
-            }
+          } else if (ImageDescriptionService.isImageMessage(m)) {
+            final key = m.id != 0 ? m.id : (m.mediaPath.isNotEmpty ? m.mediaPath : m.thumbnailPath);
+            final allowLive = ragLiveAllowed.contains(key);
+            String? desc = await ImageDescriptionService.instance.resolveImageDescriptionForContext(
+              message: m,
+              allowLiveVision: allowLive,
+            );
             if (desc != null && desc.isNotEmpty) {
               content = isRu
                   ? '[🖼 Фото: $desc${content.isNotEmpty ? " (подпись: $content)" : ""}]'
                   : '[🖼 Photo: $desc${content.isNotEmpty ? " (caption: $content)" : ""}]';
             } else {
-              content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
+              final nameHint = m.fileName.isNotEmpty ? ': ${m.fileName}' : (content.isNotEmpty ? ': $content' : '');
+              content = isRu ? '[🖼 Фото$nameHint]' : '[🖼 Photo$nameHint]';
             }
+          } else if (m.kind == MessageKind.document) {
+            content = isRu ? '[📎 Документ: ${m.fileName} (${m.fileSize})${content.isNotEmpty ? ": $content" : ""}]' : '[📎 Document: ${m.fileName} (${m.fileSize})${content.isNotEmpty ? ": $content" : ""}]';
           }
           recentFormatted.add('$sender: $content');
         }
@@ -437,6 +451,23 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
             : 'Used RAG summary of $ragCount msgs + ${recentRaw.length} recent replies ("${activeChat.title}")';
       } else {
         // Форматируем сообщения с включением транскрибированных голосовых заметок и описаний фото
+        // Ограничиваем живой Vision-анализ максимум 3 самыми свежими некэшированными фото
+        final liveVisionAllowed = <dynamic>{};
+        for (final m in msgsToAnalyze) {
+          if (ImageDescriptionService.isImageMessage(m)) {
+            final hasCache = (m.id != 0 && ImageDescriptionService.instance.hasDescription(m.id)) ||
+                ImageDescriptionService.instance.hasDescription(m.mediaPath) ||
+                ImageDescriptionService.instance.hasDescription(m.thumbnailPath);
+            if (!hasCache) {
+              final key = m.id != 0 ? m.id : (m.mediaPath.isNotEmpty ? m.mediaPath : m.thumbnailPath);
+              if (key.toString().isNotEmpty) {
+                liveVisionAllowed.add(key);
+                if (liveVisionAllowed.length >= 3) break;
+              }
+            }
+          }
+        }
+
         final formattedList = <String>[];
         for (final m in msgsToAnalyze.reversed) {
           final sender = m.outgoing
@@ -462,23 +493,20 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
             } else {
               content = isRu ? '[🎤 Голосовое сообщение (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
             }
-          } else if (m.kind == MessageKind.image) {
-            String? desc = ImageDescriptionService.instance.getCachedDescription(m.id) ??
-                ImageDescriptionService.instance.getCachedDescription(m.mediaPath);
-            if ((desc == null || desc.isEmpty) && m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
-              try {
-                desc = await ImageDescriptionService.instance.describeImage(
-                  filePath: m.mediaPath,
-                  messageId: m.id,
-                );
-              } catch (_) {}
-            }
+          } else if (ImageDescriptionService.isImageMessage(m)) {
+            final key = m.id != 0 ? m.id : (m.mediaPath.isNotEmpty ? m.mediaPath : m.thumbnailPath);
+            final allowLive = liveVisionAllowed.contains(key);
+            String? desc = await ImageDescriptionService.instance.resolveImageDescriptionForContext(
+              message: m,
+              allowLiveVision: allowLive,
+            );
             if (desc != null && desc.isNotEmpty) {
               content = isRu
                   ? '[🖼 Фото: $desc${content.isNotEmpty ? " (подпись: $content)" : ""}]'
                   : '[🖼 Photo: $desc${content.isNotEmpty ? " (caption: $content)" : ""}]';
             } else {
-              content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
+              final nameHint = m.fileName.isNotEmpty ? ': ${m.fileName}' : (content.isNotEmpty ? ': $content' : '');
+              content = isRu ? '[🖼 Фото$nameHint]' : '[🖼 Photo$nameHint]';
             }
           } else if (m.kind == MessageKind.video) {
             content = isRu ? '[🎬 Видео (${m.duration} сек)${content.isNotEmpty ? ": $content" : ""}]' : '[🎬 Video (${m.duration}s)${content.isNotEmpty ? ": $content" : ""}]';

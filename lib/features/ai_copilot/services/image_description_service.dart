@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../data/models/tg_chat.dart';
 import '../models/ai_settings_model.dart';
 
 /// Сервис анализа изображений (Gemini Vision) с персистентным кэшированием.
@@ -16,6 +17,27 @@ class ImageDescriptionService {
 
   final Map<String, String> _cache = {};
   bool _isLoaded = false;
+
+  /// Проверяет, относится ли сообщение к изображению (фото или файл-картинка)
+  static bool isImageMessage(TgMessage m) {
+    if (m.kind == MessageKind.image) return true;
+    if (m.kind == MessageKind.document && m.fileName.isNotEmpty) {
+      final ext = m.fileName.toLowerCase().split('.').last;
+      return const ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif'].contains(ext);
+    }
+    return false;
+  }
+
+  /// Находит локальный доступный файл изображения (полный размер или миниатюру)
+  static String resolveImagePath(TgMessage m) {
+    if (m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync() && File(m.mediaPath).lengthSync() > 0) {
+      return m.mediaPath;
+    }
+    if (m.thumbnailPath.isNotEmpty && File(m.thumbnailPath).existsSync() && File(m.thumbnailPath).lengthSync() > 0) {
+      return m.thumbnailPath;
+    }
+    return '';
+  }
 
   /// Получить сохраненное описание по ID сообщения или пути к файлу
   String? getCachedDescription(dynamic idOrPath) {
@@ -36,6 +58,37 @@ class ImageDescriptionService {
     final key = idOrPath.toString();
     _cache[key] = text.trim();
     _persistCacheToDisk();
+  }
+
+  /// Безопасный on-demand анализ изображений для контекста диалога:
+  /// - Если описание уже есть в дисковом кэше — мгновенно берется из кэша (0 API запросов).
+  /// - Живой Vision вызывается только если [allowLiveVision] == true и локальный файл найден.
+  /// - Предотвращает лавину запросов и перегруз модели при листании или открытии чатов.
+  Future<String?> resolveImageDescriptionForContext({
+    required TgMessage message,
+    required bool allowLiveVision,
+  }) async {
+    // 1. Проверяем кэш по ID сообщения
+    if (message.id != 0 && hasDescription(message.id)) {
+      return getCachedDescription(message.id);
+    }
+
+    // 2. Проверяем кэш по пути
+    final localPath = resolveImagePath(message);
+    if (localPath.isNotEmpty && hasDescription(localPath)) {
+      final cached = getCachedDescription(localPath);
+      if (message.id != 0 && cached != null) saveDescription(message.id, cached);
+      return cached;
+    }
+
+    if (!allowLiveVision || localPath.isEmpty) {
+      return null;
+    }
+
+    return await describeImage(
+      filePath: localPath,
+      messageId: message.id != 0 ? message.id : null,
+    );
   }
 
   /// Проанализировать изображение через Gemini Vision

@@ -347,6 +347,22 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
       }
 
       final isRu = I18n.instance.isRu;
+      final liveAllowed = <dynamic>{};
+      for (final m in messagesToAnalyze) {
+        if (ImageDescriptionService.isImageMessage(m)) {
+          final hasCache = (m.id != 0 && ImageDescriptionService.instance.hasDescription(m.id)) ||
+              ImageDescriptionService.instance.hasDescription(m.mediaPath) ||
+              ImageDescriptionService.instance.hasDescription(m.thumbnailPath);
+          if (!hasCache) {
+            final key = m.id != 0 ? m.id : (m.mediaPath.isNotEmpty ? m.mediaPath : m.thumbnailPath);
+            if (key.toString().isNotEmpty) {
+              liveAllowed.add(key);
+              if (liveAllowed.length >= 3) break;
+            }
+          }
+        }
+      }
+
       final formattedList = <String>[];
       for (final m in messagesToAnalyze.reversed) {
         final sender = m.outgoing
@@ -372,23 +388,20 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
           } else {
             content = isRu ? '[🎤 Голосовое сообщение (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
           }
-        } else if (m.kind == MessageKind.image) {
-          String? desc = ImageDescriptionService.instance.getCachedDescription(m.id) ??
-              ImageDescriptionService.instance.getCachedDescription(m.mediaPath);
-          if ((desc == null || desc.isEmpty) && m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
-            try {
-              desc = await ImageDescriptionService.instance.describeImage(
-                filePath: m.mediaPath,
-                messageId: m.id,
-              );
-            } catch (_) {}
-          }
+        } else if (ImageDescriptionService.isImageMessage(m)) {
+          final key = m.id != 0 ? m.id : (m.mediaPath.isNotEmpty ? m.mediaPath : m.thumbnailPath);
+          final allowLive = liveAllowed.contains(key);
+          String? desc = await ImageDescriptionService.instance.resolveImageDescriptionForContext(
+            message: m,
+            allowLiveVision: allowLive,
+          );
           if (desc != null && desc.isNotEmpty) {
             content = isRu
                 ? '[🖼 Фото: $desc${content.isNotEmpty ? " (подпись: $content)" : ""}]'
                 : '[🖼 Photo: $desc${content.isNotEmpty ? " (caption: $content)" : ""}]';
           } else {
-            content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
+            final nameHint = m.fileName.isNotEmpty ? ': ${m.fileName}' : (content.isNotEmpty ? ': $content' : '');
+            content = isRu ? '[🖼 Фото$nameHint]' : '[🖼 Photo$nameHint]';
           }
         } else if (m.kind == MessageKind.video) {
           content = isRu ? '[🎬 Видео (${m.duration} сек)${content.isNotEmpty ? ": $content" : ""}]' : '[🎬 Video (${m.duration}s)${content.isNotEmpty ? ": $content" : ""}]';
