@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
@@ -575,30 +576,78 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     required ValueChanged<String> onChanged,
     bool isPassword = true,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12.5, color: Tg.textDim)),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Tg.field,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: TextFormField(
-            initialValue: value,
-            obscureText: isPassword,
-            style: const TextStyle(fontSize: 13, color: Tg.text, fontFamily: 'monospace'),
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(vertical: 10),
+    bool obscure = isPassword;
+    String currentValue = value;
+
+    return StatefulBuilder(
+      builder: (context, setInputState) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 12.5, color: Tg.textDim)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Tg.field,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: value,
+                      obscureText: obscure,
+                      style: const TextStyle(fontSize: 13, color: Tg.text, fontFamily: 'monospace'),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      onChanged: (v) {
+                        currentValue = v;
+                        onChanged(v);
+                      },
+                    ),
+                  ),
+                  if (isPassword)
+                    IconButton(
+                      icon: Icon(
+                        obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        size: 18,
+                        color: Tg.textDim,
+                      ),
+                      onPressed: () => setInputState(() => obscure = !obscure),
+                      tooltip: obscure
+                          ? (I18n.instance.isRu ? 'Показать ключ' : 'Show key')
+                          : (I18n.instance.isRu ? 'Скрыть ключ' : 'Hide key'),
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                      splashRadius: 16,
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 16, color: Tg.textDim),
+                    onPressed: () {
+                      if (currentValue.isNotEmpty) {
+                        Clipboard.setData(ClipboardData(text: currentValue));
+                        TgToast.show(
+                          context,
+                          I18n.instance.isRu ? 'Ключ скопирован в буфер' : 'Key copied to clipboard',
+                          icon: Icons.check_circle_rounded,
+                        );
+                      }
+                    },
+                    tooltip: I18n.instance.isRu ? 'Скопировать ключ' : 'Copy key',
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    splashRadius: 16,
+                  ),
+                ],
+              ),
             ),
-            onChanged: onChanged,
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -884,9 +933,12 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   underline: const SizedBox.shrink(),
                   dropdownColor: Tg.field,
                   style: const TextStyle(color: Tg.text, fontSize: 13),
-                  items: ['Deepgram Nova-2', 'OpenAI Whisper-1', 'Vosk / Sherpa']
-                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                      .toList(),
+                  items: [
+                    'Google Gemini STT (Multimodal)',
+                    'Deepgram Nova-2',
+                    'OpenAI Whisper-1',
+                    'Vosk / Sherpa',
+                  ].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                   onChanged: (val) {
                     if (val != null) {
                       AiSettingsStore.instance.settings.value =
@@ -903,6 +955,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   settings.deepgramKey = v;
                   AiSettingsStore.instance.settings.value = settings.copyWith(deepgramKey: v);
                 },
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Deepgram Nova-2 (40 hex-символов). При ошибке 401 или отсутствии токена автоматически используется Gemini STT.',
+                style: TextStyle(fontSize: 11.5, color: Tg.textFaint),
               ),
               const SizedBox(height: 8),
               SwitchListTile(

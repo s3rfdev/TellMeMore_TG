@@ -70,11 +70,11 @@ class VoiceTranscriptionService {
         ? deepgramApiKey
         : settings.deepgramKey;
 
-    // 3. Отправляем в Deepgram Nova-2
-    if (key.isNotEmpty) {
+    // 3. Отправляем в Deepgram Nova-2 (если ключ валиден и не является ZAI-ключом)
+    if (key.isNotEmpty && !key.contains('.')) {
       try {
         final client = HttpClient();
-        client.connectionTimeout = const Duration(seconds: 25);
+        client.connectionTimeout = const Duration(seconds: 15);
         try {
           final uri = Uri.parse(
             'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&detect_language=true',
@@ -116,11 +116,96 @@ class VoiceTranscriptionService {
       }
     }
 
-    // 4. Локальный fallback, если Deepgram недоступен
+    // 4. Высокоточное распознавание через Google Gemini Multimodal STT
+    final geminiKey = settings.geminiKey;
+    if (geminiKey.isNotEmpty) {
+      try {
+        final geminiText = await _transcribeWithGemini(file, geminiKey);
+        if (geminiText != null && geminiText.isNotEmpty) {
+          saveTranscription(filePath, geminiText);
+          if (messageId != null) saveTranscription(messageId, geminiText);
+          return geminiText;
+        }
+      } catch (e) {
+        debugPrint('[VoiceTranscriptionService] Gemini STT error: $e');
+      }
+    }
+
+    // 5. Локальный fallback, если сервисы недоступны
     final fallback = durationSeconds > 0
         ? '[Голосовое сообщение ($durationSeconds сек)]'
         : '[Голосовое сообщение]';
     return fallback;
+  }
+
+  Future<String?> _transcribeWithGemini(File file, String key) async {
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 20);
+    try {
+      final ext = file.path.toLowerCase().split('.').last;
+      String mime = 'audio/mp4';
+      if (ext == 'oga' || ext == 'ogg' || ext == 'opus') {
+        mime = 'audio/ogg';
+      } else if (ext == 'mp3') {
+        mime = 'audio/mp3';
+      } else if (ext == 'wav') {
+        mime = 'audio/wav';
+      }
+
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) return null;
+      final b64 = base64Encode(bytes);
+
+      final uri = Uri.parse(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=$key',
+      );
+      final request = await client.postUrl(uri);
+      request.headers.set('Content-Type', 'application/json; charset=utf-8');
+      request.headers.set('User-Agent', 'TGAnswer-Desktop/1.0');
+
+      final payload = {
+        'contents': [
+          {
+            'parts': [
+              {
+                'inlineData': {
+                  'mimeType': mime,
+                  'data': b64,
+                }
+              },
+              {
+                'text': 'Транскрибируй аудиозапись дословно на языке оригинала без добавления каких-либо пояснений, кавычек или форматирования. Верни только распознанный текст.'
+              }
+            ]
+          }
+        ]
+      };
+
+      request.add(utf8.encode(jsonEncode(payload)));
+      final response = await request.close();
+      if (response.statusCode == 200) {
+        final body = await response.transform(utf8.decoder).join();
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        final candidates = json['candidates'] as List<dynamic>?;
+        if (candidates != null && candidates.isNotEmpty) {
+          final content = candidates.first['content'] as Map<String, dynamic>?;
+          final parts = content?['parts'] as List<dynamic>?;
+          if (parts != null && parts.isNotEmpty) {
+            final text = parts.first['text'] as String?;
+            if (text != null) {
+              final cleaned = text.trim();
+              if (cleaned == '<noise>' || cleaned.isEmpty) {
+                return null;
+              }
+              return cleaned;
+            }
+          }
+        }
+      }
+    } finally {
+      client.close();
+    }
+    return null;
   }
 
   Future<File?> _getCacheFile() async {

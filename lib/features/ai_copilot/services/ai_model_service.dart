@@ -143,6 +143,7 @@ class AiModelService {
     String systemPrompt = '',
     List<Map<String, String>> history = const [],
     AiSettings? settings,
+    String? imagePath,
   }) async {
     final s = settings ?? AiSettingsStore.instance.settings.value;
 
@@ -154,6 +155,7 @@ class AiModelService {
         prompt: prompt,
         systemPrompt: systemPrompt,
         history: history,
+        imagePath: imagePath,
       );
       if (res != null && res.isNotEmpty) return res;
     } else if (s.provider == 'Z-AI (ZIAI)' && s.zaiKey.isNotEmpty) {
@@ -193,6 +195,7 @@ class AiModelService {
         prompt: prompt,
         systemPrompt: systemPrompt,
         history: history,
+        imagePath: imagePath,
       );
       if (res != null && res.isNotEmpty) return res;
     }
@@ -211,6 +214,7 @@ class AiModelService {
     required String prompt,
     required String systemPrompt,
     required List<Map<String, String>> history,
+    String? imagePath,
   }) async {
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 18);
@@ -239,9 +243,35 @@ class AiModelService {
               'parts': [{'text': h['content'] ?? ''}],
             });
           }
+
+          final userParts = <Map<String, dynamic>>[];
+          if (imagePath != null && File(imagePath).existsSync()) {
+            try {
+              final bytes = await File(imagePath).readAsBytes();
+              if (bytes.isNotEmpty) {
+                final ext = imagePath.toLowerCase().split('.').last;
+                String mime = 'image/jpeg';
+                if (ext == 'png') {
+                  mime = 'image/png';
+                } else if (ext == 'webp') {
+                  mime = 'image/webp';
+                } else if (ext == 'gif') {
+                  mime = 'image/gif';
+                }
+                userParts.add({
+                  'inlineData': {
+                    'mimeType': mime,
+                    'data': base64Encode(bytes),
+                  }
+                });
+              }
+            } catch (_) {}
+          }
+          userParts.add({'text': prompt});
+
           contents.add({
             'role': 'user',
-            'parts': [{'text': prompt}],
+            'parts': userParts,
           });
 
           final payload = <String, dynamic>{

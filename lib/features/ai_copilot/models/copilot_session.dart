@@ -8,6 +8,9 @@ class CopilotMessage {
     required this.isUser,
     this.toolName,
     this.toolOutput,
+    this.attachmentPath,
+    this.attachmentName,
+    this.isImageAttachment = false,
     DateTime? time,
     int? tokenCount,
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
@@ -19,6 +22,9 @@ class CopilotMessage {
   final bool isUser;
   final String? toolName;
   final String? toolOutput;
+  final String? attachmentPath;
+  final String? attachmentName;
+  final bool isImageAttachment;
   final DateTime time;
   final int tokenCount;
 
@@ -41,6 +47,9 @@ class CopilotMessage {
     bool? isUser,
     String? toolName,
     String? toolOutput,
+    String? attachmentPath,
+    String? attachmentName,
+    bool? isImageAttachment,
     DateTime? time,
     int? tokenCount,
   }) {
@@ -50,6 +59,9 @@ class CopilotMessage {
       isUser: isUser ?? this.isUser,
       toolName: toolName ?? this.toolName,
       toolOutput: toolOutput ?? this.toolOutput,
+      attachmentPath: attachmentPath ?? this.attachmentPath,
+      attachmentName: attachmentName ?? this.attachmentName,
+      isImageAttachment: isImageAttachment ?? this.isImageAttachment,
       time: time ?? this.time,
       tokenCount: tokenCount ?? this.tokenCount,
     );

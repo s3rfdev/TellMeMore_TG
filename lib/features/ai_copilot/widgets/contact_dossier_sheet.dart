@@ -15,6 +15,7 @@ import '../models/contact_dossier.dart';
 import '../models/copilot_session.dart';
 import '../services/ai_model_service.dart';
 import '../services/copilot_session_store.dart';
+import '../services/image_description_service.dart';
 import '../services/voice_transcription_service.dart';
 
 /// Единый центр AI-управления контактом (Вариант Б):
@@ -348,7 +349,9 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
       final isRu = I18n.instance.isRu;
       final formattedList = <String>[];
       for (final m in messagesToAnalyze.reversed) {
-        final sender = m.outgoing ? (isRu ? 'Вы' : 'You') : widget.chat.title;
+        final sender = m.outgoing
+            ? (isRu ? 'Вы' : 'You')
+            : (m.senderName.isNotEmpty ? m.senderName : widget.chat.title);
         String content = m.text.replaceAll('\n', ' ').trim();
         if (m.kind == MessageKind.voice) {
           String? trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
@@ -370,7 +373,23 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             content = isRu ? '[🎤 Голосовое сообщение (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
           }
         } else if (m.kind == MessageKind.image) {
-          content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
+          String? desc = ImageDescriptionService.instance.getCachedDescription(m.id) ??
+              ImageDescriptionService.instance.getCachedDescription(m.mediaPath);
+          if ((desc == null || desc.isEmpty) && m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
+            try {
+              desc = await ImageDescriptionService.instance.describeImage(
+                filePath: m.mediaPath,
+                messageId: m.id,
+              );
+            } catch (_) {}
+          }
+          if (desc != null && desc.isNotEmpty) {
+            content = isRu
+                ? '[🖼 Фото: $desc${content.isNotEmpty ? " (подпись: $content)" : ""}]'
+                : '[🖼 Photo: $desc${content.isNotEmpty ? " (caption: $content)" : ""}]';
+          } else {
+            content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
+          }
         } else if (m.kind == MessageKind.video) {
           content = isRu ? '[🎬 Видео (${m.duration} сек)${content.isNotEmpty ? ": $content" : ""}]' : '[🎬 Video (${m.duration}s)${content.isNotEmpty ? ": $content" : ""}]';
         } else if (m.kind == MessageKind.document) {

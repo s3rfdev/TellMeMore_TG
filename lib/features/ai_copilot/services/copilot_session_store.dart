@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/localization/app_locale.dart';
@@ -6,6 +8,7 @@ import '../models/ai_settings_model.dart';
 import '../models/contact_dossier.dart';
 import '../models/copilot_session.dart';
 import 'ai_model_service.dart';
+import 'image_description_service.dart';
 import 'voice_transcription_service.dart';
 
 /// Хранилище сессий и агентов мультиагентного Copilot.
@@ -351,15 +354,37 @@ class CopilotSessionStore {
 
     final formatted = <String>[];
     for (final m in msgsToAnalyze.reversed) {
-      final sender = m.outgoing ? (isRu ? 'Вы' : 'You') : chatTitle;
+      final sender = m.outgoing
+          ? (isRu ? 'Вы' : 'You')
+          : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
       String content = m.text.replaceAll('\n', ' ').trim();
       if (m.kind == MessageKind.voice) {
         String? trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
             VoiceTranscriptionService.instance.getCachedTranscription(m.mediaPath);
         if (trans != null && trans.isNotEmpty && !trans.startsWith('[')) {
-          content = '[🎤 Voice: "$trans"]';
+          content = isRu ? '[🎤 Голосовое: "$trans"]' : '[🎤 Voice: "$trans"]';
         } else {
-          content = '[🎤 Voice note (${m.duration}s)]';
+          content = isRu ? '[🎤 Голосовое (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
+        }
+      } else if (m.kind == MessageKind.image) {
+        String? desc = ImageDescriptionService.instance.getCachedDescription(m.id) ??
+            ImageDescriptionService.instance.getCachedDescription(m.mediaPath);
+        if ((desc == null || desc.isEmpty) && m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
+          try {
+            desc = await ImageDescriptionService.instance.describeImage(
+              filePath: m.mediaPath,
+              messageId: m.id,
+            );
+          } catch (_) {}
+        }
+        if (desc != null && desc.isNotEmpty) {
+          content = isRu
+              ? '[🖼 Фото: $desc${content.isNotEmpty ? " (подпись: $content)" : ""}]'
+              : '[🖼 Photo: $desc${content.isNotEmpty ? " (caption: $content)" : ""}]';
+        } else {
+          content = isRu
+              ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]'
+              : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
         }
       }
       formatted.add('$sender: $content');
@@ -388,7 +413,10 @@ class CopilotSessionStore {
       buffer.writeln(isRu ? '📌 Факты чата «$chatTitle» (сжато ${msgsToAnalyze.length} сообщ.):' : '📌 Facts of "$chatTitle" (${msgsToAnalyze.length} msgs):');
       for (final m in msgsToAnalyze.take(20)) {
         if (m.text.trim().isNotEmpty) {
-          buffer.writeln('• ${m.outgoing ? (isRu ? "Вы" : "You") : chatTitle}: ${m.text.trim().replaceAll("\n", " ")}');
+          final sender = m.outgoing
+              ? (isRu ? 'Вы' : 'You')
+              : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
+          buffer.writeln('• $sender: ${m.text.trim().replaceAll("\n", " ")}');
         }
       }
       result = buffer.toString();

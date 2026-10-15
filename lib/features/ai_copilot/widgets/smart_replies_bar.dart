@@ -85,7 +85,9 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
         _isTranscribing = true;
       });
 
-      if (finalPath != null && File(finalPath).existsSync() && sec > 0) {
+      if (finalPath != null &&
+          File(finalPath).existsSync() &&
+          (sec > 0 || File(finalPath).lengthSync() > 1000)) {
         if (mounted) {
           TgToast.show(
             context,
@@ -98,11 +100,34 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
             filePath: finalPath,
             durationSeconds: sec,
           );
-          if (mounted && text.isNotEmpty && !text.startsWith('[')) {
-            _instructionController.text = text;
+          if (mounted) {
+            if (text.isNotEmpty && !text.startsWith('[')) {
+              _instructionController.text = text;
+              TgToast.show(
+                context,
+                I18n.instance.isRu ? '✓ Текст распознан' : '✓ Speech recognized',
+                icon: Icons.check_circle_rounded,
+              );
+            } else {
+              TgToast.show(
+                context,
+                I18n.instance.isRu
+                    ? 'Не удалось распознать речь'
+                    : 'Could not transcribe speech',
+                icon: Icons.mic_off_rounded,
+              );
+            }
           }
         } catch (e) {
           if (mounted) TgToast.show(context, 'Ошибка STT: $e');
+        }
+      } else {
+        if (mounted) {
+          TgToast.show(
+            context,
+            I18n.instance.isRu ? 'Аудиозапись слишком короткая' : 'Audio recording is too short',
+            icon: Icons.mic_none_rounded,
+          );
         }
       }
       if (mounted) {

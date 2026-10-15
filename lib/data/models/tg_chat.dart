@@ -55,6 +55,8 @@ class TgMessage {
     this.replyText = '',
     this.replyThumbnailPath = '',
     this.replyKind,
+    this.senderName = '',
+    this.senderUserId = 0,
   });
 
   final int id;
@@ -79,6 +81,8 @@ class TgMessage {
   final String replyText;
   final String replyThumbnailPath;
   final MessageKind? replyKind;
+  final String senderName;
+  final int senderUserId;
 }
 
 class TgReaction {

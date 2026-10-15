@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -19,6 +20,7 @@ import '../models/contact_dossier.dart';
 import '../models/copilot_session.dart';
 import '../services/ai_model_service.dart';
 import '../services/copilot_session_store.dart';
+import '../services/image_description_service.dart';
 import '../services/voice_transcription_service.dart';
 
 /// Экран активного чата с выбранным Copilot-агентом.
@@ -46,6 +48,9 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
   int _recordSeconds = 0;
   Timer? _recordTimer;
   String? _voicePath;
+  String? _attachedFilePath;
+  String? _attachedFileName;
+  bool _isAttachedImage = false;
 
   @override
   void initState() {
@@ -114,7 +119,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       _voicePath = null;
     });
 
-    if (send && finalPath != null && sec > 0) {
+    if (send && finalPath != null && (sec > 0 || (File(finalPath).existsSync() && File(finalPath).lengthSync() > 1000))) {
       final isRu = I18n.instance.isRu;
       if (mounted) {
         TgToast.show(
@@ -136,8 +141,8 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
           TgToast.show(
             context,
             isRu
-                ? 'Не удалось распознать речь (проверьте Deepgram API ключ в настройках)'
-                : 'Could not transcribe speech (check Deepgram API key in settings)',
+                ? 'Не удалось распознать речь'
+                : 'Could not transcribe speech',
             icon: Icons.warning_amber_rounded,
           );
         }
@@ -151,24 +156,93 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  void _sendMessage(CopilotSession session, String text) async {
-    final query = text.trim();
-    if (query.isEmpty) return;
+  Future<void> _pickAttachment() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'jpg', 'jpeg', 'png', 'webp', 'gif',
+          'pdf', 'txt', 'csv', 'json', 'md', 'doc', 'docx',
+        ],
+      );
+      if (result.isNotEmpty && result.first.path != null) {
+        final path = result.first.path!;
+        final name = result.first.name;
+        final ext = path.toLowerCase().split('.').last;
+        final isImg = ['jpg', 'jpeg', 'png', 'webp', 'gif'].contains(ext);
+        setState(() {
+          _attachedFilePath = path;
+          _attachedFileName = name;
+          _isAttachedImage = isImg;
+        });
+      }
+    } catch (e) {
+      if (mounted) TgToast.show(context, 'Ошибка выбора файла: $e');
+    }
+  }
+
+  void _sendMessage(
+    CopilotSession session,
+    String text, {
+    String? attachmentPath,
+    String? attachmentName,
+    bool? isImageAttachment,
+  }) async {
+    final attachedPath = attachmentPath ?? _attachedFilePath;
+    final attachedName = attachmentName ?? _attachedFileName;
+    final isImg = isImageAttachment ?? _isAttachedImage;
+    final isRu = I18n.instance.isRu;
+
+    var query = text.trim();
+    if (query.isEmpty) {
+      if (attachedPath != null) {
+        query = isImg
+            ? (isRu ? 'Опиши это изображение и ответь на ключевые вопросы по нему.' : 'Describe this image and analyze its key details.')
+            : (isRu ? 'Проанализируй прикрепленный документ.' : 'Analyze this attached document.');
+      } else {
+        return;
+      }
+    }
 
     _controller.clear();
-    final userMsg = CopilotMessage(text: query, isUser: true);
-
     setState(() {
+      _attachedFilePath = null;
+      _attachedFileName = null;
+      _isAttachedImage = false;
       _isLoading = true;
     });
+
+    final userMsg = CopilotMessage(
+      text: query,
+      isUser: true,
+      attachmentPath: attachedPath,
+      attachmentName: attachedName,
+      isImageAttachment: isImg,
+    );
 
     CopilotSessionStore.instance.addMessage(session.id, userMsg);
     _scrollToBottom();
 
+    // Читаем содержимое неграфических файлов при необходимости
+    String effectiveQuery = query;
+    if (attachedPath != null && !isImg) {
+      try {
+        final f = File(attachedPath);
+        if (f.existsSync()) {
+          final len = f.lengthSync();
+          if (len < 64000) {
+            final content = await f.readAsString();
+            effectiveQuery = '[Файл: $attachedName]\n```\n$content\n```\n\n$query';
+          } else {
+            effectiveQuery = '[Файл: $attachedName (размер: ${len ~/ 1024} КБ)]\n\n$query';
+          }
+        }
+      } catch (_) {}
+    }
+
     // Проверка автокомпрессии до запроса
     final settings = AiSettingsStore.instance.settings.value;
     final compressedBefore = CopilotSessionStore.instance.checkAndAutoCompress(session.id, settings);
-    final isRu = I18n.instance.isRu;
     if (compressedBefore && mounted) {
       TgToast.show(
         context,
@@ -315,7 +389,9 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
         final recentRaw = msgs.take(10).toList();
         final recentFormatted = <String>[];
         for (final m in recentRaw.reversed) {
-          final sender = m.outgoing ? (isRu ? 'Вы' : 'You') : activeChat.title;
+          final sender = m.outgoing
+              ? (isRu ? 'Вы' : 'You')
+              : (m.senderName.isNotEmpty ? m.senderName : activeChat.title);
           String content = m.text.replaceAll('\n', ' ').trim();
           if (m.kind == MessageKind.voice) {
             final trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
@@ -324,6 +400,24 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
               content = isRu ? '[🎤 Расшифровка: "$trans"]' : '[🎤 Voice: "$trans"]';
             } else {
               content = isRu ? '[🎤 Голосовое (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
+            }
+          } else if (m.kind == MessageKind.image) {
+            String? desc = ImageDescriptionService.instance.getCachedDescription(m.id) ??
+                ImageDescriptionService.instance.getCachedDescription(m.mediaPath);
+            if ((desc == null || desc.isEmpty) && m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
+              try {
+                desc = await ImageDescriptionService.instance.describeImage(
+                  filePath: m.mediaPath,
+                  messageId: m.id,
+                );
+              } catch (_) {}
+            }
+            if (desc != null && desc.isNotEmpty) {
+              content = isRu
+                  ? '[🖼 Фото: $desc${content.isNotEmpty ? " (подпись: $content)" : ""}]'
+                  : '[🖼 Photo: $desc${content.isNotEmpty ? " (caption: $content)" : ""}]';
+            } else {
+              content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
             }
           }
           recentFormatted.add('$sender: $content');
@@ -342,10 +436,12 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
             ? 'Использована RAG-выжимка из $ragCount сообщ. + ${recentRaw.length} свежих реплик («${activeChat.title}»)'
             : 'Used RAG summary of $ragCount msgs + ${recentRaw.length} recent replies ("${activeChat.title}")';
       } else {
-        // Форматируем сообщения с включением транскрибированных голосовых заметок
+        // Форматируем сообщения с включением транскрибированных голосовых заметок и описаний фото
         final formattedList = <String>[];
         for (final m in msgsToAnalyze.reversed) {
-          final sender = m.outgoing ? (isRu ? 'Вы' : 'You') : activeChat.title;
+          final sender = m.outgoing
+              ? (isRu ? 'Вы' : 'You')
+              : (m.senderName.isNotEmpty ? m.senderName : activeChat.title);
           String content = m.text.replaceAll('\n', ' ').trim();
           if (m.kind == MessageKind.voice) {
             String? trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
@@ -367,7 +463,23 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
               content = isRu ? '[🎤 Голосовое сообщение (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
             }
           } else if (m.kind == MessageKind.image) {
-            content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
+            String? desc = ImageDescriptionService.instance.getCachedDescription(m.id) ??
+                ImageDescriptionService.instance.getCachedDescription(m.mediaPath);
+            if ((desc == null || desc.isEmpty) && m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
+              try {
+                desc = await ImageDescriptionService.instance.describeImage(
+                  filePath: m.mediaPath,
+                  messageId: m.id,
+                );
+              } catch (_) {}
+            }
+            if (desc != null && desc.isNotEmpty) {
+              content = isRu
+                  ? '[🖼 Фото: $desc${content.isNotEmpty ? " (подпись: $content)" : ""}]'
+                  : '[🖼 Photo: $desc${content.isNotEmpty ? " (caption: $content)" : ""}]';
+            } else {
+              content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
+            }
           } else if (m.kind == MessageKind.video) {
             content = isRu ? '[🎬 Видео (${m.duration} сек)${content.isNotEmpty ? ": $content" : ""}]' : '[🎬 Video (${m.duration}s)${content.isNotEmpty ? ": $content" : ""}]';
           } else if (m.kind == MessageKind.document) {
@@ -388,10 +500,11 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       }
 
       reply = await AiModelService.instance.generateChatCompletion(
-        prompt: query,
+        prompt: effectiveQuery,
         systemPrompt: systemDirectives.toString(),
         history: conversationHistory,
         settings: settings,
+        imagePath: (attachedPath != null && isImg) ? attachedPath : null,
       );
     } else {
       tool = 'llm.chat(model: "${settings.model}")';
@@ -411,10 +524,11 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       }
 
       reply = await AiModelService.instance.generateChatCompletion(
-        prompt: query,
+        prompt: effectiveQuery,
         systemPrompt: systemDirectives.toString(),
         history: conversationHistory,
         settings: settings,
+        imagePath: (attachedPath != null && isImg) ? attachedPath : null,
       );
     }
 
@@ -1678,6 +1792,45 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                 ),
               ),
             ],
+            if (msg.attachmentPath != null) ...[
+              if (msg.isImageAttachment && File(msg.attachmentPath!).existsSync())
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320, maxHeight: 220),
+                      child: Image.file(
+                        File(msg.attachmentPath!),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.insert_drive_file_rounded, size: 16, color: Color(0xFF51B2FF)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          msg.attachmentName ?? 'Файл',
+                          style: const TextStyle(fontSize: 12, color: Tg.text),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
             SelectableText.rich(
               TextSpan(
                 style: const TextStyle(fontSize: 13.5, color: Tg.text, height: 1.35),
@@ -1762,72 +1915,131 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       return _buildVoiceRecordingBar(session);
     }
 
-    final isTextEmpty = _controller.text.trim().isEmpty;
+    final isTextEmpty = _controller.text.trim().isEmpty && _attachedFilePath == null;
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(10, 4, 10, 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Tg.sidebar,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              onSubmitted: (val) => _sendMessage(session, val),
-              style: const TextStyle(fontSize: 14, color: Tg.text),
-              decoration: InputDecoration(
-                hintText: tr('ask_agent_placeholder', {'role': session.agentRole}),
-                hintStyle: const TextStyle(fontSize: 13.5, color: Tg.textFaint),
-                border: InputBorder.none,
-                isDense: true,
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_attachedFilePath != null)
+          Container(
+            margin: const EdgeInsets.fromLTRB(10, 0, 10, 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Tg.sidebar,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF51B2FF).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                if (_isAttachedImage && File(_attachedFilePath!).existsSync())
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.file(
+                      File(_attachedFilePath!),
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  const Icon(Icons.attach_file_rounded, size: 20, color: Color(0xFF51B2FF)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _attachedFileName ?? 'Файл',
+                    style: const TextStyle(fontSize: 12.5, color: Tg.text, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _attachedFilePath = null;
+                    _attachedFileName = null;
+                    _isAttachedImage = false;
+                  }),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4.0),
+                    child: Icon(Icons.close_rounded, size: 16, color: Tg.textFaint),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          if (isTextEmpty)
-            Tooltip(
-              message: I18n.instance.isRu ? 'Надиктовать голосом' : 'Voice dictation',
-              child: GestureDetector(
-                onTap: _startVoice,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Tg.field,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        Container(
+          margin: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: Tg.sidebar,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.attach_file_rounded, size: 20, color: Tg.textDim),
+                onPressed: _pickAttachment,
+                tooltip: I18n.instance.isRu ? 'Прикрепить файл или фото' : 'Attach file or photo',
+                splashRadius: 18,
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  onSubmitted: (val) => _sendMessage(session, val),
+                  style: const TextStyle(fontSize: 14, color: Tg.text),
+                  decoration: InputDecoration(
+                    hintText: tr('ask_agent_placeholder', {'role': session.agentRole}),
+                    hintStyle: const TextStyle(fontSize: 13.5, color: Tg.textFaint),
+                    border: InputBorder.none,
+                    isDense: true,
                   ),
-                  child: Icon(Icons.mic_none_rounded, size: 20, color: session.avatarColor),
                 ),
               ),
-            )
-          else
-            GestureDetector(
-              onTap: () => _sendMessage(session, _controller.text),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: session.avatarColor,
-                  borderRadius: BorderRadius.circular(18),
+              const SizedBox(width: 8),
+              if (isTextEmpty)
+                Tooltip(
+                  message: I18n.instance.isRu ? 'Надиктовать голосом' : 'Voice dictation',
+                  child: GestureDetector(
+                    onTap: _startVoice,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Tg.field,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: Icon(Icons.mic_none_rounded, size: 20, color: session.avatarColor),
+                    ),
+                  ),
+                )
+              else
+                GestureDetector(
+                  onTap: () => _sendMessage(session, _controller.text),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: session.avatarColor,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: _isLoading
+                        ? const Center(
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.arrow_upward_rounded, size: 20, color: Colors.white),
+                  ),
                 ),
-                child: _isLoading
-                    ? const Center(
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        ),
-                      )
-                    : const Icon(Icons.arrow_upward_rounded, size: 20, color: Colors.white),
-              ),
-            ),
-        ],
-      ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

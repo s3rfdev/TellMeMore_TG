@@ -1728,6 +1728,11 @@ class _Store {
           }
         }
 
+        final sName = _senderName(msg);
+        final sUserId = (msg['sender_id'] is Map)
+            ? ((msg['sender_id']['user_id'] as num?)?.toInt() ?? 0)
+            : 0;
+
         out.add(TgMessage(
           id: (msg['id'] as num?)?.toInt() ?? 0,
           kind: kind,
@@ -1751,6 +1756,8 @@ class _Store {
           replyText: replyText,
           replyThumbnailPath: replyThumbnailPath,
           replyKind: replyKind,
+          senderName: sName,
+          senderUserId: sUserId,
         ));
       } catch (e, stack) {
         // ignore: avoid_print
