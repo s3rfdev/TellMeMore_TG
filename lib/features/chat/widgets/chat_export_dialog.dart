@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
@@ -82,7 +83,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
     if (!mounted) return;
     TgToast.show(
       context,
-      'Скопировано в буфер обмена',
+      tr('export_copied_toast'),
       icon: Icons.content_copy_rounded,
       accentColor: const Color(0xFF8774E1),
     );
@@ -99,7 +100,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
       if (!mounted) return;
       TgToast.show(
         context,
-        'Файл сохранен: $path',
+        tr('export_file_saved', {'path': path}),
         icon: Icons.download_done_rounded,
         accentColor: const Color(0xFF4FAAFF),
       );
@@ -107,7 +108,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
       if (!mounted) return;
       TgToast.show(
         context,
-        'Ошибка при сохранении: $e',
+        tr('export_save_error', {'error': e.toString()}),
         icon: Icons.error_outline_rounded,
         accentColor: Tg.danger,
       );
@@ -173,9 +174,9 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Экспорт данных чата и профиля',
-                style: TextStyle(
+              Text(
+                tr('export_dialog_title'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -214,15 +215,15 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
       child: Row(
         children: [
           _buildTypeTab(
-            title: '🎯 Профиль (AI-эдвайзер)',
+            title: tr('export_tab_advisor'),
             type: ExportContentType.advisorProfile,
           ),
           _buildTypeTab(
-            title: '💬 Переписка',
+            title: tr('export_tab_chat'),
             type: ExportContentType.chatHistory,
           ),
           _buildTypeTab(
-            title: '📦 Всё вместе',
+            title: tr('export_tab_all'),
             type: ExportContentType.fullArchive,
           ),
         ],
@@ -274,9 +275,9 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
       children: [
         Row(
           children: [
-            const Text(
-              'Формат: ',
-              style: TextStyle(color: Tg.textDim, fontSize: 12),
+            Text(
+              tr('export_format_label'),
+              style: const TextStyle(color: Tg.textDim, fontSize: 12),
             ),
             _buildFormatChip('TXT / Markdown', ExportFormat.text),
             const SizedBox(width: 6),
@@ -284,7 +285,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
           ],
         ),
         Text(
-          '${text.length} симв. • $messageCount сообщ.',
+          tr('export_stats_chars_msgs', {'chars': text.length.toString(), 'msgs': messageCount.toString()}),
           style: const TextStyle(color: Tg.textDim, fontSize: 11.5),
         ),
       ],
@@ -347,10 +348,10 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
   Widget _buildActions(String text) {
     return Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
-            '💡 Данные готовы для передачи в AI-помощника собеседований или ChatGPT',
-            style: TextStyle(color: Tg.textFaint, fontSize: 11.5),
+            tr('export_advisor_hint'),
+            style: const TextStyle(color: Tg.textFaint, fontSize: 11.5),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -358,7 +359,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
         const SizedBox(width: 14),
         OutlinedButton.icon(
           icon: const Icon(Icons.copy_rounded, size: 16),
-          label: const Text('Копировать'),
+          label: Text(tr('export_copy_btn')),
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFFB1A4FF),
             side: BorderSide(color: const Color(0xFF8774E1).withValues(alpha: 0.45)),
@@ -377,7 +378,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
               : const Icon(Icons.download_rounded, size: 16),
-          label: const Text('Сохранить файл'),
+          label: Text(tr('export_save_btn')),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF3390EC),
             foregroundColor: Colors.white,

@@ -38,13 +38,13 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
           ),
-          title: const Text('Переименовать чат', style: TextStyle(color: Tg.text, fontSize: 16)),
+          title: Text(tr('rename_chat_title'), style: const TextStyle(color: Tg.text, fontSize: 16)),
           content: TextField(
             controller: controller,
             style: const TextStyle(color: Tg.text, fontSize: 13.5),
-            decoration: const InputDecoration(
-              hintText: 'Название чата',
-              hintStyle: TextStyle(color: Tg.textFaint),
+            decoration: InputDecoration(
+              hintText: tr('chat_name_hint'),
+              hintStyle: const TextStyle(color: Tg.textFaint),
             ),
           ),
           actions: [
@@ -64,7 +64,7 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
                 }
                 Navigator.of(context).pop();
               },
-              child: const Text('Сохранить'),
+              child: Text(tr('save')),
             ),
           ],
         );
@@ -74,7 +74,7 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
 
   void _confirmDeleteSession(CopilotSession session) {
     if (CopilotSessionStore.instance.sessions.value.length <= 1) {
-      TgToast.show(context, 'Нельзя удалить единственный чат Копилота');
+      TgToast.show(context, tr('cannot_delete_only_chat'));
       return;
     }
 
@@ -87,9 +87,9 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
           ),
-          title: const Text('Удалить чат Копилота?', style: TextStyle(color: Tg.text, fontSize: 16)),
+          title: Text(tr('delete_copilot_chat_title'), style: const TextStyle(color: Tg.text, fontSize: 16)),
           content: Text(
-            'Чат «${session.title}» и его история будут удалены безвозвратно.',
+            tr('delete_copilot_chat_desc', {'title': session.title}),
             style: const TextStyle(color: Tg.textDim, fontSize: 13),
           ),
           actions: [
@@ -105,9 +105,9 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
               onPressed: () {
                 CopilotSessionStore.instance.deleteSession(session.id);
                 Navigator.of(context).pop();
-                TgToast.show(context, 'Чат удален');
+                TgToast.show(context, tr('chat_deleted_toast'));
               },
-              child: const Text('Удалить'),
+              child: Text(tr('delete')),
             ),
           ],
         );
@@ -149,9 +149,9 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
             builder: (context, list, _) {
               return Row(
                 children: [
-                  const Text(
-                    'AI Копилоты',
-                    style: TextStyle(
+                  Text(
+                    tr('copilot_chats_header'),
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Tg.text,
@@ -188,9 +188,9 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
             ),
             onPressed: () => CreateCopilotChatDialog.show(context),
             icon: const Icon(Icons.add, size: 16),
-            label: const Text(
-              'Новый чат',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            label: Text(
+              tr('new_chat_btn'),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -216,12 +216,12 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
             child: TextField(
               controller: _searchController,
               style: const TextStyle(fontSize: 13, color: Tg.text),
-              decoration: const InputDecoration(
-                hintText: 'Поиск чатов и агентов...',
-                hintStyle: TextStyle(color: Tg.textFaint, fontSize: 12.5),
+              decoration: InputDecoration(
+                hintText: tr('search_copilot_hint'),
+                hintStyle: const TextStyle(color: Tg.textFaint, fontSize: 12.5),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
               ),
               onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
             ),
@@ -257,9 +257,9 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
               children: [
                 const Icon(Icons.chat_bubble_outline, size: 38, color: Tg.textFaint),
                 const SizedBox(height: 10),
-                const Text(
-                  'Чаты с Копилотом не найдены',
-                  style: TextStyle(color: Tg.textDim, fontSize: 13),
+                Text(
+                  tr('copilot_chats_not_found'),
+                  style: const TextStyle(color: Tg.textDim, fontSize: 13),
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
@@ -270,7 +270,7 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
                   ),
                   onPressed: () => CreateCopilotChatDialog.show(context),
                   icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Создать первый чат'),
+                  label: Text(tr('create_first_chat_btn')),
                 ),
               ],
             ),
@@ -300,7 +300,7 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
     final lastMsg = session.lastMessage;
     final snippet = lastMsg != null
         ? lastMsg.text.replaceAll('\n', ' ')
-        : 'Нет сообщений';
+        : tr('no_messages');
 
     return Material(
       color: Colors.transparent,
@@ -463,11 +463,11 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
                       break;
                     case 'compress':
                       CopilotSessionStore.instance.compressSession(session.id);
-                      TgToast.show(context, 'Контекст «${session.title}» сжат');
+                      TgToast.show(context, tr('chat_context_compressed_toast', {'title': session.title}));
                       break;
                     case 'clear':
                       CopilotSessionStore.instance.clearSessionMessages(session.id);
-                      TgToast.show(context, 'История сообщений очищена');
+                      TgToast.show(context, tr('chat_history_cleared_toast'));
                       break;
                     case 'delete':
                       _confirmDeleteSession(session);
@@ -475,44 +475,44 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'rename',
                     child: Row(
                       children: [
-                        Icon(Icons.edit_outlined, size: 18, color: Tg.text),
-                        SizedBox(width: 10),
-                        Text('Переименовать', style: TextStyle(color: Tg.text, fontSize: 13)),
+                        const Icon(Icons.edit_outlined, size: 18, color: Tg.text),
+                        const SizedBox(width: 10),
+                        Text(tr('rename_menu'), style: const TextStyle(color: Tg.text, fontSize: 13)),
                       ],
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'compress',
                     child: Row(
                       children: [
-                        Icon(Icons.compress, size: 18, color: Color(0xFF00C48C)),
-                        SizedBox(width: 10),
-                        Text('Сжать контекст сейчас', style: TextStyle(color: Tg.text, fontSize: 13)),
+                        const Icon(Icons.compress, size: 18, color: Color(0xFF00C48C)),
+                        const SizedBox(width: 10),
+                        Text(tr('compress_context_now'), style: const TextStyle(color: Tg.text, fontSize: 13)),
                       ],
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'clear',
                     child: Row(
                       children: [
-                        Icon(Icons.cleaning_services_outlined, size: 18, color: Tg.textDim),
-                        SizedBox(width: 10),
-                        Text('Очистить сообщения', style: TextStyle(color: Tg.text, fontSize: 13)),
+                        const Icon(Icons.cleaning_services_outlined, size: 18, color: Tg.textDim),
+                        const SizedBox(width: 10),
+                        Text(tr('clear_messages_menu'), style: const TextStyle(color: Tg.text, fontSize: 13)),
                       ],
                     ),
                   ),
                   const PopupMenuDivider(),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'delete',
                     child: Row(
                       children: [
-                        Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                        SizedBox(width: 10),
-                        Text('Удалить чат', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+                        const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                        const SizedBox(width: 10),
+                        Text(tr('delete_chat_menu'), style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
                       ],
                     ),
                   ),

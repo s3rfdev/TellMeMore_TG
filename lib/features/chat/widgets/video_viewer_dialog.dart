@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/widgets/tg_toast.dart';
@@ -19,7 +20,7 @@ class VideoViewerDialog extends StatefulWidget {
   const VideoViewerDialog({
     super.key,
     required this.videoPath,
-    this.title = 'Видеозапись',
+    this.title = '',
     this.time = '',
     this.message,
     this.chatId = '',
@@ -34,7 +35,7 @@ class VideoViewerDialog extends StatefulWidget {
   static void show(
     BuildContext context, {
     required String videoPath,
-    String title = 'Видеозапись',
+    String title = '',
     String time = '',
     TgMessage? message,
     String chatId = '',
@@ -120,7 +121,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
         if (mounted) {
           TgToast.show(
             context,
-            'Файл видеозаписи не найден',
+            tr('video_not_found'),
             icon: Icons.error_outline_rounded,
           );
         }
@@ -132,7 +133,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
         await downloadsDir.create(recursive: true);
       }
       final ext = widget.videoPath.contains('.') ? widget.videoPath.split('.').last : 'mp4';
-      final base = widget.title.isNotEmpty && widget.title != 'Видеозапись'
+      final base = widget.title.isNotEmpty && widget.title != 'Видеозапись' && widget.title != tr('media_video')
           ? widget.title
           : 'tg_video_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final destPath = '${downloadsDir.path}/$base';
@@ -140,7 +141,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
       if (mounted) {
         TgToast.show(
           context,
-          '✓ Видео сохранено в Загрузки',
+          tr('video_saved_ok'),
           icon: Icons.check_circle_rounded,
         );
       }
@@ -148,7 +149,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
       if (mounted) {
         TgToast.show(
           context,
-          'Ошибка сохранения: $e',
+          tr('save_error_toast', {'error': e.toString()}),
           icon: Icons.error_outline_rounded,
         );
       }
@@ -193,14 +194,14 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
                         controller: _controller!,
                         controls: MaterialDesktopVideoControls,
                       )
-                    : const Column(
+                    : Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.videocam_off_rounded, size: 54, color: Tg.textDim),
-                          SizedBox(height: 14),
+                          const Icon(Icons.videocam_off_rounded, size: 54, color: Tg.textDim),
+                          const SizedBox(height: 14),
                           Text(
-                            'Файл видеозаписи ещё загружается или повреждён',
-                            style: TextStyle(color: Colors.white70, fontSize: 14.5),
+                            tr('video_loading_error'),
+                            style: const TextStyle(color: Colors.white70, fontSize: 14.5),
                           ),
                         ],
                       ),
@@ -228,7 +229,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-                      tooltip: 'Назад (Esc)',
+                      tooltip: tr('back_esc'),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: 10),
@@ -237,7 +238,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          widget.title,
+                          widget.title.isNotEmpty ? widget.title : tr('media_video'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14.5,
@@ -255,7 +256,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
                     if (widget.message != null) ...[
                       TextButton.icon(
                         icon: const Icon(Icons.reply_rounded, color: Colors.white, size: 18),
-                        label: const Text('Ответить', style: TextStyle(color: Colors.white, fontSize: 13)),
+                        label: Text(tr('reply'), style: const TextStyle(color: Colors.white, fontSize: 13)),
                         style: TextButton.styleFrom(
                           backgroundColor: Colors.white.withValues(alpha: 0.12),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -267,7 +268,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
                     ],
                     TextButton.icon(
                       icon: const Icon(Icons.download_rounded, color: Colors.white, size: 18),
-                      label: const Text('Сохранить', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      label: Text(tr('save'), style: const TextStyle(color: Colors.white, fontSize: 13)),
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.white.withValues(alpha: 0.12),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -279,7 +280,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
                       const SizedBox(width: 10),
                       TextButton.icon(
                         icon: const Icon(Icons.shortcut_rounded, color: Colors.white, size: 18),
-                        label: const Text('Переслать', style: TextStyle(color: Colors.white, fontSize: 13)),
+                        label: Text(tr('forward'), style: const TextStyle(color: Colors.white, fontSize: 13)),
                         style: TextButton.styleFrom(
                           backgroundColor: Colors.white.withValues(alpha: 0.12),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -291,7 +292,7 @@ class _VideoViewerDialogState extends State<VideoViewerDialog> {
                     const SizedBox(width: 10),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white, size: 22),
-                      tooltip: 'Закрыть',
+                      tooltip: tr('close'),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],

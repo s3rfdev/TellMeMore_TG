@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/localization/app_locale.dart';
@@ -9,6 +10,7 @@ import '../../core/widgets/tg_toast.dart';
 import '../../data/models/tg_account.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../state/app_state.dart';
+import '../chat/widgets/video_viewer_dialog.dart';
 import 'edit_account_dialog.dart';
 
 class ProfileDialog extends StatefulWidget {
@@ -36,13 +38,22 @@ class _ProfileDialogState extends State<ProfileDialog> {
     TdlibService.instance.syncUserProfile();
   }
 
+  bool _isVideoFile(String path) {
+    if (path.isEmpty) return false;
+    final lower = path.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.avi') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.webm');
+  }
+
   String _formatPostDate(DateTime date) {
     if (date.year <= 1970) return '';
     final now = DateTime.now();
-    const months = [
-      'янв', 'фев', 'мар', 'апр', 'май', 'июн',
-      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
-    ];
+    final months = I18n.instance.isRu
+        ? const ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
+        : const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final mName = (date.month >= 1 && date.month <= 12) ? months[date.month - 1] : '';
     if (date.year == now.year) {
       return '${date.day} $mName';
@@ -148,10 +159,10 @@ class _ProfileDialogState extends State<ProfileDialog> {
               }
               return IconButton(
                 icon: const Icon(Icons.sync_rounded, color: Tg.accent, size: 21),
-                tooltip: 'Синхронизировать с Telegram',
+                tooltip: tr('sync_with_telegram'),
                 onPressed: () {
                   TdlibService.instance.syncUserProfile();
-                  TgToast.show(context, '🔄 Синхронизация профиля...');
+                  TgToast.show(context, tr('syncing_profile'));
                 },
               );
             },
@@ -203,7 +214,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
           ),
           const SizedBox(height: 12),
           Text(
-            acc.name.isNotEmpty ? acc.name : 'Пользователь',
+            acc.name.isNotEmpty ? acc.name : tr('user_default'),
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -301,11 +312,11 @@ class _ProfileDialogState extends State<ProfileDialog> {
           _infoRow(
             title: acc.phone.isNotEmpty ? acc.phone : '—',
             subtitle: tr('phone'),
-            onTap: () => TgToast.show(context, 'Номер скопирован'),
+            onTap: () => TgToast.show(context, tr('phone_copied')),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           _infoRow(
-            title: acc.bio.isNotEmpty ? acc.bio : (I18n.instance.isRu ? 'О себе не указано' : 'No bio'),
+            title: acc.bio.isNotEmpty ? acc.bio : tr('no_bio'),
             subtitle: tr('bio'),
             isPlaceholder: acc.bio.isEmpty,
             onTap: () => EditAccountDialog.show(context),
@@ -314,7 +325,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
           _infoRow(
             title: acc.username.isNotEmpty ? acc.username : '—',
             subtitle: tr('username'),
-            onTap: () => TgToast.show(context, 'Юзернейм скопирован'),
+            onTap: () => TgToast.show(context, tr('username_copied')),
           ),
         ],
       ),
@@ -427,20 +438,20 @@ class _ProfileDialogState extends State<ProfileDialog> {
               : AccountManager.instance.myArchivedPosts,
           builder: (context, posts, _) {
             if (syncing && posts.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 36),
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 36),
                 child: Center(
                   child: Column(
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 28,
                         height: 28,
                         child: CircularProgressIndicator(strokeWidth: 2.5, color: Tg.accent),
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       Text(
-                        'Синхронизация постов с Telegram...',
-                        style: TextStyle(fontSize: 13, color: Tg.textDim),
+                        tr('syncing_posts'),
+                        style: const TextStyle(fontSize: 13, color: Tg.textDim),
                       ),
                     ],
                   ),
@@ -458,8 +469,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
                   children: [
                     Text(
                       _activeTab == 0
-                          ? 'Публикации (${posts.length})'
-                          : 'Архив (${posts.length})',
+                          ? tr('publications_header', {'count': '${posts.length}'})
+                          : tr('archive_header', {'count': '${posts.length}'}),
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Tg.textDim),
                     ),
                     TextButton.icon(
@@ -524,11 +535,41 @@ class _ProfileDialogState extends State<ProfileDialog> {
                   ? Stack(
                       fit: StackFit.expand,
                       children: [
-                        Image.file(
-                          File(post.mediaPath),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => _mediaFallback(post),
-                        ),
+                        if (_isVideoFile(post.mediaPath))
+                          Container(
+                            color: const Color(0xFF141F2B),
+                            child: Center(
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.65),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                                ),
+                                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                              ),
+                            ),
+                          )
+                        else
+                          Image.file(
+                            File(post.mediaPath),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => _mediaFallback(post),
+                          ),
+                        if (_isVideoFile(post.mediaPath))
+                          Positioned(
+                            top: 6,
+                            left: 6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('VIDEO', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.white)),
+                            ),
+                          ),
                         if (post.views > 0)
                           Positioned(
                             bottom: 6,
@@ -613,9 +654,9 @@ class _ProfileDialogState extends State<ProfileDialog> {
           ),
           if (post.mediaPath.isNotEmpty && !File(post.mediaPath).existsSync()) ...[
             const SizedBox(height: 6),
-            const Text(
-              'Загрузка...',
-              style: TextStyle(fontSize: 11, color: Tg.textDim),
+            Text(
+              tr('loading_photo'),
+              style: const TextStyle(fontSize: 11, color: Tg.textDim),
             ),
           ],
         ],
@@ -625,6 +666,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
 
   void _showPostDetail(BuildContext context, TgPost post) {
     final hasMedia = post.mediaPath.isNotEmpty && File(post.mediaPath).existsSync();
+    final isVideo = hasMedia && _isVideoFile(post.mediaPath);
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.7),
@@ -663,8 +705,37 @@ class _ProfileDialogState extends State<ProfileDialog> {
                           const Icon(Icons.visibility_outlined, size: 14, color: Tg.textDim),
                           const SizedBox(width: 4),
                           Text('${post.views}', style: const TextStyle(fontSize: 12, color: Tg.textDim)),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
                         ],
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.redAccent),
+                          tooltip: tr('delete_post'),
+                          onPressed: () {
+                            showDialog(
+                              context: ctx,
+                              builder: (confirmCtx) => AlertDialog(
+                                backgroundColor: Tg.sidebar,
+                                title: Text(tr('confirm_delete_post'), style: const TextStyle(fontSize: 16, color: Colors.white)),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(confirmCtx).pop(),
+                                    child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                                    onPressed: () {
+                                      AccountManager.instance.deletePost(post.id);
+                                      Navigator.of(confirmCtx).pop();
+                                      Navigator.of(ctx).pop();
+                                      TgToast.show(context, tr('post_deleted'));
+                                    },
+                                    child: Text(tr('delete')),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                         IconButton(
                           icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textDim),
                           onPressed: () => Navigator.of(ctx).pop(),
@@ -677,7 +748,68 @@ class _ProfileDialogState extends State<ProfileDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (hasMedia)
+                          if (isVideo)
+                            GestureDetector(
+                              onTap: () {
+                                VideoViewerDialog.show(
+                                  context,
+                                  videoPath: post.mediaPath,
+                                  title: post.text,
+                                );
+                              },
+                              child: Container(
+                                height: 260,
+                                margin: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                ),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Container(
+                                      width: 60,
+                                      height: 60,
+                                      decoration: BoxDecoration(
+                                        color: Tg.accent.withValues(alpha: 0.9),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Tg.accent.withValues(alpha: 0.4),
+                                            blurRadius: 16,
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                                    ),
+                                    Positioned(
+                                      bottom: 12,
+                                      left: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.7),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.videocam_rounded, size: 14, color: Colors.white70),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              post.mediaPath.split(Platform.pathSeparator).last,
+                                              style: const TextStyle(fontSize: 12, color: Colors.white70),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else if (hasMedia)
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxHeight: 380),
                               child: Image.file(
@@ -708,96 +840,197 @@ class _ProfileDialogState extends State<ProfileDialog> {
 
   void _showCreatePostDialog(BuildContext context) {
     final textController = TextEditingController();
+    String? attachedMediaPath;
+
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (ctx) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: 400,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Tg.sidebar,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      tr('add_post'),
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textDim),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            final isVideo = attachedMediaPath != null && _isVideoFile(attachedMediaPath!);
+            final hasAttachment = attachedMediaPath != null && attachedMediaPath!.isNotEmpty;
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: Container(
+                width: 440,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Tg.sidebar,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF17212B),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                  ),
-                  child: TextField(
-                    controller: textController,
-                    maxLines: 4,
-                    autofocus: true,
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: I18n.instance.isRu ? 'Текст публикации...' : 'Post text...',
-                      hintStyle: const TextStyle(color: Tg.textDim),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          tr('add_post'),
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textDim),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2F6FA8),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF17212B),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                       ),
-                      onPressed: () {
-                        final text = textController.text.trim();
-                        if (text.isNotEmpty) {
-                          final newPost = TgPost(
-                            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-                            text: text,
-                            date: DateTime.now(),
-                            views: 1,
-                            isArchived: _activeTab == 1,
-                          );
-                          AccountManager.instance.addPost(newPost, isArchived: _activeTab == 1);
-                          Navigator.of(ctx).pop();
-                          TgToast.show(context, '✅ Публикация добавлена');
-                        }
-                      },
-                      child: Text(I18n.instance.isRu ? 'Опубликовать' : 'Publish'),
+                      child: TextField(
+                        controller: textController,
+                        maxLines: 4,
+                        autofocus: true,
+                        style: const TextStyle(fontSize: 14, color: Colors.white),
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: tr('post_text_hint'),
+                          hintStyle: const TextStyle(color: Tg.textDim),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (hasAttachment) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1F2E3D),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Tg.accent.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            if (isVideo)
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: Colors.black38,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(Icons.videocam_rounded, color: Tg.accent, size: 24),
+                              )
+                            else
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.file(
+                                  File(attachedMediaPath!),
+                                  width: 44,
+                                  height: 44,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_rounded, color: Tg.accent),
+                                ),
+                              ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    attachedMediaPath!.split(Platform.pathSeparator).last,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    isVideo ? (I18n.instance.isRu ? 'Видеофайл' : 'Video file') : (I18n.instance.isRu ? 'Изображение' : 'Image'),
+                                    style: const TextStyle(fontSize: 11, color: Tg.textDim),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 18, color: Colors.white70),
+                              tooltip: tr('delete'),
+                              onPressed: () {
+                                setDialogState(() {
+                                  attachedMediaPath = null;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Tg.accent,
+                            side: BorderSide(color: Tg.accent.withValues(alpha: 0.4)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                          ),
+                          icon: const Icon(Icons.perm_media_outlined, size: 18),
+                          label: Text(tr('attach_media'), style: const TextStyle(fontSize: 12.5)),
+                          onPressed: () async {
+                            final result = await FilePicker.pickFiles(
+                              type: FileType.custom,
+                              allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm'],
+                            );
+                            if (result.isNotEmpty && result.first.path != null) {
+                              setDialogState(() {
+                                attachedMediaPath = result.first.path;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2F6FA8),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () {
+                            final text = textController.text.trim();
+                            if (text.isNotEmpty || (attachedMediaPath != null && attachedMediaPath!.isNotEmpty)) {
+                              final newPost = TgPost(
+                                id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+                                text: text,
+                                mediaPath: attachedMediaPath ?? '',
+                                date: DateTime.now(),
+                                views: 1,
+                                isArchived: _activeTab == 1,
+                              );
+                              AccountManager.instance.addPost(newPost, isArchived: _activeTab == 1);
+                              Navigator.of(ctx).pop();
+                              TgToast.show(context, tr('post_added'));
+                            }
+                          },
+                          child: Text(tr('publish')),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -810,7 +1043,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
         const SizedBox(height: 14),
         Text(
           isArchived
-              ? (I18n.instance.isRu ? 'В архиве нет постов' : 'No archived posts')
+              ? tr('no_archived_posts')
               : tr('no_posts_yet'),
           style: const TextStyle(
             fontSize: 16,
@@ -821,12 +1054,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
         const SizedBox(height: 6),
         Text(
           isArchived
-              ? (I18n.instance.isRu
-                  ? 'Здесь будут сохранены ваши архивные публикации и фото'
-                  : 'Your archived posts and photos will be stored here')
-              : (I18n.instance.isRu
-                  ? 'Публикуйте фотографии и видео для вашей страницы'
-                  : 'Publish photos and videos to display on your profile page'),
+              ? tr('archive_empty_hint')
+              : tr('posts_empty_hint'),
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13, color: Tg.textDim),
         ),

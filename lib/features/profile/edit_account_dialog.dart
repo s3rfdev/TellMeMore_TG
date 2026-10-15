@@ -132,10 +132,10 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                         Navigator.of(context).pop();
                         if (isPrimary) {
                           TdlibService.instance.logOut();
-                          TgToast.show(context, 'Сессия завершена (Log out)');
+                          TgToast.show(context, tr('session_logged_out'));
                         } else {
                           AccountManager.instance.removeAccount(currentAcc.id);
-                          TgToast.show(context, 'Аккаунт удален');
+                          TgToast.show(context, tr('account_deleted'));
                         }
                       },
                       child: Text(isPrimary ? tr('log_out') : tr('delete_account')),
@@ -469,7 +469,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                     activeThumbColor: const Color(0xFF8774E1),
                     onChanged: (val) {
                       AiSettingsStore.instance.settings.value = aiSettings.copyWith(autoPilotEnabled: val);
-                      TgToast.show(context, val ? '🚀 Автоответчик включен' : 'Автоответчик отключен');
+                      TgToast.show(context, val ? tr('ai_autopilot_on') : tr('ai_autopilot_off'));
                     },
                   ),
                 ],
@@ -518,7 +518,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
             return InkWell(
               onTap: () {
                 AccountManager.instance.switchAccount(acc.id);
-                TgToast.show(context, 'Активный аккаунт: ${acc.name}');
+                TgToast.show(context, tr('active_account_toast', {'name': acc.name}));
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

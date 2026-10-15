@@ -173,7 +173,7 @@ class _Store {
       case 'logOut':
         _send({'@type': 'logOut'});
       case 'getMe':
-        _send({'@type': 'getMe'});
+        _send({'@type': 'getMe', '@extra': {'action': 'getMe'}});
       case 'send':
         final replyTo = cmd['replyToMessageId'] as int?;
         _send({
@@ -425,7 +425,7 @@ class _Store {
         if (_myId > 0 && _users.containsKey(_myId)) {
           _syncUserProfile(_users[_myId]!);
         } else {
-          _send({'@type': 'getMe'});
+          _send({'@type': 'getMe', '@extra': {'action': 'getMe'}});
         }
     }
   }
@@ -522,31 +522,35 @@ class _Store {
             _send({'@type': 'requestQrCodeAuthentication'});
           case 'authorizationStateReady':
             _authorized = true;
-            _send({'@type': 'getMe'});
+            _send({'@type': 'getMe', '@extra': {'action': 'getMe'}});
             _send({'@type': 'getChats', 'limit': 50});
         }
         return;
       case 'user':
+        final extra = m['@extra'] as Map<String, dynamic>?;
         final id = m['id'] as int?;
         if (id != null) {
           _users[id] = m;
-          _myId = id;
-          _chatsDirty = true;
-          final fn = m['first_name'] as String? ?? '';
-          final ln = m['last_name'] as String? ?? '';
-          final username = (m['usernames']?['active_usernames'] as List?)?.firstOrNull ?? m['username'] as String? ?? '';
-          final phone = m['phone_number'] as String? ?? '';
-          _ui.send({
-            'type': 'me',
-            'user': {
-              'id': id,
-              'first_name': fn,
-              'last_name': ln,
-              'username': username,
-              'phone_number': phone,
-            },
-          });
-          _syncUserProfile(m);
+          final isMe = extra?['action'] == 'getMe' || (_myId > 0 && id == _myId);
+          if (isMe) {
+            _myId = id;
+            _chatsDirty = true;
+            final fn = m['first_name'] as String? ?? '';
+            final ln = m['last_name'] as String? ?? '';
+            final username = (m['usernames']?['active_usernames'] as List?)?.firstOrNull ?? m['username'] as String? ?? '';
+            final phone = m['phone_number'] as String? ?? '';
+            _ui.send({
+              'type': 'me',
+              'user': {
+                'id': id,
+                'first_name': fn,
+                'last_name': ln,
+                'username': username,
+                'phone_number': phone,
+              },
+            });
+            _syncUserProfile(m);
+          }
         }
         return;
       case 'updateUser':
@@ -576,12 +580,18 @@ class _Store {
         return;
       case 'userFullInfo':
       case 'updateUserFullInfo':
+        final extra = m['@extra'] as Map<String, dynamic>?;
+        final userId = (m['user_id'] as num?)?.toInt() ?? (extra?['user_id'] as num?)?.toInt() ?? 0;
+        if (_myId == 0 || (userId != 0 && userId != _myId)) {
+          // Игнорируем информацию о сторонних пользователях, чтобы не затирать профиль и посты
+          return;
+        }
         final full = (m['user_full_info'] ?? m) as Map<String, dynamic>;
         final bioObj = full['bio'] as Map<String, dynamic>?;
         final bioText = (bioObj?['text'] as String?) ?? '';
         final personalChatId = (full['personal_chat_id'] as num?)?.toInt() ?? 0;
         // ignore: avoid_print
-        print('[worker] userFullInfo: bio="$bioText", personalChatId=$personalChatId');
+        print('[worker] userFullInfo for myId=$_myId: bio="$bioText", personalChatId=$personalChatId');
         _ui.send({
           'type': 'userFullInfo',
           'bio': bioText,
@@ -600,6 +610,11 @@ class _Store {
         }
         return;
       case 'userProfilePhotos':
+        final extra = m['@extra'] as Map<String, dynamic>?;
+        final targetUserId = (extra?['user_id'] as num?)?.toInt() ?? 0;
+        if (_myId == 0 || (targetUserId != 0 && targetUserId != _myId)) {
+          return;
+        }
         final photos = (m['photos'] as List?)?.cast<Map<String, dynamic>>() ?? [];
         final totalCount = (m['total_count'] as num?)?.toInt() ?? photos.length;
         // ignore: avoid_print

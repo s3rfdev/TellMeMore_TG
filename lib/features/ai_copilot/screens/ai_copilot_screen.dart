@@ -5,7 +5,12 @@ import '../../../core/theme/tg_theme.dart';
 import '../../../core/utils/link_handler.dart';
 import '../../../core/widgets/circle_icon_button.dart';
 import '../../../core/widgets/tg_toast.dart';
+import '../../../data/models/tg_account.dart';
+import '../../../data/models/tg_chat.dart';
+import '../../../data/tdlib/tdlib_service.dart';
+import '../../../state/app_state.dart';
 import '../models/ai_settings_model.dart';
+import '../models/contact_dossier.dart';
 import '../models/copilot_session.dart';
 import '../services/copilot_session_store.dart';
 
@@ -47,8 +52,14 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
     // Проверка автокомпрессии до запроса
     final settings = AiSettingsStore.instance.settings.value;
     final compressedBefore = CopilotSessionStore.instance.checkAndAutoCompress(session.id, settings);
+    final isRu = I18n.instance.isRu;
     if (compressedBefore && mounted) {
-      TgToast.show(context, '🗜️ Автокомпрессия сработала: контекст сжат по объёму');
+      TgToast.show(
+        context,
+        isRu
+            ? '🗜️ Автокомпрессия сработала: контекст сжат по объёму'
+            : '🗜️ Auto-compression triggered: context compressed',
+      );
     }
 
     await Future.delayed(const Duration(milliseconds: 1100));
@@ -59,55 +70,141 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
     String? output;
 
     final lower = query.toLowerCase();
-    final isContactSession = session.id.startsWith('contact_');
+    TgChat? matchedChat;
 
-    if (isContactSession) {
-      final contactTitle = session.title.replaceFirst('👤 ', '');
-      if (lower.contains('ответить') ||
-          lower.contains('написать') ||
-          lower.contains('сообщени') ||
-          lower.contains('предложи') ||
-          lower.contains('отказ') ||
-          lower.contains('соглас') ||
-          lower.contains('ответь') ||
-          lower.contains('отшить') ||
-          lower.contains('напиши')) {
-        reply = '💡 **Предлагаемый вариант ответа для $contactTitle:**\n\n'
-            '«Добрый день! По нашему вопросу всё в силе. Предлагаю зафиксировать ключевые условия и двигаться дальше по плану.»\n\n'
-            '🎯 *Обоснование*: сообщение составлено с учетом вашей цели контакта и точно ведет к следующему шагу.';
-      } else if (lower.contains('проанализируй') ||
-          lower.contains('психотип') ||
-          lower.contains('кто он') ||
-          lower.contains('что думает') ||
-          lower.contains('характер')) {
-        reply = '🧠 **Психологический срез контакта $contactTitle:**\n\n'
-            '• Собеседник действует прагматично, ценит быстрые решения и ясность условий.\n'
-            '• Не рекомендую перегружать текст лишними подробностями — предлагай конкретный выбор без давления.';
-      } else {
-        reply = 'Принял задачу по контакту **$contactTitle** в контексте цели и психотипа: "$query".\n\n'
-            'Рекомендую придерживаться установленного тона общения и фиксировать любые новые договоренности в CRM-фактах.';
+    // 1. Поиск чата, связанного с сессией или упоминаемого в запросе
+    if (session.id.startsWith('contact_')) {
+      final cId = session.id.replaceFirst('contact_', '');
+      final currentAcc = AccountManager.instance.currentAccount.value;
+      final chats = [
+        ...TdlibService.instance.chats.value,
+        ...AccountManager.instance.getChats(currentAcc.id),
+      ];
+      final found = chats.where((c) => c.id == cId).toList();
+      if (found.isNotEmpty) matchedChat = found.first;
+    }
+
+    if (matchedChat == null) {
+      final currentAcc = AccountManager.instance.currentAccount.value;
+      final chats = [
+        ...TdlibService.instance.chats.value,
+        ...AccountManager.instance.getChats(currentAcc.id),
+      ];
+      for (final c in chats) {
+        if (c.title.isNotEmpty && lower.contains(c.title.toLowerCase())) {
+          matchedChat = c;
+          break;
+        }
       }
-    } else if (lower.contains('ваканси') || lower.contains('работ')) {
-      tool = 'tdlib.searchMessages("flutter вакансия remote")';
-      output = 'Сканирование 35 сообщений в @flutter_jobs_channel';
-      reply = 'Нашел 2 новых предложения за последние 24 часа! Подходит под стек Flutter Desktop/Linux.';
-    } else if (lower.contains('саммари') || lower.contains('переписк')) {
-      tool = 'tdlib.getChatHistory(chatId: "taras", limit: 30)';
-      output = 'История чата получена и сжата через LLM Context Engine';
-      reply = '📌 **Краткое саммари переписки с Тарасом:**\n'
-          '• Обсуждали проект Telegram клиента с LLM и Шерлоком на аватарах.\n'
-          '• Договорились о тестировании Claude и китайских моделей.\n'
-          '• Следующий шаг: оформление открытого репозитория на GitHub.';
-    } else if (lower.contains('спарс') || lower.contains('групп') || lower.contains('лид')) {
-      tool = 'tdlib.getSupergroupMembers(supergroupId: "nha-trang-estate")';
-      output = 'Спарсено 150 активных участников группы';
-      reply = 'Спарсил участников чата недвижимости. Найдено 14 агентов и 8 потенциальных арендаторов. Добавить их в контакты?';
-    } else if (lower.contains('архитектур') || lower.contains('код') || lower.contains('ffi')) {
-      tool = 'native.inspectCodebase("lib/data/tdlib/td_worker.dart")';
-      output = 'Анализ FFI Isolate Worker и потоков C++';
-      reply = 'В коде `td_worker.dart` используется отдельный фоновый Isolate и JSON-протокол. Для ускорения WebRTC звонков можно вынести десериализацию в нативный C++ хук.';
+      if (matchedChat == null &&
+          (lower.contains('чат') ||
+              lower.contains('диалог') ||
+              lower.contains('переписк') ||
+              lower.contains('chat') ||
+              lower.contains('conversation'))) {
+        final activeId = AppState.selectedChatId.value;
+        final found = chats.where((c) => c.id == activeId).toList();
+        if (found.isNotEmpty) matchedChat = found.first;
+      }
+    }
+
+    // Системный промпт (из сессии + из настроек чата, если есть)
+    String effectivePrompt = session.systemPrompt.trim();
+    if (matchedChat != null) {
+      final chatDossier = ContactDossierStore.instance.getDossier(matchedChat.id).value;
+      if (chatDossier.systemPrompt.isNotEmpty) {
+        effectivePrompt = effectivePrompt.isNotEmpty
+            ? '$effectivePrompt\n\n${chatDossier.systemPrompt}'
+            : chatDossier.systemPrompt;
+      }
+    }
+
+    if (matchedChat != null) {
+      final realHistory = TdlibService.instance.messagesOf(matchedChat.id).value;
+      final msgs = realHistory.messages.isNotEmpty ? realHistory.messages : matchedChat.messages;
+
+      tool = 'tdlib.inspectChat(chat: "${matchedChat.title}", limit: ${msgs.length})';
+      output = isRu
+          ? 'Изучена переписка: ${msgs.length} сообщ. из чата «${matchedChat.title}»'
+          : 'Inspected ${msgs.length} messages from "${matchedChat.title}"';
+
+      final lastIncoming = msgs.where((m) => !m.outgoing).firstOrNull ?? (msgs.isNotEmpty ? msgs.first : null);
+
+      if (lower.contains('ответь') ||
+          lower.contains('напиши') ||
+          lower.contains('составь ответ') ||
+          lower.contains('предложи ответ') ||
+          lower.contains('reply') ||
+          lower.contains('draft')) {
+        final snippet = lastIncoming != null
+            ? (isRu ? 'в ответ на «${lastIncoming.text}»' : 'in reply to "${lastIncoming.text}"')
+            : (isRu ? 'для отправки в чат' : 'for the chat');
+
+        reply = isRu
+            ? '💡 **Предлагаемый вариант ответа для «${matchedChat.title}»** ($snippet):\n\n'
+                '«Здравствуйте! ${effectivePrompt.isNotEmpty ? "Учитывая установленные договоренности: " : ""}'
+                'Предлагаю зафиксировать следующие шаги и свериться по деталям.»\n\n'
+                '${effectivePrompt.isNotEmpty ? "🎯 *Директивы*: ответ составлен согласно системному промпту." : "🎯 *Подсказка*: вы можете настроить точные директивы в системном промпте чата."}'
+            : '💡 **Suggested reply for "${matchedChat.title}"** ($snippet):\n\n'
+                '«Hello! ${effectivePrompt.isNotEmpty ? "Taking into account our arrangements: " : ""}'
+                'I suggest we confirm the next steps and align on details.»\n\n'
+                '${effectivePrompt.isNotEmpty ? "🎯 *Directives*: response crafted according to system prompt." : "🎯 *Tip*: you can configure custom response directives in the chat system prompt."}';
+      } else if (lower.contains('саммари') ||
+          lower.contains('изучи') ||
+          lower.contains('проанализируй') ||
+          lower.contains('выжимк') ||
+          lower.contains('summary') ||
+          lower.contains('analyze')) {
+        final sb = StringBuffer();
+        if (isRu) {
+          sb.writeln('📋 **Анализ чата «${matchedChat.title}»** (изучено ${msgs.length} сообщений):');
+          if (msgs.isEmpty) {
+            sb.writeln('• История переписки пуста.');
+          } else {
+            if (lastIncoming != null) {
+              sb.writeln('• **Последнее сообщение**: «${lastIncoming.text}» (${lastIncoming.time})');
+            }
+            sb.writeln('• **Сообщений в ленте**: ${msgs.length} (исходящих: ${msgs.where((m) => m.outgoing).length}, входящих: ${msgs.where((m) => !m.outgoing).length})');
+            final sampleTexts = msgs.take(4).map((m) => '«${m.text.replaceAll("\n", " ")}»').join(', ');
+            sb.writeln('• **Темы и ключевой контекст**: $sampleTexts');
+            if (effectivePrompt.isNotEmpty) {
+              sb.writeln('• **Системные директивы**: $effectivePrompt');
+            }
+          }
+        } else {
+          sb.writeln('📋 **Analysis of "${matchedChat.title}"** (analyzed ${msgs.length} messages):');
+          if (msgs.isEmpty) {
+            sb.writeln('• Conversation is empty.');
+          } else {
+            if (lastIncoming != null) {
+              sb.writeln('• **Last message**: "${lastIncoming.text}" (${lastIncoming.time})');
+            }
+            sb.writeln('• **Messages in feed**: ${msgs.length} (outgoing: ${msgs.where((m) => m.outgoing).length}, incoming: ${msgs.where((m) => !m.outgoing).length})');
+            final sampleTexts = msgs.take(4).map((m) => '"${m.text.replaceAll("\n", " ")}"').join(', ');
+            sb.writeln('• **Topics & context**: $sampleTexts');
+            if (effectivePrompt.isNotEmpty) {
+              sb.writeln('• **System directives**: $effectivePrompt');
+            }
+          }
+        }
+        reply = sb.toString();
+      } else {
+        reply = isRu
+            ? 'Принял задачу по чату **${matchedChat.title}**: "$query".\n\n'
+                '${effectivePrompt.isNotEmpty ? "Действую по системному промпту: *$effectivePrompt*.\n\n" : ""}'
+                'Изучил историю сообщений. Что конкретно подготовить: сформулировать ответ собеседнику или сделать саммари?'
+            : 'Received task for **${matchedChat.title}**: "$query".\n\n'
+                '${effectivePrompt.isNotEmpty ? "Operating per system prompt: *$effectivePrompt*.\n\n" : ""}'
+                'Reviewed message history. What shall I prepare: formulate a response or generate a summary?';
+      }
     } else {
-      reply = 'Принял задачу в контексте агента **${session.agentRole}**: "$query". Обрабатываю запрос с учетом истории диалога.';
+      reply = isRu
+          ? 'Принял задачу: "$query".\n\n'
+              '${effectivePrompt.isNotEmpty ? "Действую строго по директивам агента: *$effectivePrompt*.\n\n" : ""}'
+              'Роль агента: **${session.agentRole}**. Если нужно изучить конкретный чат, назови его имя (например: «изучи переписку с Тарасом») или открой системный промпт в настройках чата.'
+          : 'Task received: "$query".\n\n'
+              '${effectivePrompt.isNotEmpty ? "Operating strictly under directives: *$effectivePrompt*.\n\n" : ""}'
+              'Agent role: **${session.agentRole}**. If you want me to inspect a specific chat, mention its name (e.g. "analyze chat with Taras") or open the system prompt in chat settings.';
     }
 
     final agentMsg = CopilotMessage(
@@ -159,7 +256,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Директивы агента: ${session.agentRole}',
+                  tr('agent_directives_title', {'role': session.agentRole}),
                   style: const TextStyle(color: Tg.text, fontSize: 15),
                 ),
               ),
@@ -171,9 +268,9 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Системный промпт (верхний слой бутерброда), определяющий логику агента:',
-                  style: TextStyle(color: Tg.textDim, fontSize: 12),
+                Text(
+                  tr('system_prompt_desc'),
+                  style: const TextStyle(color: Tg.textDim, fontSize: 12),
                 ),
                 const SizedBox(height: 10),
                 Container(
@@ -186,10 +283,10 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                     controller: controller,
                     maxLines: 5,
                     style: const TextStyle(color: Tg.text, fontSize: 13),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'Инструкции для агента...',
-                      hintStyle: TextStyle(color: Tg.textFaint),
+                      hintText: tr('agent_directives_hint'),
+                      hintStyle: const TextStyle(color: Tg.textFaint),
                     ),
                   ),
                 ),
@@ -209,9 +306,9 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
               onPressed: () {
                 CopilotSessionStore.instance.updateSessionPrompt(session.id, controller.text);
                 Navigator.of(context).pop();
-                TgToast.show(context, 'Директивы агента обновлены');
+                TgToast.show(context, tr('directives_updated_toast'));
               },
-              child: const Text('Сохранить'),
+              child: Text(tr('save')),
             ),
           ],
         );
@@ -239,9 +336,9 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
             children: [
               const Icon(Icons.layers_outlined, color: Color(0xFF8774E1), size: 22),
               const SizedBox(width: 10),
-              const Text(
-                'Контекст: Принцип «Бутерброд»',
-                style: TextStyle(color: Tg.text, fontSize: 16, fontWeight: FontWeight.w600),
+              Text(
+                tr('context_sandwich_title'),
+                style: const TextStyle(color: Tg.text, fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -251,16 +348,16 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Архитектура сборки промпта перед отправкой в модель (LLM Context Sandwich):',
-                    style: TextStyle(color: Tg.textDim, fontSize: 12.5),
+                  Text(
+                    tr('sandwich_desc'),
+                    style: const TextStyle(color: Tg.textDim, fontSize: 12.5),
                   ),
                   const SizedBox(height: 14),
 
                   // Слой 1: Верхний хлеб
                   _buildSandwichLayer(
                     layerNumber: '1',
-                    layerName: '🍞 Верхний хлеб: Системные директивы & Роль',
+                    layerName: tr('sandwich_layer_top_bread'),
                     tokens: sandwich['systemTokens'] as int,
                     color: const Color(0xFFFF9F43),
                     description: 'Персона агента, инструкции, формат вывода и подключенные инструменты.',
@@ -271,34 +368,34 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                   // Слой 2: Начинка - Сжатое саммари
                   _buildSandwichLayer(
                     layerNumber: '2',
-                    layerName: '🥩 Начинка: Сжатая выжимка ранней истории',
+                    layerName: tr('sandwich_layer_summary'),
                     tokens: sandwich['summaryTokens'] as int,
                     color: const Color(0xFF00C48C),
                     description: sandwich['summarySlice'] != null
-                        ? 'Старые ветки диалога сжаты в структурированное резюме.'
-                        : 'История еще компактная, автокомпрессия пока не требовалась.',
-                    content: sandwich['summarySlice'] as String? ?? '— Нет сжатого контекста —',
+                        ? tr('sandwich_layer_summary_compressed')
+                        : tr('sandwich_layer_summary_compact'),
+                    content: sandwich['summarySlice'] as String? ?? (I18n.instance.isRu ? '— Нет сжатого контекста —' : '— No compressed context —'),
                   ),
                   const SizedBox(height: 10),
 
                   // Слой 3: Начинка - Сырые недавние сообщения
                   _buildSandwichLayer(
                     layerNumber: '3',
-                    layerName: '🥬 Начинка: Окно свежих сырых сообщений',
+                    layerName: tr('sandwich_layer_raw'),
                     tokens: sandwich['rawTokens'] as int,
                     color: const Color(0xFF51B2FF),
-                    description: 'Последние ${session.rawMessagesCount} сообщений сохранены слово в слово без потери деталей.',
-                    content: session.messages.map((m) => '${m.isUser ? "Вы" : "Бот"}: ${m.text}').join('\n'),
+                    description: tr('sandwich_layer_raw_desc', {'count': session.rawMessagesCount.toString()}),
+                    content: session.messages.map((m) => '${m.isUser ? tr("you") : tr("bot")}: ${m.text}').join('\n'),
                   ),
                   const SizedBox(height: 10),
 
                   // Слой 4: Нижний хлеб
                   _buildSandwichLayer(
                     layerNumber: '4',
-                    layerName: '🍞 Нижний хлеб: Текущий запрос пользователя',
+                    layerName: tr('sandwich_layer_bottom_bread'),
                     tokens: sandwich['bottomTokens'] as int,
                     color: const Color(0xFFFF7675),
-                    description: 'Финальная задача пользователя, замыкающая контекст.',
+                    description: tr('sandwich_layer_bottom_desc'),
                     content: sandwich['bottomSlice'] as String,
                   ),
                   const SizedBox(height: 14),
@@ -317,10 +414,10 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Итоговый объём запроса:', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                            Text(tr('total_request_volume'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
                             const SizedBox(height: 2),
                             Text(
-                              '${sandwich["totalTokens"]} токенов / Порог: ${settings.compressionVolumeThreshold}',
+                              '${sandwich["totalTokens"]} tok / ${I18n.instance.isRu ? "Порог: " : "Threshold: "}${settings.compressionVolumeThreshold}',
                               style: const TextStyle(color: Tg.text, fontWeight: FontWeight.w600, fontSize: 13.5),
                             ),
                           ],
@@ -339,10 +436,10 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                                 keepRawCount: settings.compressionKeepRawCount,
                               );
                               Navigator.of(context).pop();
-                              TgToast.show(context, 'Контекст успешно сжат!');
+                              TgToast.show(context, tr('context_compressed_toast'));
                             },
                             icon: const Icon(Icons.compress, size: 16),
-                            label: const Text('Сжать сейчас'),
+                            label: Text(tr('compress_now')),
                           ),
                       ],
                     ),
@@ -358,7 +455,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Закрыть'),
+              child: Text(tr('close')),
             ),
           ],
         );
@@ -527,7 +624,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
 
           // Кнопка инспектора бутерброда / объема токенов
           Tooltip(
-            message: 'Инспектор контекста (Принцип Бутерброд)',
+            message: tr('context_inspector_tooltip'),
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
               onTap: () => _showSandwichInspector(session, settings),
@@ -570,7 +667,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
 
           // Кнопка директив / промпта агента
           Tooltip(
-            message: 'Директивы агента',
+            message: tr('agent_directives_tooltip'),
             child: CircleIconButton(
               icon: Icons.tune_rounded,
               iconSize: 19,
@@ -581,14 +678,14 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
 
           // Кнопка очистки сообщений
           Tooltip(
-            message: 'Очистить историю',
+            message: tr('clear_history_tooltip'),
             child: CircleIconButton(
               icon: Icons.delete_sweep_outlined,
               iconSize: 19,
               color: Tg.textDim,
               onTap: () {
                 CopilotSessionStore.instance.clearSessionMessages(session.id);
-                TgToast.show(context, 'Диалог с агентом очищен');
+                TgToast.show(context, tr('copilot_cleared_toast'));
               },
             ),
           ),
@@ -839,7 +936,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
               onSubmitted: (val) => _sendMessage(session, val),
               style: const TextStyle(fontSize: 14, color: Tg.text),
               decoration: InputDecoration(
-                hintText: 'Задайте вопрос агенту [${session.agentRole}]…',
+                hintText: tr('ask_agent_placeholder', {'role': session.agentRole}),
                 hintStyle: const TextStyle(fontSize: 13.5, color: Tg.textFaint),
                 border: InputBorder.none,
                 isDense: true,

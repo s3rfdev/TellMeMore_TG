@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 
 /// Всплывающее меню эмодзи в стиле Telegram Desktop.
@@ -150,12 +151,12 @@ class _EmojiPickerPopupState extends State<EmojiPickerPopup>
                     child: TextField(
                       controller: _searchController,
                       style: const TextStyle(fontSize: 13, color: Tg.text),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         isDense: true,
-                        hintText: 'Поиск эмодзи…',
-                        hintStyle: TextStyle(fontSize: 13, color: Tg.textFaint),
+                        hintText: tr('search_emoji'),
+                        hintStyle: const TextStyle(fontSize: 13, color: Tg.textFaint),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 6),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 6),
                       ),
                       onChanged: (val) => setState(() => _searchFilter = val.trim()),
                     ),

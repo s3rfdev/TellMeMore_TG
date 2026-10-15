@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
@@ -41,7 +42,7 @@ class ImageViewerDialog extends StatelessWidget {
         if (context.mounted) {
           TgToast.show(
             context,
-            'Файл изображения не найден',
+            tr('image_not_found'),
             icon: Icons.error_outline_rounded,
           );
         }
@@ -59,7 +60,7 @@ class ImageViewerDialog extends StatelessWidget {
       if (context.mounted) {
         TgToast.show(
           context,
-          '✓ Сохранено в Загрузки',
+          tr('saved_to_downloads_ok'),
           icon: Icons.check_circle_rounded,
         );
       }
@@ -67,7 +68,7 @@ class ImageViewerDialog extends StatelessWidget {
       if (context.mounted) {
         TgToast.show(
           context,
-          'Ошибка сохранения: $e',
+          tr('save_error_toast', {'error': e.toString()}),
           icon: Icons.error_outline_rounded,
         );
       }
@@ -80,7 +81,7 @@ class ImageViewerDialog extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF212124),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Переслать в…', style: TextStyle(color: Tg.text, fontSize: 16)),
+        title: Text(tr('forward_to_title'), style: const TextStyle(color: Tg.text, fontSize: 16)),
         content: SizedBox(
           width: 320,
           height: 320,
@@ -88,7 +89,7 @@ class ImageViewerDialog extends StatelessWidget {
             valueListenable: TdlibService.instance.chats,
             builder: (context, chats, _) {
               if (chats.isEmpty) {
-                return const Center(child: Text('Нет доступных чатов', style: TextStyle(color: Tg.textDim)));
+                return Center(child: Text(tr('no_available_chats'), style: const TextStyle(color: Tg.textDim)));
               }
               return ListView.builder(
                 itemCount: chats.length,
@@ -104,7 +105,7 @@ class ImageViewerDialog extends StatelessWidget {
                         TdlibService.instance.sendFile(id, imagePath);
                         TgToast.show(
                           context,
-                          '✓ Переслано в "${c.title}"',
+                          tr('forwarded_to_chat', {'title': c.title}),
                           icon: Icons.shortcut_rounded,
                         );
                       }
@@ -118,7 +119,7 @@ class ImageViewerDialog extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Отмена', style: TextStyle(color: Tg.textDim)),
+            child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
           ),
         ],
       ),
@@ -159,9 +160,9 @@ class ImageViewerDialog extends StatelessWidget {
                             ),
                           ),
                         )
-                      : const Text(
-                          'Изображение загружается или недоступно',
-                          style: TextStyle(color: Tg.textDim, fontSize: 15),
+                      : Text(
+                          tr('image_loading_error'),
+                          style: const TextStyle(color: Tg.textDim, fontSize: 15),
                         ),
                 ),
               ),
@@ -188,7 +189,7 @@ class ImageViewerDialog extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-                      tooltip: 'Назад (Esc)',
+                      tooltip: tr('back_esc'),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: 12),
@@ -197,7 +198,7 @@ class ImageViewerDialog extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          title,
+                          title.isNotEmpty ? title : tr('media_photo'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15,
@@ -215,7 +216,7 @@ class ImageViewerDialog extends StatelessWidget {
                     if (exists) ...[
                       TextButton.icon(
                         icon: const Icon(Icons.download_rounded, color: Colors.white, size: 18),
-                        label: const Text('Сохранить', style: TextStyle(color: Colors.white, fontSize: 13)),
+                        label: Text(tr('save'), style: const TextStyle(color: Colors.white, fontSize: 13)),
                         style: TextButton.styleFrom(
                           backgroundColor: Colors.white.withValues(alpha: 0.12),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -226,7 +227,7 @@ class ImageViewerDialog extends StatelessWidget {
                       const SizedBox(width: 10),
                       TextButton.icon(
                         icon: const Icon(Icons.reply_rounded, color: Colors.white, size: 18),
-                        label: const Text('Переслать', style: TextStyle(color: Colors.white, fontSize: 13)),
+                        label: Text(tr('forward'), style: const TextStyle(color: Colors.white, fontSize: 13)),
                         style: TextButton.styleFrom(
                           backgroundColor: Colors.white.withValues(alpha: 0.12),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -238,7 +239,7 @@ class ImageViewerDialog extends StatelessWidget {
                     ],
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white, size: 22),
-                      tooltip: 'Закрыть',
+                      tooltip: tr('close'),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],

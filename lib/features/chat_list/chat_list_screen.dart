@@ -282,7 +282,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         if (chats.isEmpty && q.isNotEmpty) {
           return Center(
             child: Text(
-              'Ничего не найдено по "$_query"',
+              tr('nothing_found_query', {'query': _query}),
               style: const TextStyle(fontSize: 13, color: Tg.textDim),
             ),
           );

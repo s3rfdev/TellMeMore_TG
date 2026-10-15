@@ -98,10 +98,10 @@ class _MainDrawerState extends State<MainDrawer> {
                         widget.onClose();
                         if (isPrimary) {
                           TdlibService.instance.logOut();
-                          TgToast.show(context, 'Сессия завершена (Log out)');
+                          TgToast.show(context, tr('session_logged_out'));
                         } else {
                           AccountManager.instance.removeAccount(currentAcc.id);
-                          TgToast.show(context, 'Аккаунт удален');
+                          TgToast.show(context, tr('account_deleted'));
                         }
                       },
                       child: Text(isPrimary ? tr('log_out') : tr('delete_account')),
@@ -302,7 +302,7 @@ class _MainDrawerState extends State<MainDrawer> {
                     : null),
             onTap: () {
               AccountManager.instance.switchAccount(acc.id);
-              TgToast.show(context, 'Активный аккаунт: ${acc.name}');
+              TgToast.show(context, tr('active_account_toast', {'name': acc.name}));
               setState(() {
                 _accountsExpanded = false;
               });
@@ -531,13 +531,7 @@ class _MainDrawerState extends State<MainDrawer> {
               ),
               const SizedBox(height: 12),
               Text(
-                isGroup
-                    ? (I18n.instance.isRu
-                        ? 'Вы сможете пригласить участников сразу после создания.'
-                        : 'You can add members after creating the group.')
-                    : (I18n.instance.isRu
-                        ? 'Каналы используются для трансляции сообщений неограниченной аудитории.'
-                        : 'Channels are for broadcasting messages to unlimited audiences.'),
+                isGroup ? tr('new_group_hint') : tr('new_channel_hint'),
                 style: const TextStyle(fontSize: 12, color: Tg.textDim),
               ),
               const SizedBox(height: 22),

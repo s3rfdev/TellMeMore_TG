@@ -202,6 +202,26 @@ void main() {
 
       // Full selectable text in dialog should be visible
       expect(find.byType(SelectableText), findsOneWidget);
+
+      // Verify delete button is present in detail dialog
+      expect(find.byIcon(Icons.delete_outline_rounded), findsOneWidget);
+    });
+
+    test('AccountManager deletePost deletes post from active and archived collections', () {
+      final manager = AccountManager.instance;
+      final post1 = TgPost(id: 'del_1', text: 'Пост 1', date: DateTime.now());
+      final post2 = TgPost(id: 'del_2', text: 'Пост 2', date: DateTime.now(), isArchived: true);
+      manager.setPosts([post1]);
+      manager.setPosts([post2], isArchived: true);
+
+      expect(manager.myPosts.value.any((p) => p.id == 'del_1'), isTrue);
+      expect(manager.myArchivedPosts.value.any((p) => p.id == 'del_2'), isTrue);
+
+      manager.deletePost('del_1');
+      expect(manager.myPosts.value.any((p) => p.id == 'del_1'), isFalse);
+
+      manager.deletePost('del_2');
+      expect(manager.myArchivedPosts.value.any((p) => p.id == 'del_2'), isFalse);
     });
   });
 }

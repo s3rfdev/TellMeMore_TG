@@ -21,6 +21,7 @@ import '../ai_copilot/widgets/contact_dossier_sheet.dart';
 import '../ai_copilot/widgets/smart_replies_bar.dart';
 import 'services/chat_export_service.dart';
 import 'widgets/chat_export_dialog.dart';
+import 'widgets/chat_system_prompt_dialog.dart';
 import 'widgets/emoji_picker_popup.dart';
 import 'widgets/forward_dialog.dart';
 import 'widgets/message_bubble.dart';
@@ -163,14 +164,14 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Text(
-          'Выбрано: $count',
+          tr('selected_count', {'count': count.toString()}),
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Tg.text),
         ),
         const Spacer(),
         if (count > 0) ...[
           IconButton(
             icon: const Icon(Icons.shortcut_rounded, color: Tg.accent),
-            tooltip: 'Переслать',
+            tooltip: tr('forward'),
             onPressed: () {
               final msgIds = AppState.selectedMessages.value;
               final history = TdlibService.instance.messagesOf(chat.id).value.messages;
@@ -182,7 +183,7 @@ class _Header extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded, color: Tg.danger),
-            tooltip: 'Удалить',
+            tooltip: tr('delete'),
             onPressed: () => _confirmDeleteSelected(context),
           ),
         ],
@@ -198,12 +199,12 @@ class _Header extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF212D3B),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Удалить сообщения', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
-        content: Text('Удалить выбранные сообщения ($count)?', style: const TextStyle(color: Tg.textDim, fontSize: 14)),
+        title: Text(tr('delete_messages_title'), style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+        content: Text(tr('delete_messages_confirm', {'count': count.toString()}), style: const TextStyle(color: Tg.textDim, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Отмена', style: TextStyle(color: Tg.textDim)),
+            child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
           ),
           TextButton(
             onPressed: () {
@@ -213,10 +214,10 @@ class _Header extends StatelessWidget {
                 TdlibService.instance.deleteMessages(id, AppState.selectedMessages.value.toList());
                 AppState.messageSelectionMode.value = false;
                 AppState.selectedMessages.value = {};
-                TgToast.show(context, 'Удалено сообщений: $count', icon: Icons.delete_outline_rounded);
+                TgToast.show(context, tr('deleted_messages_toast', {'count': count.toString()}), icon: Icons.delete_outline_rounded);
               }
             },
-            child: const Text('Удалить', style: TextStyle(color: Tg.danger, fontWeight: FontWeight.w600)),
+            child: Text(tr('delete'), style: const TextStyle(color: Tg.danger, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -234,9 +235,9 @@ class _Header extends StatelessWidget {
             autofocus: true,
             onChanged: (v) => AppState.chatSearchQuery.value = v,
             style: const TextStyle(fontSize: 14, color: Tg.text),
-            decoration: const InputDecoration(
-              hintText: 'Поиск сообщений…',
-              hintStyle: TextStyle(fontSize: 14, color: Tg.textFaint),
+            decoration: InputDecoration(
+              hintText: tr('search_messages_hint'),
+              hintStyle: const TextStyle(fontSize: 14, color: Tg.textFaint),
               border: InputBorder.none,
               isDense: true,
             ),
@@ -309,12 +310,21 @@ class _Header extends StatelessWidget {
           ),
         ),
         Tooltip(
-          message: 'AI Досье контакта & CRM',
+          message: tr('ai_dossier_tooltip'),
           child: CircleIconButton(
             icon: Icons.auto_awesome,
             iconSize: 19,
             color: const Color(0xFF8774E1),
             onTap: () => ContactDossierDialog.show(context, chat),
+          ),
+        ),
+        Tooltip(
+          message: I18n.instance.isRu ? 'Системный промпт AI' : 'AI System Prompt',
+          child: CircleIconButton(
+            icon: Icons.psychology_outlined,
+            iconSize: 20,
+            color: const Color(0xFF51B2FF),
+            onTap: () => ChatSystemPromptDialog.show(context, chat),
           ),
         ),
         CircleIconButton(
@@ -329,7 +339,9 @@ class _Header extends StatelessWidget {
           constraints: const BoxConstraints(minWidth: 260, maxWidth: 320),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           onSelected: (val) {
-            if (val == 'select') {
+            if (val == 'system_prompt') {
+              ChatSystemPromptDialog.show(context, chat);
+            } else if (val == 'select') {
               AppState.messageSelectionMode.value = true;
               AppState.selectedMessages.value = {};
             } else if (val == 'export_advisor') {
@@ -351,63 +363,78 @@ class _Header extends StatelessWidget {
             }
           },
           itemBuilder: (context) => [
-            const PopupMenuItem(
+            PopupMenuItem(
+              value: 'system_prompt',
+              child: Row(
+                children: [
+                  const Icon(Icons.psychology_rounded, size: 18, color: Color(0xFF51B2FF)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      I18n.instance.isRu ? 'Системный промпт AI' : 'AI System Prompt',
+                      style: const TextStyle(color: Tg.text, fontSize: 13.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem(
               value: 'select',
               child: Row(
                 children: [
-                  Icon(Icons.checklist_rounded, size: 18, color: Tg.textDim),
-                  SizedBox(width: 12),
+                  const Icon(Icons.checklist_rounded, size: 18, color: Tg.textDim),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text('Выбрать сообщения', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                    child: Text(tr('select_messages'), style: const TextStyle(color: Tg.text, fontSize: 13.5)),
                   ),
                 ],
               ),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'export_advisor',
               child: Row(
                 children: [
-                  Icon(Icons.badge_outlined, size: 18, color: Color(0xFF8774E1)),
-                  SizedBox(width: 12),
+                  const Icon(Icons.badge_outlined, size: 18, color: Color(0xFF8774E1)),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text('Экспорт профиля (AI-эдвайзер)', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                    child: Text(tr('export_profile_advisor'), style: const TextStyle(color: Tg.text, fontSize: 13.5)),
                   ),
                 ],
               ),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'export_chat',
               child: Row(
                 children: [
-                  Icon(Icons.file_download_outlined, size: 18, color: Color(0xFF4FAAFF)),
-                  SizedBox(width: 12),
+                  const Icon(Icons.file_download_outlined, size: 18, color: Color(0xFF4FAAFF)),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text('Экспорт переписки (.txt)', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                    child: Text(tr('export_chat_txt'), style: const TextStyle(color: Tg.text, fontSize: 13.5)),
                   ),
                 ],
               ),
             ),
             const PopupMenuDivider(height: 1),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'clear',
               child: Row(
                 children: [
-                  Icon(Icons.cleaning_services_rounded, size: 18, color: Tg.textDim),
-                  SizedBox(width: 12),
+                  const Icon(Icons.cleaning_services_rounded, size: 18, color: Tg.textDim),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text('Очистить историю', style: TextStyle(color: Tg.text, fontSize: 13.5)),
+                    child: Text(tr('clear_history'), style: const TextStyle(color: Tg.text, fontSize: 13.5)),
                   ),
                 ],
               ),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'delete',
               child: Row(
                 children: [
-                  Icon(Icons.delete_outline_rounded, size: 18, color: Tg.danger),
-                  SizedBox(width: 12),
+                  const Icon(Icons.delete_outline_rounded, size: 18, color: Tg.danger),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text('Удалить чат', style: TextStyle(color: Tg.danger, fontSize: 13.5)),
+                    child: Text(tr('delete_chat'), style: const TextStyle(color: Tg.danger, fontSize: 13.5)),
                   ),
                 ],
               ),
@@ -425,12 +452,12 @@ class _Header extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF212D3B),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Очистить историю', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
-        content: Text('Вы действительно хотите очистить историю сообщений с «${chat.title}»?', style: const TextStyle(color: Tg.textDim, fontSize: 14)),
+        title: Text(tr('clear_history'), style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+        content: Text(tr('clear_history_confirm', {'title': chat.title}), style: const TextStyle(color: Tg.textDim, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Отмена', style: TextStyle(color: Tg.textDim)),
+            child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
           ),
           TextButton(
             onPressed: () {
@@ -438,10 +465,10 @@ class _Header extends StatelessWidget {
               final id = int.tryParse(chat.id);
               if (id != null) {
                 TdlibService.instance.clearHistory(id);
-                TgToast.show(context, 'История сообщений очищена', icon: Icons.cleaning_services_rounded);
+                TgToast.show(context, tr('history_cleared_toast'), icon: Icons.cleaning_services_rounded);
               }
             },
-            child: const Text('Очистить', style: TextStyle(color: Tg.danger, fontWeight: FontWeight.w600)),
+            child: Text(tr('clear'), style: const TextStyle(color: Tg.danger, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -454,12 +481,12 @@ class _Header extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF212D3B),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Удалить чат', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
-        content: Text('Удалить чат с «${chat.title}» и всю переписку?', style: const TextStyle(color: Tg.textDim, fontSize: 14)),
+        title: Text(tr('delete_chat'), style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+        content: Text(tr('delete_chat_confirm', {'title': chat.title}), style: const TextStyle(color: Tg.textDim, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Отмена', style: TextStyle(color: Tg.textDim)),
+            child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
           ),
           TextButton(
             onPressed: () {
@@ -468,10 +495,10 @@ class _Header extends StatelessWidget {
               if (id != null) {
                 TdlibService.instance.deleteChat(id);
                 AppState.selectedChatId.value = '';
-                TgToast.show(context, 'Чат удален', icon: Icons.delete_outline_rounded);
+                TgToast.show(context, tr('chat_deleted_toast'), icon: Icons.delete_outline_rounded);
               }
             },
-            child: const Text('Удалить', style: TextStyle(color: Tg.danger, fontWeight: FontWeight.w600)),
+            child: Text(tr('delete'), style: const TextStyle(color: Tg.danger, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -631,9 +658,9 @@ class _MessageListState extends State<_MessageList> {
                   size: 26, color: Tg.textDim),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'В этом чате пока нет сообщений',
-              style: TextStyle(
+            Text(
+              tr('empty_chat_placeholder'),
+              style: const TextStyle(
                 fontSize: 13.5,
                 color: Tg.textDim,
                 fontWeight: FontWeight.w400,
@@ -655,7 +682,7 @@ class _MessageListState extends State<_MessageList> {
     if (query.isNotEmpty && filtered.isEmpty) {
       return Center(
         child: Text(
-          'Ничего не найдено по запросу «$query»',
+          tr('nothing_found_query', {'query': query}),
           style: const TextStyle(color: Tg.textDim, fontSize: 14),
         ),
       );
@@ -737,12 +764,12 @@ class _MessageListState extends State<_MessageList> {
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.file_upload_outlined, size: 52, color: Tg.accent),
-                        SizedBox(height: 12),
+                      children: [
+                        const Icon(Icons.file_upload_outlined, size: 52, color: Tg.accent),
+                        const SizedBox(height: 12),
                         Text(
-                          'Перетащите файлы сюда для отправки',
-                          style: TextStyle(
+                          tr('drag_files_drop'),
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15.5,
                             fontWeight: FontWeight.w600,
@@ -804,7 +831,7 @@ class _InputBarState extends State<_InputBar> {
       });
       TgToast.show(
         context,
-        'Прикреплено файлов: ${valid.length}',
+        tr('attached_files_toast', {'count': valid.length.toString()}),
         icon: Icons.attach_file_rounded,
       );
     }
@@ -824,7 +851,7 @@ class _InputBarState extends State<_InputBar> {
         if (mounted) {
           TgToast.show(
             context,
-            'Нет доступа к микрофону',
+            tr('no_mic_permission'),
             icon: Icons.mic_off_rounded,
           );
         }
@@ -849,7 +876,7 @@ class _InputBarState extends State<_InputBar> {
       if (mounted) {
         TgToast.show(
           context,
-          'Ошибка записи: $e',
+          tr('recording_error', {'error': e.toString()}),
           icon: Icons.error_outline_rounded,
         );
       }
@@ -900,7 +927,7 @@ class _InputBarState extends State<_InputBar> {
       _controller.clear();
       TgToast.show(
         context,
-        'Отправлено файлов: $total',
+        tr('sent_files_toast', {'count': total.toString()}),
         icon: Icons.done_all_rounded,
       );
       return;
@@ -932,7 +959,7 @@ class _InputBarState extends State<_InputBar> {
       if (mounted) {
         TgToast.show(
           context,
-          'Ошибка при выборе файлов: $e',
+          tr('file_pick_error', {'error': e.toString()}),
           icon: Icons.error_outline_rounded,
         );
       }
@@ -1020,9 +1047,9 @@ class _InputBarState extends State<_InputBar> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Ответ на сообщение',
-                            style: TextStyle(
+                          Text(
+                            tr('reply_to_message'),
+                            style: const TextStyle(
                               color: Tg.accent,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -1033,12 +1060,12 @@ class _InputBarState extends State<_InputBar> {
                             replyMsg.text.isNotEmpty
                                 ? replyMsg.text
                                 : (replyMsg.kind == MessageKind.video
-                                    ? (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : 'Видеозапись')
+                                    ? (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : tr('media_video'))
                                     : (replyMsg.kind == MessageKind.image
-                                        ? 'Фотография'
+                                        ? tr('media_photo')
                                         : (replyMsg.kind == MessageKind.voice
-                                            ? 'Голосовое сообщение'
-                                            : (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : 'Файл')))),
+                                            ? tr('media_voice')
+                                            : (replyMsg.fileName.isNotEmpty ? replyMsg.fileName : tr('media_file'))))),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -1106,7 +1133,7 @@ class _InputBarState extends State<_InputBar> {
             return Center(
               child: IconButton(
                 icon: const Icon(Icons.add_circle_outline_rounded, color: Tg.accent, size: 28),
-                tooltip: 'Добавить ещё файлы',
+                tooltip: tr('add_more_files'),
                 onPressed: _pickAttachment,
               ),
             );
@@ -1226,16 +1253,16 @@ class _InputBarState extends State<_InputBar> {
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Идет запись микрофона…',
-              style: TextStyle(fontSize: 13.5, color: Tg.textDim),
+              tr('recording_microphone'),
+              style: const TextStyle(fontSize: 13.5, color: Tg.textDim),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textFaint),
             onPressed: () => _stopVoice(send: false),
-            tooltip: 'Отмена',
+            tooltip: tr('cancel'),
           ),
           const SizedBox(width: 4),
           GestureDetector(
@@ -1301,7 +1328,7 @@ class _InputBarState extends State<_InputBar> {
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: _stagedFiles.isNotEmpty
-                          ? (I18n.instance.isRu ? 'Добавьте подпись…' : 'Add a caption…')
+                          ? tr('caption_hint')
                           : tr('write_message'),
                       hintStyle: const TextStyle(fontSize: 14.5, color: Tg.textFaint),
                       border: InputBorder.none,
@@ -1328,7 +1355,7 @@ class _InputBarState extends State<_InputBar> {
         ),
         const SizedBox(width: 4),
         Tooltip(
-          message: 'AI Smart Reply (быстрые ответы)',
+          message: tr('ai_smart_reply_tooltip'),
           child: CircleIconButton(
             icon: Icons.auto_awesome,
             iconSize: 20,

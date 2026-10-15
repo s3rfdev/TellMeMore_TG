@@ -23,7 +23,7 @@ class CreateCopilotChatDialog extends StatefulWidget {
 }
 
 class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
-  final _titleController = TextEditingController(text: 'Новый диалог');
+  late final TextEditingController _titleController;
   final _roleController = TextEditingController(text: 'General Copilot');
   final _promptController = TextEditingController();
 
@@ -55,44 +55,12 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
     Icons.terminal_rounded,
   ];
 
-  final List<Map<String, dynamic>> _presets = [
-    {
-      'name': '💼 Поиск лидов',
-      'title': '💼 Поиск вакансий & Лидов',
-      'role': 'Lead Hunter',
-      'prompt': 'Ищи вакансии, заказы и лиды в Telegram каналах и группах через TDLib. Форматируй результаты с контактами, рейтами и стеком.',
-      'icon': Icons.work_outline_rounded,
-      'color': const Color(0xFF51B2FF),
-    },
-    {
-      'name': '📊 CRM & Саммари',
-      'title': '📊 CRM & Анализ переписок',
-      'role': 'CRM Analyst',
-      'prompt': 'Анализируй историю переписок, формируй досье контактов, фиксируй ключевые договоренности и сроки.',
-      'icon': Icons.analytics_outlined,
-      'color': const Color(0xFF8774E1),
-    },
-    {
-      'name': '🛠️ Архитектор кода',
-      'title': '🛠️ Архитектура & Код',
-      'role': 'Code Architect',
-      'prompt': 'Консультируй по архитектуре Flutter Desktop, Dart FFI, WebRTC и Native C++ компонентам tg_answer.',
-      'icon': Icons.code_rounded,
-      'color': const Color(0xFF00C48C),
-    },
-    {
-      'name': '✍️ Копирайтер',
-      'title': '✍️ Посты и Ответы',
-      'role': 'Ghostwriter',
-      'prompt': 'Пиши емкие посты для каналов, официальные ответы клиентам и рекламные публикации.',
-      'icon': Icons.edit_note_rounded,
-      'color': const Color(0xFFFF7675),
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
+    _titleController = TextEditingController(
+      text: I18n.instance.isRu ? 'Новый диалог' : 'New Chat',
+    );
     _selectedModel = AiSettingsStore.instance.settings.value.model;
   }
 
@@ -102,16 +70,6 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
     _roleController.dispose();
     _promptController.dispose();
     super.dispose();
-  }
-
-  void _applyPreset(Map<String, dynamic> preset) {
-    setState(() {
-      _titleController.text = preset['title'] as String;
-      _roleController.text = preset['role'] as String;
-      _promptController.text = preset['prompt'] as String;
-      _selectedIcon = preset['icon'] as IconData;
-      _selectedColor = preset['color'] as Color;
-    });
   }
 
   void _submit() {
@@ -165,9 +123,9 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Новый чат с AI Копилотом',
-                        style: TextStyle(
+                      Text(
+                        tr('new_copilot_chat_title'),
+                        style: const TextStyle(
                           fontSize: 16.5,
                           fontWeight: FontWeight.w600,
                           color: Tg.text,
@@ -175,8 +133,8 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Создайте отдельный контекст для задачи или агента',
-                        style: TextStyle(fontSize: 12, color: Tg.textDim),
+                        tr('create_context_desc'),
+                        style: const TextStyle(fontSize: 12, color: Tg.textDim),
                       ),
                     ],
                   ),
@@ -189,54 +147,32 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Быстрые шаблоны
-            const Text(
-              'Готовые шаблоны агентов:',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Tg.textDim),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _presets.map((p) {
-                return ActionChip(
-                  label: Text(p['name'] as String),
-                  backgroundColor: Tg.field,
-                  labelStyle: const TextStyle(fontSize: 11.5, color: Tg.text),
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  onPressed: () => _applyPreset(p),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-
             // Форма
             Expanded(
               child: ListView(
                 children: [
                   _buildField(
-                    label: 'Название чата / Задачи',
+                    label: tr('chat_name_task_label'),
                     controller: _titleController,
-                    hint: 'Например: Поиск вакансий Flutter',
+                    hint: tr('chat_name_task_hint'),
                   ),
                   const SizedBox(height: 12),
                   _buildField(
-                    label: 'Роль агента (Persona)',
+                    label: tr('agent_role_label'),
                     controller: _roleController,
                     hint: 'Lead Hunter / CRM Analyst / Code Reviewer',
                   ),
                   const SizedBox(height: 12),
                   _buildField(
-                    label: 'Инструкции и директивы агента (System Prompt)',
+                    label: tr('directives_label'),
                     controller: _promptController,
-                    hint: 'Специфические правила работы этого агента...',
+                    hint: tr('directives_hint'),
                     maxLines: 3,
                   ),
                   const SizedBox(height: 14),
 
                   // Выбор иконки
-                  const Text('Иконка агента:', style: TextStyle(fontSize: 12, color: Tg.textDim)),
+                  Text(tr('agent_icon_label'), style: const TextStyle(fontSize: 12, color: Tg.textDim)),
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 40,
@@ -269,7 +205,7 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
                   const SizedBox(height: 14),
 
                   // Выбор цвета
-                  const Text('Цветовой акцент:', style: TextStyle(fontSize: 12, color: Tg.textDim)),
+                  Text(tr('color_accent_label'), style: const TextStyle(fontSize: 12, color: Tg.textDim)),
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 32,
@@ -323,9 +259,9 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
                   ),
                   onPressed: _submit,
                   icon: const Icon(Icons.add_comment_rounded, size: 18),
-                  label: const Text(
-                    'Создать чат',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                  label: Text(
+                    tr('create_chat_btn'),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                   ),
                 ),
               ],

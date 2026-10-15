@@ -7,6 +7,7 @@ import '../../data/mock_data.dart';
 import '../../data/models/tg_account.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../state/app_state.dart';
+import '../localization/app_locale.dart';
 import '../widgets/tg_toast.dart';
 
 /// Утилита для распознавания и открытия ссылок и упоминаний (@username, http/https, t.me).
@@ -64,7 +65,7 @@ class LinkHandler {
     }
 
     if (context.mounted) {
-      TgToast.show(context, 'Не удалось открыть ссылку: $url');
+      TgToast.show(context, tr('failed_open_url', {'url': url}));
     }
   }
 
@@ -82,7 +83,7 @@ class LinkHandler {
         AppState.activeSidebarTab.value = SidebarTab.chats;
         AppState.selectedChatId.value = chat.id;
         if (context.mounted) {
-          TgToast.show(context, 'Открыт чат: ${chat.title}');
+          TgToast.show(context, tr('chat_opened', {'title': chat.title}));
         }
         return;
       }
@@ -97,7 +98,7 @@ class LinkHandler {
         AppState.activeSidebarTab.value = SidebarTab.chats;
         AppState.selectedChatId.value = contact.id;
         if (context.mounted) {
-          TgToast.show(context, 'Открыт чат с ${contact.name}');
+          TgToast.show(context, tr('chat_opened_with', {'name': contact.name}));
         }
         return;
       }
@@ -111,7 +112,7 @@ class LinkHandler {
         AppState.activeSidebarTab.value = SidebarTab.chats;
         AppState.selectedChatId.value = chat.id;
         if (context.mounted) {
-          TgToast.show(context, 'Открыт чат: ${chat.title}');
+          TgToast.show(context, tr('chat_opened', {'title': chat.title}));
         }
         return;
       }
@@ -122,7 +123,7 @@ class LinkHandler {
     AppState.activeSidebarTab.value = SidebarTab.chats;
 
     if (context.mounted) {
-      TgToast.show(context, 'Поиск @$username в Telegram...');
+      TgToast.show(context, tr('searching_username', {'username': username}));
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_locale.dart';
 import '../../core/services/call_sound_service.dart';
 import '../../core/theme/tg_theme.dart';
 import '../../core/widgets/tg_toast.dart';
@@ -105,10 +106,10 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
             onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Notifications and Sounds',
-              style: TextStyle(
+              tr('notifications_sounds'),
+              style: const TextStyle(
                 fontSize: 16.5,
                 fontWeight: FontWeight.w600,
                 color: Tg.text,
@@ -152,7 +153,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
 
   Widget _buildAllAccountsCard() {
     return _buildCard(
-      header: 'Show notifications from',
+      header: tr('show_notifications_from'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -160,14 +161,14 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
             value: _allAccounts,
             activeThumbColor: const Color(0xFF55A5EB),
             contentPadding: EdgeInsets.zero,
-            title: const Text('All Accounts', style: TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500)),
+            title: Text(tr('all_accounts'), style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500)),
             onChanged: (v) => setState(() => _allAccounts = v),
           ),
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              'Turn this off if you want to receive notifications only from the account you are currently using.',
-              style: TextStyle(fontSize: 11.5, color: Tg.textDim),
+              tr('turn_off_notifications_hint'),
+              style: const TextStyle(fontSize: 11.5, color: Tg.textDim),
             ),
           ),
         ],
@@ -177,45 +178,45 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
 
   Widget _buildChatsCard() {
     return _buildCard(
-      header: 'Notifications for chats',
+      header: tr('notifications_for_chats'),
       child: Column(
         children: [
           _switchRow(
             icon: Icons.person_outline_rounded,
-            title: 'Private Chats',
-            subtitle: 'Tap to change',
+            title: tr('private_chats'),
+            subtitle: tr('tap_to_change'),
             value: _privateChats,
             onChanged: (v) => setState(() => _privateChats = v),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           _switchRow(
             icon: Icons.group_outlined,
-            title: 'Groups',
-            subtitle: 'Tap to change',
+            title: tr('groups'),
+            subtitle: tr('tap_to_change'),
             value: _groups,
             onChanged: (v) => setState(() => _groups = v),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           _switchRow(
             icon: Icons.campaign_outlined,
-            title: 'Channels',
-            subtitle: 'Tap to change',
+            title: tr('channels'),
+            subtitle: tr('tap_to_change'),
             value: _channels,
             onChanged: (v) => setState(() => _channels = v),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           _switchRow(
             icon: Icons.play_circle_outline_rounded,
-            title: 'Stories',
-            subtitle: 'Off, 1 automatic exception',
+            title: tr('stories'),
+            subtitle: tr('stories_subtitle'),
             value: _stories,
             onChanged: (v) => setState(() => _stories = v),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           _switchRow(
             icon: Icons.favorite_border_rounded,
-            title: 'Reactions',
-            subtitle: 'Messages, Stories',
+            title: tr('reactions'),
+            subtitle: tr('reactions_subtitle'),
             value: _reactions,
             onChanged: (v) => setState(() => _reactions = v),
           ),
@@ -259,7 +260,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
 
   Widget _buildCallsCard(BuildContext context) {
     return _buildCard(
-      header: 'Calls',
+      header: tr('calls'),
       child: Column(
         children: [
           InkWell(
@@ -267,14 +268,14 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
               final options = ['Default', 'Strong', 'Short', 'Disabled'];
               final idx = (options.indexOf(_vibrate) + 1) % options.length;
               setState(() => _vibrate = options[idx]);
-              TgToast.show(context, 'Вибрация: $_vibrate');
+              TgToast.show(context, '${tr('vibrate')}: $_vibrate');
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Vibrate', style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
+                  Text(tr('vibrate'), style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
                   Text(_vibrate, style: const TextStyle(fontSize: 13, color: Color(0xFF55A5EB))),
                 ],
               ),
@@ -284,7 +285,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
           InkWell(
             onTap: () {
               CallSoundService.startIncomingRingtone();
-              TgToast.show(context, 'Проигрывание мелодии вызова…');
+              TgToast.show(context, tr('playing_ringtone'));
               Future.delayed(const Duration(seconds: 3), () {
                 CallSoundService.stop();
               });
@@ -294,7 +295,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Ringtone', style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
+                  Text(tr('ringtone'), style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
                   Row(
                     children: [
                       Text(_ringtone, style: const TextStyle(fontSize: 13, color: Color(0xFF55A5EB))),
@@ -313,14 +314,14 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
 
   Widget _buildBadgeCard() {
     return _buildCard(
-      header: 'Badge Counter',
+      header: tr('badge_counter'),
       child: Column(
         children: [
           SwitchListTile(
             value: _badgeIcon,
             activeThumbColor: const Color(0xFF55A5EB),
             contentPadding: EdgeInsets.zero,
-            title: const Text('Show Badge Icon', style: TextStyle(color: Colors.white, fontSize: 14)),
+            title: Text(tr('badge_icon'), style: const TextStyle(color: Colors.white, fontSize: 14)),
             onChanged: (v) => setState(() => _badgeIcon = v),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
@@ -328,7 +329,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
             value: _includeMuted,
             activeThumbColor: const Color(0xFF55A5EB),
             contentPadding: EdgeInsets.zero,
-            title: const Text('Include Muted Chats', style: TextStyle(color: Colors.white, fontSize: 14)),
+            title: Text(tr('include_muted'), style: const TextStyle(color: Colors.white, fontSize: 14)),
             onChanged: (v) => setState(() => _includeMuted = v),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
@@ -336,7 +337,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
             value: _countUnread,
             activeThumbColor: const Color(0xFF55A5EB),
             contentPadding: EdgeInsets.zero,
-            title: const Text('Count Unread Messages', style: TextStyle(color: Colors.white, fontSize: 14)),
+            title: Text(tr('count_unread'), style: const TextStyle(color: Colors.white, fontSize: 14)),
             onChanged: (v) => setState(() => _countUnread = v),
           ),
         ],
@@ -346,14 +347,14 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
 
   Widget _buildEventsCard() {
     return _buildCard(
-      header: 'Events',
+      header: tr('events'),
       child: Column(
         children: [
           SwitchListTile(
             value: _contactJoined,
             activeThumbColor: const Color(0xFF55A5EB),
             contentPadding: EdgeInsets.zero,
-            title: const Text('Contact joined Telegram', style: TextStyle(color: Colors.white, fontSize: 14)),
+            title: Text(tr('contact_joined'), style: const TextStyle(color: Colors.white, fontSize: 14)),
             onChanged: (v) => setState(() => _contactJoined = v),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
@@ -361,7 +362,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
             value: _pinnedMessages,
             activeThumbColor: const Color(0xFF55A5EB),
             contentPadding: EdgeInsets.zero,
-            title: const Text('Pinned Messages', style: TextStyle(color: Colors.white, fontSize: 14)),
+            title: Text(tr('pinned_messages'), style: const TextStyle(color: Colors.white, fontSize: 14)),
             onChanged: (v) => setState(() => _pinnedMessages = v),
           ),
         ],
@@ -371,14 +372,14 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
 
   Widget _buildOtherCard() {
     return _buildCard(
-      header: 'Other',
+      header: tr('other'),
       child: Column(
         children: [
           SwitchListTile(
             value: _keepAlive,
             activeThumbColor: const Color(0xFF55A5EB),
             contentPadding: EdgeInsets.zero,
-            title: const Text('Keep-Alive Service', style: TextStyle(color: Colors.white, fontSize: 14)),
+            title: Text(tr('keep_alive'), style: const TextStyle(color: Colors.white, fontSize: 14)),
             onChanged: (v) => setState(() => _keepAlive = v),
           ),
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
@@ -386,7 +387,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
             value: _bgConnection,
             activeThumbColor: const Color(0xFF55A5EB),
             contentPadding: EdgeInsets.zero,
-            title: const Text('Background Connection', style: TextStyle(color: Colors.white, fontSize: 14)),
+            title: Text(tr('background_conn'), style: const TextStyle(color: Colors.white, fontSize: 14)),
             onChanged: (v) => setState(() => _bgConnection = v),
           ),
         ],

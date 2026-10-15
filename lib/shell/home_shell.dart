@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../core/localization/app_locale.dart';
 import '../core/services/call_sound_service.dart';
 import '../core/widgets/tg_avatar.dart';
 import '../data/models/tg_chat.dart';
@@ -278,9 +279,9 @@ class _IncomingCallBanner extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'Входящий аудиозвонок…',
-                      style: TextStyle(
+                    Text(
+                      tr('incoming_audio_call'),
+                      style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF43D39E),
                         fontWeight: FontWeight.w500,
@@ -292,7 +293,7 @@ class _IncomingCallBanner extends StatelessWidget {
               const SizedBox(width: 8),
               // Отклонить (красный)
               Tooltip(
-                message: 'Отклонить вызов',
+                message: tr('decline_call'),
                 child: GestureDetector(
                   onTap: () {
                     CallSoundService.stop();
@@ -312,7 +313,7 @@ class _IncomingCallBanner extends StatelessWidget {
               const SizedBox(width: 8),
               // Принять (зелёный)
               Tooltip(
-                message: 'Принять звонок',
+                message: tr('accept_call'),
                 child: GestureDetector(
                   onTap: () {
                     CallSoundService.stop();
@@ -328,7 +329,7 @@ class _IncomingCallBanner extends StatelessWidget {
                         sender: '',
                         preview: '',
                         time: '',
-                        headerSubtitle: 'Звонок',
+                        headerSubtitle: tr('calls'),
                       ),
                     );
                     CallDialog.show(context, matchingChat, initialCall: call);

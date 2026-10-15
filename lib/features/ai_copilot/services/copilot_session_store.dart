@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../models/ai_settings_model.dart';
 import '../models/copilot_session.dart';
 
@@ -15,97 +16,22 @@ class CopilotSessionStore {
   late final ValueNotifier<String> activeSessionId;
 
   void _initDefaultSessions() {
+    final isRu = I18n.instance.isRu;
     final list = [
       CopilotSession(
-        id: 'lead_hunter',
-        title: '💼 Поиск вакансий & Лидов',
-        agentRole: 'Lead Hunter',
-        systemPrompt:
-            'Ты автономный Lead Hunter агент. Ищи вакансии, заказы и лиды в Telegram группах через TDLib. Форматируй результаты со ставками, стеком и контактами.',
-        avatarIcon: Icons.work_outline_rounded,
-        avatarColor: const Color(0xFF51B2FF),
-        messages: [
-          CopilotMessage(
-            text: 'Привет! Я агент Lead Hunter. Мониторю открытые каналы и чаты на предмет вакансий и заказов.',
-            isUser: false,
-          ),
-          CopilotMessage(
-            text: 'Спарси последние предложения о работе по Flutter из открытых каналов',
-            isUser: true,
-          ),
-          CopilotMessage(
-            text: 'Выполнил поиск по публичным каналам через TDLib. Вот последние актуальные варианты:',
-            isUser: false,
-            toolName: 'tdlib.searchPublicChats("flutter jobs remote")',
-            toolOutput: 'Найдено 4 релевантных канала, просканировано 120 сообщений',
-          ),
-          CopilotMessage(
-            text: '1. **Senior Flutter Architect** (Remote, \$5000-\$7000)\n'
-                '   • Проект: FinTech / Crypto кошелек\n'
-                '   • Стек: Flutter, BLoC, FFI, WebRTC, Native C++\n'
-                '   • Контакт: @crypto_fin_hr\n\n'
-                '2. **Flutter / Dart Engineer (AI Apps)** (Remote / Бали, \$4000+)\n'
-                '   • Проект: Desktop & Mobile клиент с интеграцией локальных LLM\n'
-                '   • Контакт: @asmirnov_ai\n\n'
-                'Подготовить отклик с учетом твоего профиля и опыта работы с TDLib?',
-            isUser: false,
-          ),
-        ],
-      ),
-      CopilotSession(
-        id: 'crm_analyst',
-        title: '📊 CRM & Саммари чатов',
-        agentRole: 'CRM Analyst',
-        systemPrompt:
-            'Ты CRM-аналитик переписок. Анализируй контекст чатов, выделяй договорённости, дедлайны и формируй краткие структурированные саммари переписок.',
-        avatarIcon: Icons.analytics_outlined,
+        id: 'main_copilot',
+        title: isRu ? '🤖 Главный Копилот' : '🤖 Main Copilot',
+        agentRole: 'Copilot',
+        systemPrompt: isRu
+            ? 'Ты персональный AI-копилот для Telegram. Ты умеешь изучать любые переписки, отвечать на вопросы по чатам, анализировать сообщения и помогать в решении задач пользователя.'
+            : 'You are a personal AI Copilot for Telegram. You can study any conversations, answer questions about chats, analyze messages, and assist with user tasks.',
+        avatarIcon: Icons.auto_awesome,
         avatarColor: const Color(0xFF8774E1),
         messages: [
           CopilotMessage(
-            text: 'Я CRM-аналитик. Могу сформировать досье контактов, выжать главное из длинных переписок и зафиксировать договорённости.',
-            isUser: false,
-          ),
-          CopilotMessage(
-            text: 'Сделай саммари переписки с Тарасом',
-            isUser: true,
-          ),
-          CopilotMessage(
-            text: '📌 **Краткое саммари переписки с Тарасом:**\n'
-                '• Обсуждали проект Telegram клиента с LLM и Шерлоком на аватарах.\n'
-                '• Договорились о тестировании Claude и китайских моделей.\n'
-                '• Следующий шаг: оформление открытого репозитория на GitHub.',
-            isUser: false,
-            toolName: 'tdlib.getChatHistory(chatId: "taras", limit: 30)',
-            toolOutput: 'История чата получена и сжата через LLM Context Engine',
-          ),
-        ],
-      ),
-      CopilotSession(
-        id: 'code_architect',
-        title: '🛠️ Архитектура & Код-ревью',
-        agentRole: 'Code Architect',
-        systemPrompt:
-            'Ты экспертный Flutter/Dart & C++ Native архитектор. Помогай с FFI, TDLib интеграцией, паттернами BLoC и оптимизацией производительности на Linux/Desktop.',
-        avatarIcon: Icons.code_rounded,
-        avatarColor: const Color(0xFF00C48C),
-        messages: [
-          CopilotMessage(
-            text: 'Привет! Я архитектор кодовой базы tg_answer. Помогу с Native C++ хуками, WebRTC звонками, Dart FFI и оптимизацией сборки под Linux и macOS.',
-            isUser: false,
-          ),
-        ],
-      ),
-      CopilotSession(
-        id: 'personal_copilot',
-        title: '🤖 Главный Telegram Копилот',
-        agentRole: 'General Copilot',
-        systemPrompt:
-            'Ты персональный AI Копилот для Telegram. Помогай управлять чатами, писать ответы и автоматизировать рутину.',
-        avatarIcon: Icons.auto_awesome,
-        avatarColor: const Color(0xFFFF9F43),
-        messages: [
-          CopilotMessage(
-            text: 'Привет! Я твой главный персональный ассистент. Могу отвечать на сообщения, анализировать группы и управлять задачами.',
+            text: isRu
+                ? 'Привет! Я твой AI-копилот. Напиши мне задачу своими словами — например: *"изучи переписку с Тарасом"*, *"найди вакансии в чатах"* или *"напиши вежливый ответ"*.'
+                : 'Hello! I am your AI Copilot. Give me any task in your own words — e.g.: *"study chat with Taras"*, *"find job postings in chats"*, or *"draft a polite reply"*.',
             isUser: false,
           ),
         ],
@@ -141,9 +67,10 @@ class CopilotSessionStore {
     IconData? icon,
     Color? color,
   }) {
+    final isRu = I18n.instance.isRu;
     final newSession = CopilotSession(
       id: 'copilot_${DateTime.now().millisecondsSinceEpoch}',
-      title: title.trim().isEmpty ? 'Новый чат с агентом' : title.trim(),
+      title: title.trim().isEmpty ? (isRu ? 'Новый чат с агентом' : 'New Agent Chat') : title.trim(),
       agentRole: role.trim().isEmpty ? 'Custom Agent' : role.trim(),
       systemPrompt: prompt ?? '',
       model: model,
@@ -151,7 +78,9 @@ class CopilotSessionStore {
       avatarColor: color ?? const Color(0xFF8774E1),
       messages: [
         CopilotMessage(
-          text: 'Чат создан. Роль агента: **${role.trim().isEmpty ? "Custom Agent" : role.trim()}**.\nЧем могу помочь по этой задаче?',
+          text: isRu
+              ? 'Чат создан. Роль агента: **${role.trim().isEmpty ? "Custom Agent" : role.trim()}**.\nЧем могу помочь по этой задаче?'
+              : 'Chat created. Agent role: **${role.trim().isEmpty ? "Custom Agent" : role.trim()}**.\nHow can I help you with this task?',
           isUser: false,
         ),
       ],
@@ -199,6 +128,7 @@ class CopilotSessionStore {
 
   /// Очистить сообщения сессии.
   void clearSessionMessages(String id) {
+    final isRu = I18n.instance.isRu;
     final current = sessions.value;
     final idx = current.indexWhere((s) => s.id == id);
     if (idx != -1) {
@@ -208,7 +138,9 @@ class CopilotSessionStore {
       s.summaryTokenCount = 0;
       s.messages.add(
         CopilotMessage(
-          text: 'История диалога очищена. Готов к новым задачам.',
+          text: isRu
+              ? 'История диалога очищена. Готов к новым задачам.'
+              : 'Conversation history cleared. Ready for new tasks.',
           isUser: false,
         ),
       );
@@ -243,19 +175,24 @@ class CopilotSessionStore {
     final toCompress = session.messages.sublist(0, session.messages.length - keepRawCount);
     final rawRemaining = session.messages.sublist(session.messages.length - keepRawCount);
 
+    final isRu = I18n.instance.isRu;
     final buffer = StringBuffer();
     if (session.contextSummary != null && session.contextSummary!.isNotEmpty) {
       buffer.writeln(session.contextSummary);
-      buffer.writeln('\n--- [Предыдущее продолжение диалога] ---');
+      buffer.writeln(isRu ? '\n--- [Предыдущее продолжение диалога] ---' : '\n--- [Previous Conversation Continuation] ---');
     }
 
-    buffer.writeln('📌 **Сжатая выжимка контекста (${toCompress.length} ранних сообщ.):**');
+    buffer.writeln(
+      isRu
+          ? '📌 **Сжатая выжимка контекста (${toCompress.length} ранних сообщ.):**'
+          : '📌 **Compressed context summary (${toCompress.length} earlier msgs):**',
+    );
     for (final msg in toCompress) {
-      final sender = msg.isUser ? 'Пользователь' : 'Copilot';
+      final sender = msg.isUser ? (isRu ? 'Пользователь' : 'User') : 'Copilot';
       final snippet = msg.text.length > 180 ? '${msg.text.substring(0, 180)}...' : msg.text;
       buffer.writeln('• $sender: ${snippet.replaceAll("\n", " ")}');
       if (msg.toolName != null) {
-        buffer.writeln('  ↳ [Инструмент: ${msg.toolName}]');
+        buffer.writeln(isRu ? '  ↳ [Инструмент: ${msg.toolName}]' : '  ↳ [Tool: ${msg.toolName}]');
       }
     }
 
@@ -307,15 +244,24 @@ class CopilotSessionStore {
     AiSettings settings,
     String currentQuery,
   ) {
+    final isRu = I18n.instance.isRu;
     // 1. Верхний слой (Directives & System)
     final systemSlice = StringBuffer();
     systemSlice.writeln('SYSTEM DIRECTIVES & AGENT ROLE:');
-    systemSlice.writeln('Ты — автономный Copilot для Telegram. Роль: "${session.agentRole}".');
+    systemSlice.writeln(
+      isRu
+          ? 'Ты — автономный Copilot для Telegram. Роль: "${session.agentRole}".'
+          : 'You are an autonomous Copilot for Telegram. Role: "${session.agentRole}".',
+    );
     if (session.systemPrompt.isNotEmpty) {
-      systemSlice.writeln('Специфические инструкции агента:');
+      systemSlice.writeln(isRu ? 'Специфические инструкции агента:' : 'Specific agent instructions:');
       systemSlice.writeln(session.systemPrompt);
     }
-    systemSlice.writeln('Модель: ${session.model ?? settings.model}. Провайдер: ${settings.provider}.');
+    systemSlice.writeln(
+      isRu
+          ? 'Модель: ${session.model ?? settings.model}. Провайдер: ${settings.provider}.'
+          : 'Model: ${session.model ?? settings.model}. Provider: ${settings.provider}.',
+    );
 
     // 2. Начинка: Сжатое саммари
     final summarySlice = session.contextSummary;
@@ -324,7 +270,9 @@ class CopilotSessionStore {
     final rawSlice = List<CopilotMessage>.from(session.messages);
 
     // 4. Нижний слой (User query & final instruction)
-    final bottomSlice = 'USER TASK: $currentQuery\nОтвечай строго в соответствии с ролью и инструкциями.';
+    final bottomSlice = isRu
+        ? 'USER TASK: $currentQuery\nОтвечай строго в соответствии с ролью и инструкциями.'
+        : 'USER TASK: $currentQuery\nRespond strictly in accordance with your role and instructions.';
 
     final systemTokens = CopilotMessage.estimateTokens(systemSlice.toString());
     final summaryTokens = summarySlice != null ? CopilotMessage.estimateTokens(summarySlice) : 0;

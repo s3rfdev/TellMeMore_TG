@@ -76,7 +76,7 @@ class _ContextMenuDialog extends StatelessWidget {
       TdlibService.instance.downloadFile(message.fileId);
       TgToast.show(
         context,
-        'Файл скачивается из Telegram…',
+        tr('file_downloading'),
         icon: Icons.downloading_rounded,
       );
       return;
@@ -85,7 +85,7 @@ class _ContextMenuDialog extends StatelessWidget {
     if (sourcePath.isEmpty || !File(sourcePath).existsSync()) {
       TgToast.show(
         context,
-        'Файл ещё не загружен или не найден',
+        tr('file_not_found_toast'),
         icon: Icons.error_outline_rounded,
       );
       return;
@@ -106,7 +106,7 @@ class _ContextMenuDialog extends StatelessWidget {
       if (context.mounted) {
         TgToast.show(
           context,
-          '✓ Сохранено в Загрузки',
+          tr('saved_to_downloads_ok'),
           icon: Icons.check_circle_rounded,
         );
       }
@@ -114,7 +114,7 @@ class _ContextMenuDialog extends StatelessWidget {
       if (context.mounted) {
         TgToast.show(
           context,
-          'Ошибка сохранения: $e',
+          tr('save_error_toast', {'error': e.toString()}),
           icon: Icons.error_outline_rounded,
         );
       }
@@ -142,7 +142,7 @@ class _ContextMenuDialog extends StatelessWidget {
       Clipboard.setData(ClipboardData(text: text));
       TgToast.show(
         context,
-        '✓ Скопировано в буфер обмена',
+        tr('export_copied_toast'),
         icon: Icons.copy_rounded,
       );
     }
@@ -155,7 +155,7 @@ class _ContextMenuDialog extends StatelessWidget {
       TdlibService.instance.pinMessage(cid, message.id);
       TgToast.show(
         context,
-        '✓ Сообщение закреплено',
+        tr('message_pinned_toast'),
         icon: Icons.push_pin_rounded,
       );
     }
@@ -168,7 +168,7 @@ class _ContextMenuDialog extends StatelessWidget {
       TdlibService.instance.deleteMessage(cid, message.id);
       TgToast.show(
         context,
-        'Сообщение удалено',
+        tr('message_deleted_toast'),
         icon: Icons.delete_outline_rounded,
       );
     }

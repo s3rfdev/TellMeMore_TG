@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_locale.dart';
 import '../../core/theme/tg_theme.dart';
 import '../../core/widgets/tg_avatar.dart';
 import '../../core/widgets/tg_toast.dart';
@@ -48,10 +49,10 @@ class _ContactsListViewState extends State<ContactsListView> {
                 _buildSearchBar(),
                 Expanded(
                   child: contacts.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
-                            'Контакты не найдены',
-                            style: TextStyle(color: Tg.textDim, fontSize: 13.5),
+                            tr('no_contacts'),
+                            style: const TextStyle(color: Tg.textDim, fontSize: 13.5),
                           ),
                         )
                       : ListView(
@@ -75,8 +76,8 @@ class _ContactsListViewState extends State<ContactsListView> {
             foregroundColor: Colors.white,
             elevation: 4,
             mini: true,
-            tooltip: 'Add Contact',
-            onPressed: () => TgToast.show(context, 'Добавление нового контакта'),
+            tooltip: tr('add_contact'),
+            onPressed: () => TgToast.show(context, tr('add_contact_toast')),
             child: const Icon(Icons.person_add_alt_1_rounded, size: 20),
           ),
         ),
@@ -112,10 +113,10 @@ class _ContactsListViewState extends State<ContactsListView> {
             },
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Contacts',
-              style: TextStyle(
+              tr('contacts'),
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: Tg.text,
@@ -124,8 +125,8 @@ class _ContactsListViewState extends State<ContactsListView> {
           ),
           IconButton(
             icon: const Icon(Icons.sort_rounded, size: 20, color: Tg.textDim),
-            tooltip: 'Sort / Filter',
-            onPressed: () => TgToast.show(context, 'Сортировка контактов'),
+            tooltip: tr('sorted_by_name'),
+            onPressed: () => TgToast.show(context, tr('sort_contacts_toast')),
           ),
         ],
       ),
@@ -150,9 +151,9 @@ class _ContactsListViewState extends State<ContactsListView> {
               controller: _searchCtrl,
               onChanged: (val) => setState(() => _filter = val.trim()),
               style: const TextStyle(fontSize: 13.5, color: Tg.text),
-              decoration: const InputDecoration(
-                hintText: 'Search Contacts',
-                hintStyle: TextStyle(fontSize: 13.5, color: Tg.textFaint),
+              decoration: InputDecoration(
+                hintText: tr('search_contacts'),
+                hintStyle: const TextStyle(fontSize: 13.5, color: Tg.textFaint),
                 border: InputBorder.none,
                 isDense: true,
               ),
@@ -182,20 +183,20 @@ class _ContactsListViewState extends State<ContactsListView> {
         children: [
           InkWell(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-            onTap: () => TgToast.show(context, 'Пригласить друзей в Telegram'),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            onTap: () => TgToast.show(context, tr('invite_friends_toast')),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 16,
                     backgroundColor: Color(0xFF29B6F6),
                     child: Icon(Icons.person_add_alt_1_rounded, size: 18, color: Colors.white),
                   ),
-                  SizedBox(width: 14),
+                  const SizedBox(width: 14),
                   Text(
-                    'Invite Friends',
-                    style: TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500),
+                    tr('invite_friends'),
+                    style: const TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -204,20 +205,20 @@ class _ContactsListViewState extends State<ContactsListView> {
           Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           InkWell(
             borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
-            onTap: () => TgToast.show(context, 'История недавних звонков'),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            onTap: () => TgToast.show(context, tr('recent_calls_toast')),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 16,
                     backgroundColor: Color(0xFF4CAF50),
                     child: Icon(Icons.phone_rounded, size: 18, color: Colors.white),
                   ),
-                  SizedBox(width: 14),
+                  const SizedBox(width: 14),
                   Text(
-                    'Recent calls',
-                    style: TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500),
+                    tr('recent_calls'),
+                    style: const TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),

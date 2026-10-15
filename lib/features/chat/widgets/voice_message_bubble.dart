@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
@@ -67,7 +68,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
     if (path.isEmpty || !File(path).existsSync()) {
       TgToast.show(
         context,
-        'Аудиофайл еще загружается или недоступен локально.',
+        tr('audio_downloading_or_unavailable'),
         icon: Icons.hourglass_top_rounded,
       );
       return;

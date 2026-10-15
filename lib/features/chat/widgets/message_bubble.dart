@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/link_handler.dart';
@@ -88,7 +89,7 @@ class MessageBubble extends StatelessWidget {
             color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Center(
+          child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -97,8 +98,8 @@ class MessageBubble extends StatelessWidget {
                   height: 24,
                   child: CircularProgressIndicator(strokeWidth: 2.2, color: Tg.accent),
                 ),
-                SizedBox(height: 8),
-                Text('Загрузка фото…', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                const SizedBox(height: 8),
+                Text(tr('loading_photo'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
               ],
             ),
           ),
@@ -273,7 +274,7 @@ class MessageBubble extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    message.replySenderName.isNotEmpty ? message.replySenderName : 'Ответ',
+                    message.replySenderName.isNotEmpty ? message.replySenderName : tr('reply'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -284,7 +285,7 @@ class MessageBubble extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    message.replyText.isNotEmpty ? message.replyText : 'Сообщение',
+                    message.replyText.isNotEmpty ? message.replyText : tr('write_message'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -327,7 +328,7 @@ class MessageBubble extends StatelessWidget {
                   VideoViewerDialog.show(
                     context,
                     videoPath: message.mediaPath,
-                    title: message.fileName.isNotEmpty ? message.fileName : 'Видеозапись',
+                    title: message.fileName.isNotEmpty ? message.fileName : tr('media_video'),
                     time: message.time,
                     message: message,
                     chatId: chatId,
@@ -336,7 +337,7 @@ class MessageBubble extends StatelessWidget {
                   AppLogger.log('[message_bubble] Video is downloading...');
                   TgToast.show(
                     context,
-                    'Видеозапись загружается из Telegram…',
+                    tr('video_downloading'),
                     icon: Icons.downloading_rounded,
                   );
                 } else if (message.fileId > 0) {
@@ -344,7 +345,7 @@ class MessageBubble extends StatelessWidget {
                   TdlibService.instance.downloadFile(message.fileId);
                   TgToast.show(
                     context,
-                    'Загрузка видеозаписи начата…',
+                    tr('video_download_started'),
                     icon: Icons.download_rounded,
                   );
                 }
@@ -474,7 +475,7 @@ class MessageBubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  message.fileName.isNotEmpty ? message.fileName : 'Документ',
+                  message.fileName.isNotEmpty ? message.fileName : tr('media_document'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -488,7 +489,7 @@ class MessageBubble extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      message.fileSize.isNotEmpty ? message.fileSize : 'Файл',
+                      message.fileSize.isNotEmpty ? message.fileSize : tr('media_file'),
                       style: TextStyle(
                         fontSize: 12,
                         color: out ? Tg.timeOut : Tg.textDim,
@@ -510,7 +511,7 @@ class MessageBubble extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                 splashRadius: 16,
-                tooltip: 'Опции файла',
+                tooltip: tr('file_options'),
                 onPressed: () {
                   final renderBox = btnCtx.findRenderObject() as RenderBox?;
                   final pos = renderBox != null

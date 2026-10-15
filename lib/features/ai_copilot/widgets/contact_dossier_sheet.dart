@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/circle_icon_button.dart';
 import '../../../core/widgets/tg_avatar.dart';
@@ -37,21 +38,21 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
   final ScrollController _scrollController = ScrollController();
   bool _isAnalyzing = false;
 
-  final List<String> _goalPresets = [
-    '🤝 Закрыть сделку',
-    '💼 Нанять сотрудника',
-    '❤️ Позвать на свидание',
-    '🎉 Дружеское общение',
-    '🤝 Нетворкинг и партнёрство',
-    '💰 Привлечь инвестиции',
+  final List<String> _goalPresetKeys = [
+    'ai_goal_deal',
+    'ai_goal_hire',
+    'ai_goal_date',
+    'ai_goal_friendship',
+    'ai_goal_network',
+    'ai_goal_invest',
   ];
 
-  final List<String> _tonePresets = [
-    'Дружелюбный IT-разработчик',
-    'Строго деловой и лаконичный',
-    'Игривый и харизматичный',
-    'Экспертный консультант',
-    'Эмпатичный и поддерживающий',
+  final List<String> _tonePresetKeys = [
+    'ai_tone_friendly_dev',
+    'ai_tone_business',
+    'ai_tone_playful',
+    'ai_tone_expert',
+    'ai_tone_empathic',
   ];
 
   @override
@@ -87,6 +88,8 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
     bool hasTechTerms = false;
     bool hasFriendlyTerms = false;
 
+    final isRu = I18n.instance.isRu;
+
     for (final m in messages) {
       final t = m.text.toLowerCase();
       if (t.contains('?')) questionCount++;
@@ -95,7 +98,10 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
           t.contains('руб') ||
           t.contains('\$') ||
           t.contains('оплат') ||
-          t.contains('стоим')) {
+          t.contains('стоим') ||
+          t.contains('price') ||
+          t.contains('cost') ||
+          t.contains('pay')) {
         hasPriceTerms = true;
       }
       if (t.contains('flutter') ||
@@ -103,60 +109,73 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
           t.contains('api') ||
           t.contains('код') ||
           t.contains('git') ||
-          t.contains('сервер')) {
+          t.contains('сервер') ||
+          t.contains('code') ||
+          t.contains('server')) {
         hasTechTerms = true;
       }
       if (t.contains('😊') ||
           t.contains('спасибо') ||
           t.contains('привет') ||
           t.contains('здорово') ||
-          t.contains('рад')) {
+          t.contains('рад') ||
+          t.contains('thanks') ||
+          t.contains('hello') ||
+          t.contains('great')) {
         hasFriendlyTerms = true;
       }
 
       // Извлечение CRM-фактов из сообщений
-      if (t.contains('нячанг') && !updatedFacts.any((f) => f.contains('Нячанг'))) {
-        updatedFacts.add('📍 Локация: Нячанг, Вьетнам');
+      if (t.contains('нячанг') && !updatedFacts.any((f) => f.contains('Нячанг') || f.contains('Nha Trang'))) {
+        updatedFacts.add(isRu ? '📍 Локация: Нячанг, Вьетнам' : '📍 Location: Nha Trang, Vietnam');
       }
       if (t.contains('flutter') && !updatedFacts.any((f) => f.contains('Flutter'))) {
-        updatedFacts.add('💻 Стек: Flutter, Dart, мобильная и Desktop разработка');
+        updatedFacts.add(isRu ? '💻 Стек: Flutter, Dart, мобильная и Desktop разработка' : '💻 Stack: Flutter, Dart, mobile & desktop development');
       }
       if (t.contains('github') && !updatedFacts.any((f) => f.contains('GitHub'))) {
-        updatedFacts.add('🐙 Разработка открытых библиотек и репозиториев на GitHub');
+        updatedFacts.add(isRu ? '🐙 Разработка открытых библиотек и репозиториев на GitHub' : '🐙 Open-source repository and library development on GitHub');
       }
-      if (t.contains('вилл') && !updatedFacts.any((f) => f.contains('вилл'))) {
-        updatedFacts.add('🏡 Фокус: аренда апартаментов и вилл у моря');
+      if (t.contains('вилл') && !updatedFacts.any((f) => f.contains('вилл') || f.contains('villa'))) {
+        updatedFacts.add(isRu ? '🏡 Фокус: аренда апартаментов и вилл у моря' : '🏡 Focus: sea-view villas and apartments rental');
       }
     }
 
-    if (!updatedFacts.any((f) => f.contains('Предпочитает быстрые решения'))) {
-      updatedFacts.add('⚡ Предпочитает быстрые решения без бюрократии');
+    if (!updatedFacts.any((f) => f.contains('быстрые решения') || f.contains('prompt decisions'))) {
+      updatedFacts.add(isRu ? '⚡ Предпочитает быстрые решения без бюрократии' : '⚡ Prefers prompt decisions without bureaucracy');
     }
-    if (!updatedFacts.any((f) => f.contains('Высокая вовлеченность'))) {
-      updatedFacts.add('🎯 Высокая вовлеченность в обсуждение продукта');
+    if (!updatedFacts.any((f) => f.contains('вовлеченность') || f.contains('engagement'))) {
+      updatedFacts.add(isRu ? '🎯 Высокая вовлеченность в обсуждение продукта' : '🎯 High product discussion engagement');
     }
 
     // Выведение психотипа на основе стиля общения собеседника
     String newPsychotype;
     if (hasPriceTerms) {
-      newPsychotype =
-          'Прагматик-контролёр. Внимателен к бюджетам, срокам и гарантиям. Принимает решения на основе прозрачных цифр.';
+      newPsychotype = isRu
+          ? 'Прагматик-контролёр. Внимателен к бюджетам, срокам и гарантиям. Принимает решения на основе прозрачных цифр.'
+          : 'Pragmatic Controller. Attentive to budgets, timelines, and guarantees. Makes decisions based on transparent metrics.';
     } else if (hasTechTerms) {
-      newPsychotype =
-          'Технический архитектор / инноватор. Горит пет-проектами, ценит чистый код, открытые библиотеки и скорость.';
+      newPsychotype = isRu
+          ? 'Технический архитектор / инноватор. Горит пет-проектами, ценит чистый код, открытые библиотеки и скорость.'
+          : 'Technical Architect / Innovator. Passionate about projects, values clean code, open libraries, and development velocity.';
     } else if (hasFriendlyTerms) {
-      newPsychotype =
-          'Эмоциональный коммуникатор. Открыт к нетворкингу, ценит доверие, партнерские отношения и быструю обратную связь.';
+      newPsychotype = isRu
+          ? 'Эмоциональный коммуникатор. Открыт к нетворкингу, ценит доверие, партнерские отношения и быструю обратную связь.'
+          : 'Empathetic Communicator. Open to networking, values trust, long-term partnerships, and prompt feedback.';
     } else {
-      newPsychotype =
-          'Прагматичный новатор. Ориентирован на результат, открытость и надежность без бюрократии.';
+      newPsychotype = isRu
+          ? 'Прагматичный новатор. Ориентирован на результат, открытость и надежность без бюрократии.'
+          : 'Pragmatic Innovator. Goal-oriented, values transparency and reliability without red tape.';
     }
 
     _psychotypeController.text = newPsychotype;
 
     final summary = targetGoal.isNotEmpty
-        ? 'Анализ диалога показал готовность к достижению цели "$targetGoal". Собеседник задал $questionCount уточняющих вопросов. Рекомендуется зафиксировать условия и перейти к следующему этапу.'
-        : 'Анализ переписки показал готовность к прямому сотрудничеству. Собеседник ценит оперативную обратную связь и экспертизу.';
+        ? (isRu
+            ? 'Анализ диалога показал готовность к достижению цели "$targetGoal". Собеседник задал $questionCount уточняющих вопросов. Рекомендуется зафиксировать условия и перейти к следующему этапу.'
+            : 'Conversation analysis shows readiness towards goal "$targetGoal". Contact asked $questionCount clarifying questions. Recommended to fix terms and proceed to next stage.')
+        : (isRu
+            ? 'Анализ переписки показал готовность к прямому сотрудничеству. Собеседник ценит оперативную обратную связь и экспертизу.'
+            : 'Chat analysis indicates readiness for direct collaboration. Contact appreciates quick responses and technical expertise.');
 
     _dossierNotifier.value = current.copyWith(
       psychotype: newPsychotype,
@@ -166,7 +185,7 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
     );
 
     setState(() => _isAnalyzing = false);
-    TgToast.show(context, '✨ Профиль собеседника успешно проанализирован с учетом цели');
+    TgToast.show(context, tr('ai_dossier_analyzed_toast'));
   }
 
   void _saveCurrentState() {
@@ -198,34 +217,55 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
         .where((s) => s.id == sessionId)
         .firstOrNull;
 
-    final prompt = '''
+    final isRu = I18n.instance.isRu;
+    final defaultGoal = isRu ? "Установить контакт и выявить потребности" : "Establish contact and identify needs";
+    final defaultPsycho = isRu ? "Прагматик" : "Pragmatic";
+
+    final prompt = isRu ? '''
 Ты персональный AI-ассистент по общению с контактом "${widget.chat.title}".
 Твоя задача — помогать вести диалог, анализировать скрытые мотивы, составлять точные ответы и вести контакт к цели.
 
-🎯 Цель общения с контактом: ${goal.isNotEmpty ? goal : "Установить контакт и выявить потребности"}
+🎯 Цель общения с контактом: ${goal.isNotEmpty ? goal : defaultGoal}
 🗣️ Тон и стиль общения: ${_dossierNotifier.value.tone}
-🧠 Психотип и особенности восприятия: ${psychotype.isNotEmpty ? psychotype : "Прагматик"}
+🧠 Психотип и особенности восприятия: ${psychotype.isNotEmpty ? psychotype : defaultPsycho}
 📋 Известные факты из CRM:
 ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
 📊 Резюме переписки (Шерлок): ${_dossierNotifier.value.summary}
+''' : '''
+You are a personal AI assistant for communicating with contact "${widget.chat.title}".
+Your mission is to assist with conversations, analyze implicit motives, draft precise replies, and steer the dialogue towards the goal.
+
+🎯 Contact goal: ${goal.isNotEmpty ? goal : defaultGoal}
+🗣️ Tone of Voice: ${_dossierNotifier.value.tone}
+🧠 Psychotype & perception traits: ${psychotype.isNotEmpty ? psychotype : defaultPsycho}
+📋 Known CRM facts:
+${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
+📊 Chat summary (Sherlock): ${_dossierNotifier.value.summary}
 ''';
 
     if (existing == null) {
       final newSession = CopilotSession(
         id: sessionId,
         title: '👤 ${widget.chat.title}',
-        agentRole: 'Ассистент по ${widget.chat.title}',
+        agentRole: isRu ? 'Ассистент по ${widget.chat.title}' : 'Assistant for ${widget.chat.title}',
         systemPrompt: prompt,
         avatarIcon: Icons.person_pin_rounded,
         avatarColor: const Color(0xFF8774E1),
         messages: [
           CopilotMessage(
-            text: 'Привет! Я твой персональный AI-копилот по контакту **${widget.chat.title}**.\n\n'
-                '🎯 **Наша цель**: *"${goal.isNotEmpty ? goal : "Установить контакт"}"*\n'
-                '🧠 **Психотип**: *"${psychotype.isNotEmpty ? psychotype : "Прагматик"}"*\n'
-                '🗣️ **Тон**: *"${_dossierNotifier.value.tone}"*\n\n'
-                'Я держу в контексте всю историю вашей переписки, CRM-факты и досье. '
-                'Ты можешь надиктовать мне любую задачу (например: *"как ему мягко отказать"*, *"составь оффер"* или *"проанализируй его последнее сообщение"*), и я помогу сформулировать идеальный ответ!',
+            text: isRu
+                ? 'Привет! Я твой персональный AI-копилот по контакту **${widget.chat.title}**.\n\n'
+                    '🎯 **Наша цель**: *"${goal.isNotEmpty ? goal : "Установить контакт"}"*\n'
+                    '🧠 **Психотип**: *"${psychotype.isNotEmpty ? psychotype : "Прагматик"}"*\n'
+                    '🗣️ **Тон**: *"${_dossierNotifier.value.tone}"*\n\n'
+                    'Я держу в контексте всю историю вашей переписки, CRM-факты и досье. '
+                    'Ты можешь надиктовать мне любую задачу (например: *"как ему мягко отказать"*, *"составь оффер"* или *"проанализируй его последнее сообщение"*), и я помогу сформулировать идеальный ответ!'
+                : 'Hello! I am your personal AI Copilot for contact **${widget.chat.title}**.\n\n'
+                    '🎯 **Our goal**: *"${goal.isNotEmpty ? goal : "Establish contact"}"*\n'
+                    '🧠 **Psychotype**: *"${psychotype.isNotEmpty ? psychotype : "Pragmatic"}"*\n'
+                    '🗣️ **Tone**: *"${_dossierNotifier.value.tone}"*\n\n'
+                    'I maintain the full context of your chat history, CRM facts, and dossier. '
+                    'You can prompt or dictate any task (e.g.: *"how to politely decline"*, *"draft an offer"*, or *"analyze their latest message"*), and I will help formulate the ideal reply!',
             isUser: false,
           ),
         ],
@@ -351,14 +391,14 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                         color: const Color(0xFF8774E1).withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_awesome, size: 12, color: Color(0xFF8774E1)),
-                          SizedBox(width: 4),
+                          const Icon(Icons.auto_awesome, size: 12, color: Color(0xFF8774E1)),
+                          const SizedBox(width: 4),
                           Text(
-                            'AI CRM',
-                            style: TextStyle(
+                            tr('ai_dossier_crm_badge'),
+                            style: const TextStyle(
                               fontSize: 10.5,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF8774E1),
@@ -370,15 +410,15 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                   ],
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'Досье контакта, цели и персональные настройки LLM',
-                  style: TextStyle(fontSize: 12, color: Tg.textFaint),
+                Text(
+                  tr('ai_dossier_desc'),
+                  style: const TextStyle(fontSize: 12, color: Tg.textFaint),
                 ),
               ],
             ),
           ),
           Tooltip(
-            message: 'Экспорт досье для AI-эдвайзера',
+            message: tr('ai_dossier_export_tooltip'),
             child: CircleIconButton(
               icon: Icons.ios_share_rounded,
               iconSize: 18,
@@ -418,10 +458,10 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             children: [
               const Icon(Icons.psychology_outlined, size: 20, color: Color(0xFF8774E1)),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Авто-анализ диалога (AI Sherlock)',
-                  style: TextStyle(
+                  tr('ai_sherlock_header'),
+                  style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF8774E1),
@@ -430,7 +470,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
               ),
               if (dossier.lastAnalyzed != null)
                 Text(
-                  'Обновлено ${_formatTime(dossier.lastAnalyzed!)}',
+                  tr('ai_sherlock_updated', {'time': _formatTime(dossier.lastAnalyzed!)}),
                   style: const TextStyle(fontSize: 11, color: Tg.textDim),
                 ),
             ],
@@ -459,7 +499,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                     )
                   : const Icon(Icons.refresh_rounded, size: 16),
               label: Text(
-                _isAnalyzing ? 'Анализирую историю…' : 'Обновить авто-анализ',
+                _isAnalyzing ? tr('ai_sherlock_analyzing') : tr('ai_sherlock_refresh'),
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ),
@@ -473,13 +513,13 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.flag_outlined, size: 17, color: Color(0xFF51B2FF)),
-            SizedBox(width: 8),
+            const Icon(Icons.flag_outlined, size: 17, color: Color(0xFF51B2FF)),
+            const SizedBox(width: 8),
             Text(
-              'Цель общения с контактом',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
+              tr('ai_goal_title'),
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
             ),
           ],
         ),
@@ -487,10 +527,11 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _goalPresets.map((preset) {
-            final active = dossier.goal == preset;
+          children: _goalPresetKeys.map((key) {
+            final label = tr(key);
+            final active = dossier.goal == label || dossier.goal == key;
             return ChoiceChip(
-              label: Text(preset),
+              label: Text(label),
               selected: active,
               selectedColor: const Color(0xFF8774E1).withValues(alpha: 0.3),
               backgroundColor: Tg.field,
@@ -504,8 +545,8 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
               ),
               onSelected: (selected) {
                 if (selected) {
-                  _dossierNotifier.value = dossier.copyWith(goal: preset);
-                  _goalController.text = preset;
+                  _dossierNotifier.value = dossier.copyWith(goal: label);
+                  _goalController.text = label;
                 }
               },
             );
@@ -529,12 +570,12 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
               _dossierNotifier.value = dossier.copyWith(goal: val);
             },
             style: const TextStyle(fontSize: 13, color: Tg.text, height: 1.35),
-            decoration: const InputDecoration(
-              hintText: 'Или укажите свою цель общения…',
-              hintStyle: TextStyle(fontSize: 13, color: Tg.textFaint),
+            decoration: InputDecoration(
+              hintText: tr('ai_goal_hint'),
+              hintStyle: const TextStyle(fontSize: 13, color: Tg.textFaint),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: EdgeInsets.symmetric(vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
             ),
           ),
         ),
@@ -546,13 +587,13 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.record_voice_over_outlined, size: 17, color: Color(0xFF43C053)),
-            SizedBox(width: 8),
+            const Icon(Icons.record_voice_over_outlined, size: 17, color: Color(0xFF43C053)),
+            const SizedBox(width: 8),
             Text(
-              'Тон и стиль общения (Tone of Voice)',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
+              tr('ai_tone_title'),
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
             ),
           ],
         ),
@@ -560,10 +601,11 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _tonePresets.map((tone) {
-            final active = dossier.tone == tone;
+          children: _tonePresetKeys.map((key) {
+            final label = tr(key);
+            final active = dossier.tone == label || dossier.tone == key;
             return ChoiceChip(
-              label: Text(tone),
+              label: Text(label),
               selected: active,
               selectedColor: const Color(0xFF43C053).withValues(alpha: 0.22),
               backgroundColor: Tg.field,
@@ -577,7 +619,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
               ),
               onSelected: (selected) {
                 if (selected) {
-                  _dossierNotifier.value = dossier.copyWith(tone: tone);
+                  _dossierNotifier.value = dossier.copyWith(tone: label);
                 }
               },
             );
@@ -591,13 +633,13 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.fingerprint_rounded, size: 17, color: Color(0xFFE5A93B)),
-            SizedBox(width: 8),
+            const Icon(Icons.fingerprint_rounded, size: 17, color: Color(0xFFE5A93B)),
+            const SizedBox(width: 8),
             Text(
-              'Психотип и особенности восприятия',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
+              tr('ai_psychotype_title'),
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
             ),
           ],
         ),
@@ -620,12 +662,12 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
               _dossierNotifier.value = dossier.copyWith(psychotype: val);
             },
             style: const TextStyle(fontSize: 13, color: Tg.text, height: 1.35),
-            decoration: const InputDecoration(
-              hintText: 'Опишите психотип, характер или особенности восприятия…',
-              hintStyle: TextStyle(fontSize: 13, color: Tg.textFaint),
+            decoration: InputDecoration(
+              hintText: tr('ai_psychotype_hint'),
+              hintStyle: const TextStyle(fontSize: 13, color: Tg.textFaint),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: EdgeInsets.symmetric(vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
             ),
           ),
         ),
@@ -637,13 +679,13 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.checklist_rounded, size: 17, color: Color(0xFF8774E1)),
-            SizedBox(width: 8),
+            const Icon(Icons.checklist_rounded, size: 17, color: Color(0xFF8774E1)),
+            const SizedBox(width: 8),
             Text(
-              'Ключевые факты и договоренности (CRM)',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
+              tr('ai_facts_title'),
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
             ),
           ],
         ),
@@ -688,12 +730,12 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                   controller: _newFactController,
                   onSubmitted: (_) => _addFact(),
                   style: const TextStyle(fontSize: 13, color: Tg.text),
-                  decoration: const InputDecoration(
-                    hintText: 'Добавить факт или заметку…',
-                    hintStyle: TextStyle(fontSize: 13, color: Tg.textFaint),
+                  decoration: InputDecoration(
+                    hintText: tr('ai_facts_hint'),
+                    hintStyle: const TextStyle(fontSize: 13, color: Tg.textFaint),
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
               ),
@@ -721,9 +763,9 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
           OutlinedButton.icon(
             onPressed: _openOrCreateCopilotChat,
             icon: const Icon(Icons.forum_outlined, size: 16, color: Color(0xFF8774E1)),
-            label: const Text(
-              'Чат с Copilot по контакту',
-              style: TextStyle(
+            label: Text(
+              tr('ai_chat_about_contact'),
+              style: const TextStyle(
                 color: Color(0xFF8774E1),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -738,9 +780,9 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
           OutlinedButton.icon(
             onPressed: _openExportDialog,
             icon: const Icon(Icons.badge_outlined, size: 16, color: Color(0xFFB1A4FF)),
-            label: const Text(
-              'Экспорт для эдвайзера',
-              style: TextStyle(
+            label: Text(
+              tr('ai_export_advisor'),
+              style: const TextStyle(
                 color: Color(0xFFB1A4FF),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -758,7 +800,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             children: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Закрыть', style: TextStyle(color: Tg.textDim, fontSize: 13)),
+                child: Text(tr('close'), style: const TextStyle(color: Tg.textDim, fontSize: 13)),
               ),
               const SizedBox(width: 8),
               ElevatedButton(
@@ -767,7 +809,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                     goal: _goalController.text.trim(),
                     psychotype: _psychotypeController.text.trim(),
                   );
-                  TgToast.show(context, 'Досье контакта сохранено');
+                  TgToast.show(context, tr('ai_dossier_saved_toast'));
                   Navigator.of(context).pop();
                 },
                 style: ElevatedButton.styleFrom(
@@ -776,7 +818,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text('Сохранить изменения', style: TextStyle(fontSize: 13)),
+                child: Text(tr('ai_save_changes'), style: const TextStyle(fontSize: 13)),
               ),
             ],
           ),
@@ -788,8 +830,8 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
   String _formatTime(DateTime dt) {
     final now = DateTime.now();
     final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'только что';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} мин. назад';
-    return '${diff.inHours} ч. назад';
+    if (diff.inMinutes < 1) return tr('time_just_now');
+    if (diff.inMinutes < 60) return tr('time_minutes_ago', {'min': diff.inMinutes.toString()});
+    return tr('time_hours_ago', {'hours': diff.inHours.toString()});
   }
 }

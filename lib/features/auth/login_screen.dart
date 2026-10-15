@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../core/localization/app_locale.dart';
 import '../../core/theme/tg_theme.dart';
 import '../../data/tdlib/tdlib_service.dart';
 import '../../state/app_state.dart';
@@ -152,22 +153,22 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2.5, color: Tg.accent),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Подключение к серверам Telegram…',
-                          style: TextStyle(fontSize: 14, color: Tg.textDim),
+                        Text(
+                          tr('connecting_tg'),
+                          style: const TextStyle(fontSize: 14, color: Tg.textDim),
                         ),
                       ] else if (phase == AuthPhase.waitQr && !_preferPhone && qrLink != null) ...[
                         // Вход по QR-коду
                         const SizedBox(height: 8),
-                        const Text(
-                          'Быстрый вход по QR-коду',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        Text(
+                          tr('quick_qr_login'),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Наведите камеру в приложении Telegram:\nНастройки → Устройства → Подключить',
+                        Text(
+                          tr('scan_qr_instructions'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
+                          style: const TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
                         ),
                         const SizedBox(height: 20),
                         Container(
@@ -189,23 +190,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             setState(() => _preferPhone = true);
                             service.requestPhoneAuth();
                           },
-                          child: const Text(
-                            'Войти по номеру телефона',
-                            style: TextStyle(fontSize: 14, color: Tg.accent, fontWeight: FontWeight.w600),
+                          child: Text(
+                            tr('login_phone_btn'),
+                            style: const TextStyle(fontSize: 14, color: Tg.accent, fontWeight: FontWeight.w600),
                           ),
                         ),
                       ] else if (phase == AuthPhase.waitPhone || (phase == AuthPhase.waitQr && _preferPhone)) ...[
                         // Вход по номеру телефона
                         const SizedBox(height: 8),
-                        const Text(
-                          'Вход по номеру телефона',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        Text(
+                          tr('login_phone_title'),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Код подтверждения придёт в приложение Telegram на вашем устройстве',
+                        Text(
+                          tr('code_will_arrive'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
+                          style: const TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
                         ),
                         const SizedBox(height: 20),
                         _buildInputField(
@@ -215,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 14),
                         _buildActionButton(
-                          label: 'Продолжить',
+                          label: tr('continue_btn'),
                           onPressed: () => _submit(AuthPhase.waitPhone),
                         ),
                         const SizedBox(height: 12),
@@ -224,72 +225,72 @@ class _LoginScreenState extends State<LoginScreen> {
                             setState(() => _preferPhone = false);
                             service.requestQrCode();
                           },
-                          child: const Text(
-                            'Войти по QR-коду',
-                            style: TextStyle(fontSize: 14, color: Tg.accent, fontWeight: FontWeight.w600),
+                          child: Text(
+                            tr('login_qr_btn'),
+                            style: const TextStyle(fontSize: 14, color: Tg.accent, fontWeight: FontWeight.w600),
                           ),
                         ),
                       ] else if (phase == AuthPhase.waitCode) ...[
                         // Ввод кода
                         const SizedBox(height: 8),
-                        const Text(
-                          'Проверьте Telegram',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        Text(
+                          tr('check_tg'),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          codeHint ?? 'Код подтверждения отправлен в ваш аккаунт Telegram',
+                          codeHint ?? tr('code_hint_default'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
                         ),
                         const SizedBox(height: 20),
                         _buildInputField(
-                          hint: 'Код подтверждения',
+                          hint: tr('code_input_hint'),
                           keyboardType: TextInputType.number,
                           onSubmitted: () => _submit(AuthPhase.waitCode),
                         ),
                         const SizedBox(height: 14),
                         _buildActionButton(
-                          label: 'Подтвердить',
+                          label: tr('confirm_btn'),
                           onPressed: () => _submit(AuthPhase.waitCode),
                         ),
                       ] else if (phase == AuthPhase.waitPassword) ...[
                         // 2FA Пароль
                         const SizedBox(height: 8),
-                        const Text(
-                          'Облачный пароль (2FA)',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        Text(
+                          tr('cloud_pwd_title'),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           passwordHint != null && passwordHint.isNotEmpty
-                              ? 'Подсказка: $passwordHint'
-                              : 'Введите ваш дополнительный пароль защиты Telegram',
+                              ? tr('pwd_hint_prefix', {'hint': passwordHint})
+                              : tr('pwd_hint_default'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 13, color: Tg.textDim, height: 1.4),
                         ),
                         const SizedBox(height: 20),
                         _buildInputField(
-                          hint: 'Пароль 2FA',
+                          hint: tr('pwd_input_hint'),
                           obscure: true,
                           onSubmitted: () => _submit(AuthPhase.waitPassword),
                         ),
                         const SizedBox(height: 14),
                         _buildActionButton(
-                          label: 'Войти',
+                          label: tr('login_btn'),
                           onPressed: () => _submit(AuthPhase.waitPassword),
                         ),
                       ] else if (phase == AuthPhase.error) ...[
                         const SizedBox(height: 16),
                         const Icon(Icons.error_outline_rounded, size: 48, color: Tg.danger),
                         const SizedBox(height: 14),
-                        const Text(
-                          'Ошибка подключения',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
+                        Text(
+                          tr('connection_error'),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Tg.text),
                         ),
                         const SizedBox(height: 16),
                         _buildActionButton(
-                          label: 'Повторить попытку',
+                          label: tr('retry_btn'),
                           onPressed: () => service.init(),
                         ),
                       ],
@@ -299,9 +300,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 14),
                       TextButton(
                         onPressed: () => AppState.demoMode.value = true,
-                        child: const Text(
-                          'Демо-режим (тест интерфейса без входа)',
-                          style: TextStyle(fontSize: 12.5, color: Tg.textFaint),
+                        child: Text(
+                          tr('demo_mode_btn'),
+                          style: const TextStyle(fontSize: 12.5, color: Tg.textFaint),
                         ),
                       ),
                     ],

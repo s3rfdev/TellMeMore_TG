@@ -1,3 +1,4 @@
+import '../../core/localization/app_locale.dart';
 import '../models/tg_chat.dart';
 
 /// Разбор содержимого сообщений TDLib + детерминированные аватары.
@@ -78,31 +79,33 @@ class TdContent {
     try {
       final content = msg['content'];
       if (content == null || content is! Map<String, dynamic>) return '';
+      final isRu = I18n.instance.isRu;
       final type = content['@type'] as String?;
       switch (type) {
         case 'messageText':
           return _extractText(content['text']);
         case 'messagePhoto':
           final caption = _extractText(content['caption']);
-          return caption.isEmpty ? 'Фотография' : caption;
+          return caption.isEmpty ? (isRu ? 'Фотография' : 'Photo') : caption;
         case 'messageSticker':
           final emoji = content['sticker'] is Map ? (content['sticker']['emoji'] as String? ?? '') : '';
-          return emoji.isEmpty ? 'Стикер' : '$emoji Стикер';
+          final label = isRu ? 'Стикер' : 'Sticker';
+          return emoji.isEmpty ? label : '$emoji $label';
         case 'messageAnimation':
           final caption = _extractText(content['caption']);
           return caption.isEmpty ? 'GIF' : caption;
         case 'messageVideo':
         case 'messageVideoNote':
           final caption = _extractText(content['caption']);
-          return caption.isEmpty ? 'Видео' : caption;
+          return caption.isEmpty ? (isRu ? 'Видео' : 'Video') : caption;
         case 'messageVoiceNote':
-          return 'Голосовое сообщение';
+          return isRu ? 'Голосовое сообщение' : 'Voice message';
         case 'messageAudio':
           final title = content['audio'] is Map ? (content['audio']['title'] as String? ?? '') : '';
-          return title.isEmpty ? 'Аудиозапись' : title;
+          return title.isEmpty ? (isRu ? 'Аудиозапись' : 'Audio') : title;
         case 'messageDocument':
           final doc = content['document'] is Map ? content['document'] : null;
-          return (doc?['file_name'] as String?) ?? 'Файл';
+          return (doc?['file_name'] as String?) ?? (isRu ? 'Файл' : 'File');
         case 'messageAnimatedEmoji':
           final emoji = content['animated_emoji'] is Map ? (content['animated_emoji']['emoji'] as String?) : null;
           return emoji ?? '✨';
@@ -112,30 +115,30 @@ class TdContent {
         case 'messagePoll':
           final poll = content['poll'] is Map ? content['poll'] : null;
           final q = _extractText(poll?['question']);
-          return '📊 ${q.isNotEmpty ? q : 'Опрос'}';
+          return '📊 ${q.isNotEmpty ? q : (isRu ? 'Опрос' : 'Poll')}';
         case 'messageLocation':
-          return '📍 Геолокация';
+          return isRu ? '📍 Геолокация' : '📍 Location';
         case 'messageContact':
-          return '👤 Контакт';
+          return isRu ? '👤 Контакт' : '👤 Contact';
         case 'messageCall':
-          return '📞 Звонок';
+          return isRu ? '📞 Звонок' : '📞 Call';
         case 'messagePinMessage':
-          return '📌 Закрепленное сообщение';
+          return isRu ? '📌 Закрепленное сообщение' : '📌 Pinned message';
         case 'messageChatAddMembers':
-          return 'Пользователь добавлен в чат';
+          return isRu ? 'Пользователь добавлен в чат' : 'User added to chat';
         case 'messageChatJoinByLink':
-          return 'Пользователь вступил по ссылке';
+          return isRu ? 'Пользователь вступил по ссылке' : 'User joined via link';
         case 'messageChatDeleteMember':
-          return 'Пользователь покинул чат';
+          return isRu ? 'Пользователь покинул чат' : 'User left chat';
         default:
           final t = _extractText(content['text']);
           if (t.isNotEmpty) return t;
           final c = _extractText(content['caption']);
           if (c.isNotEmpty) return c;
-          return 'Сообщение';
+          return isRu ? 'Сообщение' : 'Message';
       }
     } catch (_) {
-      return 'Сообщение';
+      return I18n.instance.isRu ? 'Сообщение' : 'Message';
     }
   }
 }

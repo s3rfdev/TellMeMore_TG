@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_toast.dart';
 import '../../settings/settings_dialog.dart';
@@ -79,9 +80,9 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
         if (list.isNotEmpty) {
           final newModel = list.contains(settings.model) ? settings.model : list.first;
           AiSettingsStore.instance.settings.value = settings.copyWith(model: newModel);
-          TgToast.show(context, '✅ Загружено ${list.length} актуальных моделей для ${settings.provider}!');
+          TgToast.show(context, tr('ai_models_loaded', {'count': list.length.toString(), 'provider': settings.provider}));
         } else {
-          TgToast.show(context, '⚠️ Не удалось получить список моделей, проверьте ключ.');
+          TgToast.show(context, tr('ai_models_failed'));
         }
       }
     } finally {
@@ -140,10 +141,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
         children: [
           const Icon(Icons.settings_suggest_rounded, color: Color(0xFF8774E1), size: 24),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Настройки AI и Системы',
-              style: TextStyle(
+              tr('ai_settings_header'),
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Tg.text,
@@ -159,9 +160,9 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               elevation: 0,
             ),
             icon: const Icon(Icons.manage_accounts_rounded, size: 17),
-            label: const Text(
-              'Профиль & Аккаунты',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+            label: Text(
+              tr('ai_profile_accounts'),
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
             ),
             onPressed: () => SettingsDialog.show(context),
           ),
@@ -172,11 +173,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
 
   Widget _buildTabs() {
     final tabs = [
-      (Icons.memory_rounded, 'AI Модели и ZIAI'),
-      (Icons.rocket_launch_rounded, 'Автопилот (Pilot)'),
-      (Icons.psychology_rounded, 'Контекст и Память'),
-      (Icons.mic_none_rounded, 'Распознавание речи'),
-      (Icons.storage_rounded, 'Кэш и БД'),
+      (Icons.memory_rounded, tr('ai_tab_models')),
+      (Icons.rocket_launch_rounded, tr('ai_tab_autopilot')),
+      (Icons.psychology_rounded, tr('ai_tab_context')),
+      (Icons.mic_none_rounded, tr('ai_tab_voice')),
+      (Icons.storage_rounded, tr('ai_tab_cache')),
     ];
 
     return Container(
@@ -248,7 +249,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     return Column(
       children: [
         _buildCard(
-          title: 'Основной LLM Провайдер',
+          title: tr('ai_main_provider'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -274,8 +275,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       if (selected) {
                         final models = _providerModels[p] ?? ['Default'];
                         AiSettingsStore.instance.settings.value = settings.copyWith(
-                          provider: p,
-                          model: models.first,
+                            provider: p,
+                            model: models.first,
                         );
                         _refreshModels(settings.copyWith(provider: p));
                       }
@@ -287,9 +288,9 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Актуальная модель:',
-                    style: TextStyle(fontSize: 13, color: Tg.textDim),
+                  Text(
+                    tr('ai_current_model'),
+                    style: const TextStyle(fontSize: 13, color: Tg.textDim),
                   ),
                   if (_loadingModels)
                     const SizedBox(
@@ -299,7 +300,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                     )
                   else
                     Text(
-                      '${currentList.length} доступно',
+                      tr('ai_available_count', {'count': currentList.length.toString()}),
                       style: const TextStyle(fontSize: 12, color: Tg.accent),
                     ),
                 ],
@@ -338,13 +339,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 icon: const Icon(Icons.sync_rounded, size: 16),
-                label: Text('Обновить список моделей для ${settings.provider} по ключу'),
+                label: Text(tr('ai_refresh_models', {'provider': settings.provider})),
               ),
             ],
           ),
         ),
         _buildCard(
-          title: 'Ключи API и Соединение (${settings.provider})',
+          title: tr('ai_keys_and_conn', {'provider': settings.provider}),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -359,7 +360,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Формат: id.secret (GLM-5, GLM-5.3, GLM-4.5 и др.)',
+                  'Format: id.secret (GLM-5, GLM-5.3, GLM-4.5, etc.)',
                   style: TextStyle(fontSize: 11.5, color: Tg.textFaint),
                 ),
               ] else if (settings.provider == 'Google Gemini') ...[
@@ -373,7 +374,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Доступ к Gemini 2.5 Flash, 2.5 Pro, 2.0 Flash Thinking',
+                  'Gemini 2.5 Flash, 2.5 Pro, 2.0 Flash Thinking access',
                   style: TextStyle(fontSize: 11.5, color: Tg.textFaint),
                 ),
               ] else if (settings.provider == 'OpenAI') ...[
@@ -408,7 +409,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () {
-                  TgToast.show(context, '✅ Соединение с ${settings.provider} успешно подтверждено!');
+                  TgToast.show(context, tr('ai_connection_success', {'provider': settings.provider}));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2F6FA8),
@@ -416,7 +417,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 icon: const Icon(Icons.wifi_rounded, size: 16),
-                label: const Text('Проверить соединение'),
+                label: Text(tr('ai_check_connection')),
               ),
             ],
           ),
@@ -429,7 +430,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     return Column(
       children: [
         _buildCard(
-          title: 'Автопилот AI (Автономный ответчик)',
+          title: tr('ai_autopilot_section'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -457,22 +458,22 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 24),
                     ),
                     const SizedBox(width: 14),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Telegram AI Pilot — Автопилот',
-                            style: TextStyle(
+                            tr('ai_autopilot_header'),
+                            style: const TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),
                           ),
-                          SizedBox(height: 3),
+                          const SizedBox(height: 3),
                           Text(
-                            'Максимальные привилегии: ответ от вашего имени, прямая отправка сообщений и анализ контекста.',
-                            style: TextStyle(fontSize: 12, color: Tg.textDim),
+                            tr('ai_autopilot_banner_sub'),
+                            style: const TextStyle(fontSize: 12, color: Tg.textDim),
                           ),
                         ],
                       ),
@@ -483,20 +484,20 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               const SizedBox(height: 18),
               SwitchListTile(
                 value: settings.autoPilotEnabled,
-                title: const Text('Включить AI Автопилот', style: TextStyle(color: Tg.text, fontSize: 14)),
-                subtitle: const Text('Активирует фоновую работу Copilot для ответов', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                title: Text(tr('ai_enable_autopilot'), style: const TextStyle(color: Tg.text, fontSize: 14)),
+                subtitle: Text(tr('ai_enable_autopilot_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
                 activeThumbColor: const Color(0xFF8774E1),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (val) {
                   AiSettingsStore.instance.settings.value = settings.copyWith(autoPilotEnabled: val);
-                  TgToast.show(context, val ? '🚀 Автопилот активирован!' : 'Автопилот отключен');
+                  TgToast.show(context, val ? tr('ai_autopilot_enabled_toast') : tr('ai_autopilot_disabled_toast'));
                 },
               ),
               const Divider(color: Tg.hairline, height: 16),
               SwitchListTile(
                 value: settings.autoPilotDirectSend,
-                title: const Text('Прямая отправка (Direct Send)', style: TextStyle(color: Tg.text, fontSize: 14)),
-                subtitle: const Text('Отправлять сообщения напрямую без ручного подтверждения', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                title: Text(tr('ai_direct_send'), style: const TextStyle(color: Tg.text, fontSize: 14)),
+                subtitle: Text(tr('ai_direct_send_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
                 activeThumbColor: const Color(0xFF8774E1),
                 contentPadding: EdgeInsets.zero,
                 onChanged: settings.autoPilotEnabled
@@ -508,8 +509,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               const Divider(color: Tg.hairline, height: 16),
               SwitchListTile(
                 value: settings.autoPilotReadIncoming,
-                title: const Text('Авто-анализ входящих сообщений', style: TextStyle(color: Tg.text, fontSize: 14)),
-                subtitle: const Text('Мгновенно извлекать смысл и готовить ответ при получении', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                title: Text(tr('ai_read_incoming'), style: const TextStyle(color: Tg.text, fontSize: 14)),
+                subtitle: Text(tr('ai_read_incoming_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
                 activeThumbColor: const Color(0xFF8774E1),
                 contentPadding: EdgeInsets.zero,
                 onChanged: settings.autoPilotEnabled
@@ -521,8 +522,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               const Divider(color: Tg.hairline, height: 16),
               SwitchListTile(
                 value: settings.autoPilotToneMatching,
-                title: const Text('Адаптация тона и стиля общения', style: TextStyle(color: Tg.text, fontSize: 14)),
-                subtitle: const Text('Подстраивать ответы под стиль владельца аккаунта и психотип контакта', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                title: Text(tr('ai_tone_matching'), style: const TextStyle(color: Tg.text, fontSize: 14)),
+                subtitle: Text(tr('ai_tone_matching_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
                 activeThumbColor: const Color(0xFF8774E1),
                 contentPadding: EdgeInsets.zero,
                 onChanged: settings.autoPilotEnabled
@@ -578,14 +579,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     return Column(
       children: [
         _buildCard(
-          title: 'Умная автокомпрессия контекста',
+          title: tr('ai_compression_section'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SwitchListTile(
                 value: settings.contextCompression,
-                title: const Text('Включить сжатие длинного контекста', style: TextStyle(color: Tg.text, fontSize: 14, fontWeight: FontWeight.w500)),
-                subtitle: const Text('Сворачивает ранние ветки диалога в структурированное резюме', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                title: Text(tr('ai_compression_enable'), style: const TextStyle(color: Tg.text, fontSize: 14, fontWeight: FontWeight.w500)),
+                subtitle: Text(tr('ai_compression_enable_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
                 activeThumbColor: const Color(0xFF00C48C),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (val) {
@@ -596,7 +597,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               const Divider(color: Tg.hairline, height: 20),
 
               // Метод оценки порога сжатия
-              const Text('Критерий оценки для автосжатия:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+              Text(tr('ai_compression_criterion'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -623,7 +624,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                             Icon(Icons.speed_rounded, size: 16, color: isVolume ? const Color(0xFF8774E1) : Tg.textDim),
                             const SizedBox(width: 8),
                             Text(
-                              'По объёму токенов (Smart)',
+                              tr('ai_comp_volume_smart'),
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: isVolume ? FontWeight.w600 : FontWeight.normal,
@@ -659,7 +660,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                             Icon(Icons.format_list_numbered_rounded, size: 16, color: !isVolume ? const Color(0xFF8774E1) : Tg.textDim),
                             const SizedBox(width: 8),
                             Text(
-                              'По числу сообщений',
+                              tr('ai_comp_msg_count'),
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: !isVolume ? FontWeight.w600 : FontWeight.normal,
@@ -679,9 +680,12 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Порог объёма для сжатия:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+                    Text(tr('ai_comp_volume_threshold'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
                     Text(
-                      '${settings.compressionVolumeThreshold} токенов (~$approxChars симв.)',
+                      tr('ai_comp_volume_tokens', {
+                        'tokens': settings.compressionVolumeThreshold.toString(),
+                        'chars': approxChars.toString(),
+                      }),
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF00C48C)),
                     ),
                   ],
@@ -699,16 +703,16 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   },
                 ),
                 Text(
-                  '💡 Короткие реплики («ок», «как дела») не вызывают сжатие преждевременно, а объемный код или статьи сожмутся вовремя.',
-                  style: TextStyle(fontSize: 11.5, color: Tg.textDim, height: 1.35),
+                  tr('ai_comp_volume_tip'),
+                  style: const TextStyle(fontSize: 11.5, color: Tg.textDim, height: 1.35),
                 ),
               ] else ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Сообщений до сжатия:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+                    Text(tr('ai_comp_msg_threshold'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
                     Text(
-                      '${settings.contextMessageCount} сообщений',
+                      tr('ai_comp_msgs_count', {'count': settings.contextMessageCount.toString()}),
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF8774E1)),
                     ),
                   ],
@@ -734,9 +738,9 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Окно свежих сообщений (без сжатия):', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+                  Text(tr('ai_comp_raw_window'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
                   Text(
-                    '${settings.compressionKeepRawCount} последних сообщений',
+                    tr('ai_comp_raw_count', {'count': settings.compressionKeepRawCount.toString()}),
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF51B2FF)),
                   ),
                 ],
@@ -754,8 +758,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 },
               ),
               Text(
-                '💡 Эти недавние сообщения всегда подаются модели слово в слово в сыром виде (второй слой начинки), сохраняя контекст последних минут общения.',
-                style: TextStyle(fontSize: 11.5, color: Tg.textDim, height: 1.35),
+                tr('ai_comp_raw_tip'),
+                style: const TextStyle(fontSize: 11.5, color: Tg.textDim, height: 1.35),
               ),
             ],
           ),
@@ -764,14 +768,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
 
         // Карточка: Принцип Бутерброд
         _buildCard(
-          title: 'Архитектура: Принцип «Бутерброд» (Context Sandwich)',
+          title: tr('ai_sandwich_architecture'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SwitchListTile(
                 value: settings.sandwichContextEnabled,
-                title: const Text('Сборка промпта по слоям', style: TextStyle(color: Tg.text, fontSize: 13.5)),
-                subtitle: const Text('Оптимизирует следование инструкциям и точность ответов', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                title: Text(tr('ai_sandwich_layers'), style: const TextStyle(color: Tg.text, fontSize: 13.5)),
+                subtitle: Text(tr('ai_sandwich_layers_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
                 activeThumbColor: const Color(0xFF8774E1),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (val) {
@@ -787,34 +791,34 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 ),
-                child: const Column(
+                child: Column(
                   children: [
                     _SandwichLayerTile(
                       icon: '🍞',
-                      name: 'Верхний хлеб (System Directives)',
-                      desc: 'Системные правила, персона агента, CRM-досье и спецификация инструментов.',
-                      color: Color(0xFFFF9F43),
+                      name: tr('ai_sandwich_top_bread'),
+                      desc: tr('ai_sandwich_top_desc'),
+                      color: const Color(0xFFFF9F43),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     _SandwichLayerTile(
                       icon: '🥩',
-                      name: 'Начинка 1: Сжатая выжимка (Context Summary)',
-                      desc: 'Суть ранних веток переписки (решения, факты, договоренности).',
-                      color: Color(0xFF00C48C),
+                      name: tr('ai_sandwich_filling1'),
+                      desc: tr('ai_sandwich_filling1_desc'),
+                      color: const Color(0xFF00C48C),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     _SandwichLayerTile(
                       icon: '🥬',
-                      name: 'Начинка 2: Сырые сообщения (Recent Window)',
-                      desc: 'Последние сообщения без изменений для сохранения нити диалога.',
-                      color: Color(0xFF51B2FF),
+                      name: tr('ai_sandwich_filling2'),
+                      desc: tr('ai_sandwich_filling2_desc'),
+                      color: const Color(0xFF51B2FF),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     _SandwichLayerTile(
                       icon: '🍞',
-                      name: 'Нижний хлеб (User Query & Directives)',
-                      desc: 'Текущий запрос пользователя и финальные ограничения на формат.',
-                      color: Color(0xFFFF7675),
+                      name: tr('ai_sandwich_bottom_bread'),
+                      desc: tr('ai_sandwich_bottom_desc'),
+                      color: const Color(0xFFFF7675),
                     ),
                   ],
                 ),
@@ -830,11 +834,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     return Column(
       children: [
         _buildCard(
-          title: 'Движок транскрибации речи (STT)',
+          title: tr('ai_voice_engine'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Сервис распознавания голосовых:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+              Text(tr('ai_voice_service'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -848,7 +852,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   underline: const SizedBox.shrink(),
                   dropdownColor: const Color(0xFF212D3B),
                   style: const TextStyle(color: Tg.text, fontSize: 13.5),
-                  items: ['Deepgram Nova-2', 'OpenAI Whisper-1', 'Локальный Vosk / Sherpa']
+                  items: ['Deepgram Nova-2', 'OpenAI Whisper-1', 'Vosk / Sherpa']
                       .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                       .toList(),
                   onChanged: (val) {
@@ -871,8 +875,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               const SizedBox(height: 8),
               SwitchListTile(
                 value: settings.autoDetectVoiceLang,
-                title: const Text('Автоопределение языка', style: TextStyle(color: Tg.text, fontSize: 13.5)),
-                subtitle: const Text('Автоматически переключаться между русским и английским', style: TextStyle(color: Tg.textDim, fontSize: 12)),
+                title: Text(tr('ai_voice_autodetect'), style: const TextStyle(color: Tg.text, fontSize: 13.5)),
+                subtitle: Text(tr('ai_voice_autodetect_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
                 activeThumbColor: const Color(0xFF8774E1),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (val) {
@@ -891,24 +895,24 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     return Column(
       children: [
         _buildCard(
-          title: 'Кэш базы данных и локальные медиа',
+          title: tr('ai_cache_title'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Сохраненных транскрипций:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
-                  Text('${settings.cachedAudioCount} файлов', style: const TextStyle(fontSize: 13, color: Tg.text)),
+                  Text(tr('ai_cache_saved_transcripts'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
+                  Text(tr('ai_cache_files_count', {'count': settings.cachedAudioCount.toString()}), style: const TextStyle(fontSize: 13, color: Tg.text)),
                 ],
               ),
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Размер кэша аудио:', style: TextStyle(fontSize: 13, color: Tg.textDim)),
+                  Text(tr('ai_cache_audio_size'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
                   Text(
-                    '${(settings.cachedAudioSizeBytes / 1024 / 1024).toStringAsFixed(1)} МБ',
+                    '${(settings.cachedAudioSizeBytes / 1024 / 1024).toStringAsFixed(1)} MB',
                     style: const TextStyle(fontSize: 13, color: Tg.text),
                   ),
                 ],
@@ -916,7 +920,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () {
-                  TgToast.show(context, '🧹 Локальный кэш успешно очищен!');
+                  TgToast.show(context, tr('ai_cache_cleared_toast'));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2C3847),
@@ -924,7 +928,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 icon: const Icon(Icons.delete_sweep_rounded, size: 16),
-                label: const Text('Очистить кэш транскрипций'),
+                label: Text(tr('ai_cache_clear_btn')),
               ),
             ],
           ),

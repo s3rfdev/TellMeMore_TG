@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../ai_copilot/models/contact_dossier.dart';
 
@@ -27,35 +28,50 @@ class ChatExportService {
     final dateStr =
         '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
+    final isRu = I18n.instance.isRu;
     final buffer = StringBuffer();
     buffer.writeln('================================================================================');
-    buffer.writeln('📋 ПРОФИЛЬ СОБЕСЕДНИКА ДЛЯ AI-ЭДВАЙЗЕРА / ПОМОЩНИКА ДЛЯ ЗВОНКОВ');
+    buffer.writeln(isRu
+        ? '📋 ПРОФИЛЬ СОБЕСЕДНИКА ДЛЯ AI-ЭДВАЙЗЕРА / ПОМОЩНИКА ДЛЯ ЗВОНКОВ'
+        : '📋 CONTACT PROFILE FOR AI ADVISOR / CALL ASSISTANT');
     buffer.writeln('================================================================================');
-    buffer.writeln('👤 Собеседник: ${chat.title}');
+    buffer.writeln('${isRu ? "👤 Собеседник" : "👤 Contact"}: ${chat.title}');
     if (chat.headerSubtitle.isNotEmpty) {
-      buffer.writeln('ℹ️ Статус / Роль: ${chat.headerSubtitle}');
+      buffer.writeln('${isRu ? "ℹ️ Статус / Роль" : "ℹ️ Status / Role"}: ${chat.headerSubtitle}');
     }
-    buffer.writeln('🆔 ID чата: ${chat.id}');
-    buffer.writeln('📅 Дата выгрузки: $dateStr');
+    buffer.writeln('${isRu ? "🆔 ID чата" : "🆔 Chat ID"}: ${chat.id}');
+    buffer.writeln('${isRu ? "📅 Дата выгрузки" : "📅 Export Date"}: $dateStr');
     buffer.writeln('');
 
-    buffer.writeln('🎯 ЦЕЛЬ ОБЩЕНИЯ (СТРАТЕГИЧЕСКАЯ ЗАДАЧА):');
-    buffer.writeln(dossier.goal.isNotEmpty ? dossier.goal : 'Установить контакт и выявить потребности');
+    buffer.writeln(isRu
+        ? '🎯 ЦЕЛЬ ОБЩЕНИЯ (СТРАТЕГИЧЕСКАЯ ЗАДАЧА):'
+        : '🎯 GOAL (STRATEGIC OBJECTIVE):');
+    buffer.writeln(dossier.goal.isNotEmpty
+        ? dossier.goal
+        : (isRu ? 'Установить контакт и выявить потребности' : 'Establish contact and identify needs'));
     buffer.writeln('');
 
-    buffer.writeln('🧠 ПСИХОТИП И СТИЛЬ МЫШЛЕНИЯ:');
+    buffer.writeln(isRu
+        ? '🧠 ПСИХОТИП И СТИЛЬ МЫШЛЕНИЯ:'
+        : '🧠 PSYCHOTYPE & COGNITIVE STYLE:');
     buffer.writeln(dossier.psychotype.isNotEmpty
         ? dossier.psychotype
-        : 'Уравновешенный, прагматичный стиль');
+        : (isRu ? 'Уравновешенный, прагматичный стиль' : 'Balanced, pragmatic style'));
     buffer.writeln('');
 
-    buffer.writeln('🗣 РЕКОМЕНДУЕМЫЙ ТОН ОБЩЕНИЯ:');
-    buffer.writeln(dossier.tone.isNotEmpty ? dossier.tone : 'Деловой и вежливый');
+    buffer.writeln(isRu
+        ? '🗣 РЕКОМЕНДУЕМЫЙ ТОН ОБЩЕНИЯ:'
+        : '🗣 RECOMMENDED TONE OF VOICE:');
+    buffer.writeln(dossier.tone.isNotEmpty
+        ? dossier.tone
+        : (isRu ? 'Деловой и вежливый' : 'Professional and polite'));
     buffer.writeln('');
 
-    buffer.writeln('📌 КЛЮЧЕВЫЕ ФАКТЫ И CRM-ПАМЯТЬ:');
+    buffer.writeln(isRu
+        ? '📌 КЛЮЧЕВЫЕ ФАКТЫ И CRM-ПАМЯТЬ:'
+        : '📌 KEY FACTS & CRM MEMORY:');
     if (dossier.facts.isEmpty) {
-      buffer.writeln('• Нет зафиксированных фактов');
+      buffer.writeln(isRu ? '• Нет зафиксированных фактов' : '• No recorded facts');
     } else {
       for (final fact in dossier.facts) {
         buffer.writeln('• $fact');
@@ -63,15 +79,28 @@ class ChatExportService {
     }
     buffer.writeln('');
 
-    buffer.writeln('📋 ВЫЖИМКА ПРЕДЫДУЩЕГО ДИАЛОГА:');
-    buffer.writeln(dossier.summary.isNotEmpty ? dossier.summary : 'Диалог только начат');
+    buffer.writeln(isRu
+        ? '📋 ВЫЖИМКА ПРЕДЫДУЩЕГО ДИАЛОГА:'
+        : '📋 CONVERSATION SUMMARY:');
+    buffer.writeln(dossier.summary.isNotEmpty
+        ? dossier.summary
+        : (isRu ? 'Диалог только начат' : 'Conversation just started'));
     buffer.writeln('');
 
-    buffer.writeln('💡 ИНСТРУКЦИЯ ДЛЯ АССИСТЕНТА ВО ВРЕМЯ РАЗГОВОРА (LIVE PROMPT):');
-    buffer.writeln('1. Главная цель: "${dossier.goal}". Не позволяйте собеседнику увести разговор в сторону.');
-    buffer.writeln('2. Особенности психотипа: ${dossier.psychotype}. Подстраивайте аргументы под этот тип.');
-    buffer.writeln('3. Тональность: ${dossier.tone}.');
-    buffer.writeln('4. Если собеседник задает неожиданные вопросы, сверяйтесь с разделом «Ключевые факты».');
+    buffer.writeln(isRu
+        ? '💡 ИНСТРУКЦИЯ ДЛЯ АССИСТЕНТА ВО ВРЕМЯ РАЗГОВОРА (LIVE PROMPT):'
+        : '💡 LIVE PROMPT FOR CALL ASSISTANT:');
+    if (isRu) {
+      buffer.writeln('1. Главная цель: "${dossier.goal}". Не позволяйте собеседнику увести разговор в сторону.');
+      buffer.writeln('2. Особенности психотипа: ${dossier.psychotype}. Подстраивайте аргументы под этот тип.');
+      buffer.writeln('3. Тональность: ${dossier.tone}.');
+      buffer.writeln('4. Если собеседник задает неожиданные вопросы, сверяйтесь с разделом «Ключевые факты».');
+    } else {
+      buffer.writeln('1. Main Goal: "${dossier.goal}". Keep the conversation focused on this objective.');
+      buffer.writeln('2. Psychotype: ${dossier.psychotype}. Tailor your arguments accordingly.');
+      buffer.writeln('3. Tone: ${dossier.tone}.');
+      buffer.writeln('4. Consult Key Facts if unexpected questions arise.');
+    }
     buffer.writeln('================================================================================');
 
     return buffer.toString();
@@ -82,17 +111,18 @@ class ChatExportService {
     final now = DateTime.now();
     final dateStr =
         '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final isRu = I18n.instance.isRu;
 
     final buffer = StringBuffer();
     buffer.writeln('================================================================================');
-    buffer.writeln('💬 ИСТОРИЯ ПЕРЕПИСКИ: ${chat.title}');
-    buffer.writeln('📅 Дата выгрузки: $dateStr');
-    buffer.writeln('📊 Всего сообщений: ${messages.length}');
+    buffer.writeln('${isRu ? "💬 ИСТОРИЯ ПЕРЕПИСКИ" : "💬 CHAT HISTORY"}: ${chat.title}');
+    buffer.writeln('${isRu ? "📅 Дата выгрузки" : "📅 Export Date"}: $dateStr');
+    buffer.writeln('${isRu ? "📊 Всего сообщений" : "📊 Total Messages"}: ${messages.length}');
     buffer.writeln('================================================================================');
     buffer.writeln('');
 
     if (messages.isEmpty) {
-      buffer.writeln('(История сообщений пуста)');
+      buffer.writeln(isRu ? '(История сообщений пуста)' : '(Message history is empty)');
       return buffer.toString();
     }
 
@@ -105,23 +135,31 @@ class ChatExportService {
       }
 
       final sender = msg.outgoing
-          ? 'Вы'
+          ? (isRu ? 'Вы' : 'You')
           : (msg.replySenderName.isNotEmpty ? msg.replySenderName : chat.title);
       final time = msg.time.isNotEmpty ? '[${msg.time}]' : '';
 
       String content = msg.text;
       if (msg.kind == MessageKind.voice) {
-        content = '[🎤 Голосовое сообщение, ${msg.duration} сек${msg.text.isNotEmpty ? ": ${msg.text}" : ""}]';
+        content = isRu
+            ? '[🎤 Голосовое сообщение, ${msg.duration} сек${msg.text.isNotEmpty ? ": ${msg.text}" : ""}]'
+            : '[🎤 Voice message, ${msg.duration} sec${msg.text.isNotEmpty ? ": ${msg.text}" : ""}]';
       } else if (msg.kind == MessageKind.image) {
-        content = '[🖼 Изображение${msg.fileName.isNotEmpty ? ": ${msg.fileName}" : ""}${msg.text.isNotEmpty ? " — ${msg.text}" : ""}]';
+        content = isRu
+            ? '[🖼 Изображение${msg.fileName.isNotEmpty ? ": ${msg.fileName}" : ""}${msg.text.isNotEmpty ? " — ${msg.text}" : ""}]'
+            : '[🖼 Photo${msg.fileName.isNotEmpty ? ": ${msg.fileName}" : ""}${msg.text.isNotEmpty ? " — ${msg.text}" : ""}]';
       } else if (msg.kind == MessageKind.video) {
-        content = '[🎬 Видео, ${msg.duration} сек${msg.text.isNotEmpty ? ": ${msg.text}" : ""}]';
+        content = isRu
+            ? '[🎬 Видео, ${msg.duration} сек${msg.text.isNotEmpty ? ": ${msg.text}" : ""}]'
+            : '[🎬 Video, ${msg.duration} sec${msg.text.isNotEmpty ? ": ${msg.text}" : ""}]';
       } else if (msg.kind == MessageKind.document) {
-        content = '[📎 Документ: ${msg.fileName} (${msg.fileSize})${msg.text.isNotEmpty ? " — ${msg.text}" : ""}]';
+        content = isRu
+            ? '[📎 Документ: ${msg.fileName} (${msg.fileSize})${msg.text.isNotEmpty ? " — ${msg.text}" : ""}]'
+            : '[📎 Document: ${msg.fileName} (${msg.fileSize})${msg.text.isNotEmpty ? " — ${msg.text}" : ""}]';
       }
 
       if (msg.replyText.isNotEmpty) {
-        buffer.writeln('$time $sender (в ответ на "${msg.replyText}"): $content');
+        buffer.writeln('$time $sender (${isRu ? "в ответ на" : "reply to"} "${msg.replyText}"): $content');
       } else {
         buffer.writeln('$time $sender: $content');
       }
@@ -182,7 +220,7 @@ class ChatExportService {
                 'kind': m.kind.name,
                 'time': m.time,
                 'is_outgoing': m.outgoing,
-                'sender': m.outgoing ? 'Вы' : (m.replySenderName.isNotEmpty ? m.replySenderName : chat.title),
+                'sender': m.outgoing ? (I18n.instance.isRu ? 'Вы' : 'You') : (m.replySenderName.isNotEmpty ? m.replySenderName : chat.title),
                 'text': m.text,
                 'reply_to': m.replyText.isNotEmpty ? m.replyText : null,
                 'duration': m.duration > 0 ? m.duration : null,

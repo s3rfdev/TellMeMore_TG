@@ -287,7 +287,7 @@ class SettingsDialog extends StatelessWidget {
         const Color(0xFFFF9800),
         Icons.chat_bubble_outline_rounded,
         tr('chat_settings'),
-        'Wallpaper, Night Mode, Animations',
+        tr('chat_settings_sub'),
         () => TgToast.show(context, tr('chat_settings')),
         Tg.textDim,
       ),
@@ -295,7 +295,7 @@ class SettingsDialog extends StatelessWidget {
         const Color(0xFF4CAF50),
         Icons.lock_outline_rounded,
         tr('privacy_security'),
-        'Last Seen, Devices, Passkeys',
+        tr('privacy_security_sub'),
         () => TgToast.show(context, tr('privacy_security')),
         Tg.textDim,
       ),
@@ -303,7 +303,7 @@ class SettingsDialog extends StatelessWidget {
         const Color(0xFFE53935),
         Icons.notifications_none_rounded,
         tr('notifications_sounds'),
-        'Sounds, Calls, Badges',
+        tr('notifications_sounds_sub'),
         () => NotificationsSettingsDialog.show(context),
         Tg.textDim,
       ),
@@ -311,7 +311,7 @@ class SettingsDialog extends StatelessWidget {
         const Color(0xFF8774E1),
         Icons.auto_awesome_rounded,
         tr('ai_copilot_settings'),
-        'Z-AI, Gemini, Auto-Pilot',
+        tr('ai_copilot_sub'),
         () {
           Navigator.of(context).pop();
           AppState.activeSidebarTab.value = SidebarTab.settings;
@@ -322,7 +322,7 @@ class SettingsDialog extends StatelessWidget {
         const Color(0xFF1E88E5),
         Icons.pie_chart_outline_rounded,
         tr('data_storage'),
-        'Media download settings',
+        tr('data_storage_sub'),
         () => TgToast.show(context, tr('data_storage')),
         Tg.textDim,
       ),
@@ -330,7 +330,7 @@ class SettingsDialog extends StatelessWidget {
         const Color(0xFF00ACC1),
         Icons.folder_open_rounded,
         tr('chat_folders'),
-        'Sort chats into folders',
+        tr('chat_folders_sub'),
         () => TgToast.show(context, tr('chat_folders')),
         Tg.textDim,
       ),
@@ -338,7 +338,7 @@ class SettingsDialog extends StatelessWidget {
         const Color(0xFF00897B),
         Icons.laptop_mac_rounded,
         tr('devices'),
-        'Manage connected devices',
+        tr('devices_sub'),
         () => TgToast.show(context, tr('devices')),
         Tg.textDim,
       ),
@@ -466,7 +466,7 @@ class SettingsDialog extends StatelessWidget {
                   onSelect: () {
                     I18n.instance.setLanguage(AppLanguage.ru);
                     Navigator.of(ctx).pop();
-                    TgToast.show(context, 'Язык: Русский');
+                    TgToast.show(context, tr('lang_changed_toast'));
                   },
                 ),
                 const SizedBox(height: 8),
@@ -478,7 +478,7 @@ class SettingsDialog extends StatelessWidget {
                   onSelect: () {
                     I18n.instance.setLanguage(AppLanguage.en);
                     Navigator.of(ctx).pop();
-                    TgToast.show(context, 'Language: English');
+                    TgToast.show(context, tr('lang_changed_toast'));
                   },
                 ),
               ],
@@ -604,10 +604,10 @@ class SettingsDialog extends StatelessWidget {
                         Navigator.of(context).pop();
                         if (isPrimary) {
                           TdlibService.instance.logOut();
-                          TgToast.show(context, 'Сессия завершена (Log out)');
+                          TgToast.show(context, tr('session_ended_toast'));
                         } else {
                           AccountManager.instance.removeAccount(currentAcc.id);
-                          TgToast.show(context, 'Аккаунт удален');
+                          TgToast.show(context, tr('account_deleted_toast'));
                         }
                       },
                       child: Text(tr('log_out')),

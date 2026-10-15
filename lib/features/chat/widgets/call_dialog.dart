@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/services/call_sound_service.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_avatar.dart';
@@ -34,7 +35,7 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
   Timer? _durationTimer;
   Timer? _autoCloseTimer;
   int _seconds = 0;
-  String _status = 'Соединение…';
+  String _status = tr('call_connecting');
   bool _connected = false;
   bool _muted = false;
   bool _speaker = true;
@@ -70,16 +71,16 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
     _emojis = call.emojis;
     switch (call.state) {
       case TgCallState.pending:
-        _status = 'Соединение…';
+        _status = tr('call_connecting');
         _connected = false;
       case TgCallState.ringing:
-        _status = 'Идет вызов…';
+        _status = tr('call_ringing');
         _connected = false;
         if (call.isOutgoing) {
           CallSoundService.startOutgoingRingback();
         }
       case TgCallState.exchangingKeys:
-        _status = 'Обмен ключами шифрования…';
+        _status = tr('call_key_exchange');
         _connected = false;
       case TgCallState.ready:
         CallSoundService.stop();
@@ -89,10 +90,10 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
           _startDurationTimer();
         }
       case TgCallState.hangingUp:
-        _status = 'Завершение…';
+        _status = tr('call_ending');
       case TgCallState.discarded:
         CallSoundService.stop();
-        _status = call.discardReason.isNotEmpty ? call.discardReason : 'Вызов завершен';
+        _status = call.discardReason.isNotEmpty ? call.discardReason : tr('call_ended');
         _durationTimer?.cancel();
         _autoCloseTimer?.cancel();
         _autoCloseTimer = Timer(const Duration(milliseconds: 1500), () {
@@ -131,10 +132,10 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
       TdlibService.instance.discardCall(call.callId, duration: _seconds);
     }
     if (mounted) Navigator.of(context, rootNavigator: true).maybePop();
-    final dur = _seconds > 0 ? _status : 'Звонок отменён';
+    final dur = _seconds > 0 ? _status : tr('call_cancelled');
     TgToast.show(
       context,
-      'Звонок завершён ($dur)',
+      tr('call_finished_dur', {'dur': dur}),
       icon: Icons.phone_callback_rounded,
     );
   }
@@ -180,7 +181,7 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _connected ? 'Сквозное шифрование' : 'Защищённый звонок',
+                        _connected ? tr('call_e2e_encrypted') : tr('call_secure_call'),
                         style: const TextStyle(
                           fontSize: 11.5,
                           color: Tg.textFaint,
@@ -190,7 +191,7 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                   ),
                   if (_emojis.isNotEmpty)
                     Tooltip(
-                      message: 'Ключ шифрования совпадает',
+                      message: tr('call_encryption_key_match'),
                       child: Text(
                         _emojis.join(' '),
                         style: const TextStyle(fontSize: 14),
@@ -268,15 +269,15 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                 color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.cell_tower_rounded, size: 13, color: Tg.textFaint),
-                  SizedBox(width: 6),
+                  const Icon(Icons.cell_tower_rounded, size: 13, color: Tg.textFaint),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
-                      'Сигнализация TDLib активна (звонок на устройство)',
-                      style: TextStyle(fontSize: 10.5, color: Tg.textFaint),
+                      tr('call_tdlib_signaling'),
+                      style: const TextStyle(fontSize: 10.5, color: Tg.textFaint),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -297,7 +298,7 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                     activeColor: Colors.white.withValues(alpha: 0.25),
                     color: Colors.white.withValues(alpha: 0.1),
                     onTap: () => setState(() => _muted = !_muted),
-                    tooltip: _muted ? 'Включить микрофон' : 'Выключить микрофон',
+                    tooltip: _muted ? tr('call_unmute_mic') : tr('call_mute_mic'),
                   ),
                   // End Call
                   GestureDetector(
@@ -330,7 +331,7 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                     activeColor: Colors.white.withValues(alpha: 0.25),
                     color: Colors.white.withValues(alpha: 0.1),
                     onTap: () => setState(() => _speaker = !_speaker),
-                    tooltip: 'Динамик',
+                    tooltip: tr('call_speaker'),
                   ),
                 ],
               ),

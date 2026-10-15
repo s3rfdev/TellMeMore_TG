@@ -258,8 +258,8 @@ class AccountManager {
 
   void setChannelPosts(List<TgPost> channelPosts) {
     final current = myPosts.value;
-    final photoPosts = current.where((p) => p.text.contains('Фото профиля')).toList();
-    final combined = <TgPost>[...channelPosts, ...photoPosts];
+    final preserved = current.where((p) => p.id.startsWith('local_') || p.id.startsWith('test_') || p.text.contains('Фото профиля')).toList();
+    final combined = <TgPost>[...channelPosts, ...preserved];
     final seen = <String>{};
     final unique = <TgPost>[];
     for (final p in combined) {
@@ -287,6 +287,15 @@ class AccountManager {
     } else {
       myPosts.value = [post, ...myPosts.value];
     }
+  }
+
+  void deletePost(String postId) {
+    myPosts.value = myPosts.value.where((p) => p.id != postId).toList();
+    myArchivedPosts.value = myArchivedPosts.value.where((p) => p.id != postId).toList();
+  }
+
+  void clearChannelPosts() {
+    myPosts.value = myPosts.value.where((p) => p.text.contains('Фото профиля')).toList();
   }
 
   void switchAccount(String id) {

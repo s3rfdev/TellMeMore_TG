@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/localization/app_locale.dart';
 import 'core/theme/tg_theme.dart';
 import 'shell/home_shell.dart';
 
@@ -8,11 +9,16 @@ class TgAnswerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'TG Answer',
-      debugShowCheckedModeBanner: false,
-      theme: buildTgTheme(),
-      home: const Scaffold(body: HomeShell()),
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: I18n.instance.currentLanguage,
+      builder: (context, lang, _) {
+        return MaterialApp(
+          title: 'TG Answer',
+          debugShowCheckedModeBanner: false,
+          theme: buildTgTheme(),
+          home: const Scaffold(body: HomeShell()),
+        );
+      },
     );
   }
 }

@@ -3,15 +3,17 @@ import 'package:flutter/foundation.dart';
 class ContactDossier {
   ContactDossier({
     required this.chatId,
-    required this.goal,
-    required this.tone,
-    required this.facts,
-    required this.summary,
-    required this.psychotype,
+    this.systemPrompt = '',
+    this.goal = '',
+    this.tone = '',
+    this.facts = const [],
+    this.summary = '',
+    this.psychotype = '',
     this.lastAnalyzed,
   });
 
   final String chatId;
+  String systemPrompt;
   String goal;
   String tone;
   List<String> facts;
@@ -20,6 +22,7 @@ class ContactDossier {
   DateTime? lastAnalyzed;
 
   ContactDossier copyWith({
+    String? systemPrompt,
     String? goal,
     String? tone,
     List<String>? facts,
@@ -29,6 +32,7 @@ class ContactDossier {
   }) {
     return ContactDossier(
       chatId: chatId,
+      systemPrompt: systemPrompt ?? this.systemPrompt,
       goal: goal ?? this.goal,
       tone: tone ?? this.tone,
       facts: facts ?? List.from(this.facts),
@@ -47,55 +51,32 @@ class ContactDossierStore {
 
   ValueNotifier<ContactDossier> getDossier(String chatId) {
     return _cache.putIfAbsent(chatId, () {
-      if (chatId == 'taras') {
-        return ValueNotifier<ContactDossier>(
-          ContactDossier(
-            chatId: 'taras',
-            goal: '🤝 Совместная разработка Telegram AI ассистента',
-            tone: 'Дружелюбный IT-разработчик',
-            psychotype: 'Инноватор / Визионер: горит пет-проектами, ценит скорость и открытый код',
-            summary: 'Тарас делает пет-проект клиента Telegram с внедрением LLM и шерлоком по профилям. Планирует английский и портфолио на GitHub.',
-            facts: [
-              'Разработчик, ценит открытые решения и GitHub',
-              'Хочет инструмент для пробива профилей и психотипов',
-              'Активно тестирует LLM (Claude, китайские модели)',
-              'Любит короткие, ёмкие ответы по существу',
-            ],
-            lastAnalyzed: DateTime.now().subtract(const Duration(minutes: 42)),
-          ),
-        );
-      }
-
-      if (chatId == 'nha-trang-estate') {
-        return ValueNotifier<ContactDossier>(
-          ContactDossier(
-            chatId: 'nha-trang-estate',
-            goal: '🏡 Закрыть сделку по аренде виллы в Нячанге',
-            tone: 'Деловой и вежливый эксперт',
-            psychotype: 'Прагматик: нужны точные локации, цены и условия депозита',
-            summary: 'Агент по недвижимости во Вьетнаме (Нячанг, Дананг). Публикует варианты аренды и продажи.',
-            facts: [
-              'Локация: Нячанг, Вьетнам',
-              'Основной фокус: аренда апартаментов и вилл у моря',
-              'Отвечает оперативно, ценит готовность внести бронь',
-            ],
-            lastAnalyzed: DateTime.now().subtract(const Duration(hours: 3)),
-          ),
-        );
-      }
-
       return ValueNotifier<ContactDossier>(
         ContactDossier(
           chatId: chatId,
-          goal: 'Установить контакт и выявить потребности',
-          tone: 'Вежливый и открытый',
-          psychotype: 'Не определен (требуется авто-анализ)',
-          summary: 'Новый контакт. Анализ переписки еще не производился.',
-          facts: [
-            'Первичное знакомство',
-          ],
+          systemPrompt: '',
+          goal: '',
+          tone: '',
+          facts: [],
+          summary: '',
+          psychotype: '',
         ),
       );
     });
+  }
+
+  void updateSystemPrompt(String chatId, String prompt) {
+    final dossierNotifier = getDossier(chatId);
+    dossierNotifier.value = dossierNotifier.value.copyWith(systemPrompt: prompt.trim());
+  }
+
+  void updateGoal(String chatId, String goal) {
+    final dossierNotifier = getDossier(chatId);
+    dossierNotifier.value = dossierNotifier.value.copyWith(goal: goal.trim());
+  }
+
+  void updateTone(String chatId, String tone) {
+    final dossierNotifier = getDossier(chatId);
+    dossierNotifier.value = dossierNotifier.value.copyWith(tone: tone.trim());
   }
 }

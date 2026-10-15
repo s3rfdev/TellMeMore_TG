@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_avatar.dart';
 import '../../../core/widgets/tg_toast.dart';
@@ -51,9 +52,9 @@ class _ForwardDialogState extends State<ForwardDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Переслать сообщение',
-            style: TextStyle(
+          Text(
+            tr('forward_message_title'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 15.5,
               fontWeight: FontWeight.w600,
@@ -75,12 +76,12 @@ class _ForwardDialogState extends State<ForwardDialog> {
                   child: TextField(
                     onChanged: (v) => setState(() => _search = v.trim().toLowerCase()),
                     style: const TextStyle(fontSize: 13, color: Colors.white),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
-                      hintText: 'Поиск чата…',
-                      hintStyle: TextStyle(fontSize: 13, color: Tg.textFaint),
+                      hintText: tr('search_chat_hint'),
+                      hintStyle: const TextStyle(fontSize: 13, color: Tg.textFaint),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 6),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 6),
                     ),
                   ),
                 ),
@@ -102,10 +103,10 @@ class _ForwardDialogState extends State<ForwardDialog> {
             }).toList();
 
             if (filtered.isEmpty) {
-              return const Center(
+              return Center(
                 child: Text(
-                  'Чаты не найдены',
-                  style: TextStyle(color: Tg.textDim, fontSize: 13),
+                  tr('chats_not_found'),
+                  style: const TextStyle(color: Tg.textDim, fontSize: 13),
                 ),
               );
             }
@@ -153,7 +154,7 @@ class _ForwardDialogState extends State<ForwardDialog> {
                       }
                       TgToast.show(
                         context,
-                        '✓ Переслано в "${c.title}"',
+                        tr('forwarded_to_chat', {'title': c.title}),
                         icon: Icons.forward_rounded,
                       );
                     }
@@ -167,7 +168,7 @@ class _ForwardDialogState extends State<ForwardDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Отмена', style: TextStyle(color: Tg.textDim, fontSize: 13)),
+          child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim, fontSize: 13)),
         ),
       ],
     );

@@ -10,13 +10,10 @@ void main() {
   group('Multi-Agent Copilot & Volume Compression Tests', () {
     final store = CopilotSessionStore.instance;
 
-    test('Initial store has seeded multi-agent sessions', () {
+    test('Initial store has default copilot assistant without hardcoded agents', () {
       final sessions = store.sessions.value;
-      expect(sessions.length, greaterThanOrEqualTo(4));
-      expect(sessions.any((s) => s.id == 'lead_hunter'), isTrue);
-      expect(sessions.any((s) => s.id == 'crm_analyst'), isTrue);
-      expect(sessions.any((s) => s.id == 'code_architect'), isTrue);
-      expect(sessions.any((s) => s.id == 'personal_copilot'), isTrue);
+      expect(sessions.isNotEmpty, isTrue);
+      expect(sessions.any((s) => s.id == 'main_copilot'), isTrue);
       expect(store.activeSession.id, sessions.first.id);
     });
 
