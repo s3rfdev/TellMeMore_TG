@@ -509,7 +509,7 @@ Format strictly as:
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: 620,
+          maxWidth: 540,
           maxHeight: maxModalHeight,
         ),
         child: ValueListenableBuilder<ContactDossier>(
@@ -536,16 +536,16 @@ Format strictly as:
                         thickness: 5,
                         child: ListView(
                           controller: _dossierScrollController,
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           children: [
                             _buildSherlockCard(dossier),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             _buildGoalSection(dossier),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             _buildToneSection(dossier),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             _buildPsychotypeSection(dossier),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             _buildFactsSection(dossier),
                           ],
                         ),
@@ -560,12 +560,12 @@ Format strictly as:
                         thickness: 5,
                         child: ListView(
                           controller: _promptScrollController,
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           children: [
                             _buildDirectivesSection(),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             _buildRagSection(),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             _buildMemorySection(),
                           ],
                         ),
@@ -588,7 +588,7 @@ Format strictly as:
     final isRu = I18n.instance.isRu;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 14, 0),
+      padding: const EdgeInsets.fromLTRB(14, 11, 12, 0),
       child: Column(
         children: [
           Row(
@@ -597,10 +597,10 @@ Format strictly as:
                 emoji: widget.chat.avatarEmoji,
                 color: Color(widget.chat.avatarColor),
                 imagePath: widget.chat.avatarPath,
-                size: 38,
-                fontSize: 15,
+                size: 32,
+                fontSize: 13,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,24 +611,24 @@ Format strictly as:
                           child: Text(
                             widget.chat.title,
                             style: const TextStyle(
-                              fontSize: 14.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: Tg.text,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(
                             color: Tg.accent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(5),
+                            borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             isRu ? 'AI-Ассистент' : 'AI Assistant',
                             style: const TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 9.5,
                               color: Tg.accent,
                               fontWeight: FontWeight.w500,
                             ),
@@ -641,22 +641,22 @@ Format strictly as:
                       widget.chat.headerSubtitle.isNotEmpty
                           ? widget.chat.headerSubtitle
                           : (isRu ? 'Управление досье и контекстом' : 'Dossier & context management'),
-                      style: const TextStyle(fontSize: 11, color: Tg.textDim),
+                      style: const TextStyle(fontSize: 10.5, color: Tg.textDim),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close_rounded, size: 19, color: Tg.textFaint),
-                splashRadius: 16,
+                icon: const Icon(Icons.close_rounded, size: 18, color: Tg.textFaint),
+                splashRadius: 14,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           TabBar(
             controller: _tabController,
             labelColor: Tg.accent,
@@ -665,8 +665,8 @@ Format strictly as:
             indicatorWeight: 2,
             indicatorSize: TabBarIndicatorSize.tab,
             dividerColor: Colors.transparent,
-            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.normal),
             tabs: [
               Tab(text: isRu ? '👤 Досье контакта (CRM)' : '👤 Contact Dossier (CRM)'),
               Tab(text: isRu ? '⚙️ Промпт и память (LLM)' : '⚙️ Prompt & Memory (LLM)'),
@@ -689,22 +689,22 @@ Format strictly as:
     return Container(
       decoration: BoxDecoration(
         color: Tg.field,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(9),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.psychology_rounded, size: 16, color: Tg.accent),
-              const SizedBox(width: 8),
+              const Icon(Icons.psychology_rounded, size: 15, color: Tg.accent),
+              const SizedBox(width: 7),
               Expanded(
                 child: Text(
                   tr('ai_sherlock_header'),
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                     color: Tg.accent,
                   ),
@@ -713,29 +713,33 @@ Format strictly as:
               if (dossier.lastAnalyzed != null)
                 Text(
                   tr('ai_sherlock_updated', {'time': _formatTime(dossier.lastAnalyzed!)}),
-                  style: const TextStyle(fontSize: 10.5, color: Tg.textDim),
+                  style: const TextStyle(fontSize: 9.5, color: Tg.textDim),
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 7),
 
           // Слайдер сообщений для анализа
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                isRu ? 'Глубина анализа переписки:' : 'Analysis message depth:',
-                style: const TextStyle(fontSize: 11.5, color: Tg.textDim),
+              Flexible(
+                child: Text(
+                  isRu ? 'Глубина анализа переписки:' : 'Analysis message depth:',
+                  style: const TextStyle(fontSize: 10.5, color: Tg.textDim),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   color: Tg.accent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   isRu ? '$effectiveCount из $totalMsgs сообщ.' : '$effectiveCount of $totalMsgs msgs',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Tg.accent),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Tg.accent),
                 ),
               ),
             ],
@@ -743,8 +747,8 @@ Format strictly as:
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               trackHeight: 2,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 8),
             ),
             child: Slider(
               value: limit.toDouble(),
@@ -762,22 +766,22 @@ Format strictly as:
               },
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
 
           if (dossier.summary.isNotEmpty) ...[
             Text(
               dossier.summary,
-              style: const TextStyle(fontSize: 12, color: Tg.text, height: 1.35),
+              style: const TextStyle(fontSize: 11, color: Tg.text, height: 1.3),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
           ] else ...[
             Text(
               isRu
                   ? 'Запустите анализ, чтобы нейросеть изучила характер собеседника, скрытые мотивы и наличие манипуляций.'
                   : 'Run analysis to examine interlocutor motives, psychotype, and manipulation markers.',
-              style: const TextStyle(fontSize: 11, color: Tg.textFaint, fontStyle: FontStyle.italic),
+              style: const TextStyle(fontSize: 10.5, color: Tg.textFaint, fontStyle: FontStyle.italic),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
           ],
 
           Align(
@@ -787,19 +791,19 @@ Format strictly as:
               style: ElevatedButton.styleFrom(
                 backgroundColor: Tg.accentDark,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
               ),
               icon: _isAnalyzing
                   ? const SizedBox(
-                      width: 13,
-                      height: 13,
-                      child: CircularProgressIndicator(strokeWidth: 1.8, color: Colors.white),
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 1.6, color: Colors.white),
                     )
-                  : const Icon(Icons.refresh_rounded, size: 15),
+                  : const Icon(Icons.refresh_rounded, size: 14),
               label: Text(
                 _isAnalyzing ? tr('ai_sherlock_analyzing') : tr('ai_sherlock_refresh'),
-                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500),
               ),
             ),
           ),
@@ -814,18 +818,18 @@ Format strictly as:
       children: [
         Row(
           children: [
-            const Icon(Icons.flag_outlined, size: 15, color: Tg.accent),
-            const SizedBox(width: 7),
+            const Icon(Icons.flag_outlined, size: 14, color: Tg.accent),
+            const SizedBox(width: 6),
             Text(
               tr('ai_goal_title'),
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Tg.text),
+              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Tg.text),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         Wrap(
-          spacing: 6,
-          runSpacing: 6,
+          spacing: 5,
+          runSpacing: 4,
           children: _goalPresetKeys.map((key) {
             final label = tr(key);
             final active = dossier.goal == label || dossier.goal == key;
@@ -834,8 +838,10 @@ Format strictly as:
               selected: active,
               selectedColor: Tg.accent.withValues(alpha: 0.2),
               backgroundColor: Tg.field,
+              visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               labelStyle: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 color: active ? Tg.accent : Tg.textDim,
                 fontWeight: active ? FontWeight.w600 : FontWeight.normal,
               ),
@@ -852,14 +858,14 @@ Format strictly as:
             );
           }).toList(),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         Container(
           decoration: BoxDecoration(
             color: Tg.field,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(7),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
           child: TextField(
             controller: _goalController,
             minLines: 1,
@@ -869,13 +875,13 @@ Format strictly as:
             onChanged: (val) {
               _dossierNotifier.value = dossier.copyWith(goal: val);
             },
-            style: const TextStyle(fontSize: 12, color: Tg.text, height: 1.35),
+            style: const TextStyle(fontSize: 11, color: Tg.text, height: 1.3),
             decoration: InputDecoration(
               hintText: tr('ai_goal_hint'),
-              hintStyle: const TextStyle(fontSize: 11.5, color: Tg.textFaint),
+              hintStyle: const TextStyle(fontSize: 10.5, color: Tg.textFaint),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 6),
+              contentPadding: const EdgeInsets.symmetric(vertical: 4),
             ),
           ),
         ),
@@ -889,18 +895,18 @@ Format strictly as:
       children: [
         Row(
           children: [
-            const Icon(Icons.record_voice_over_outlined, size: 15, color: Tg.accent),
-            const SizedBox(width: 7),
+            const Icon(Icons.record_voice_over_outlined, size: 14, color: Tg.accent),
+            const SizedBox(width: 6),
             Text(
               tr('ai_tone_title'),
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Tg.text),
+              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Tg.text),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         Wrap(
-          spacing: 6,
-          runSpacing: 6,
+          spacing: 5,
+          runSpacing: 4,
           children: _tonePresetKeys.map((key) {
             final label = tr(key);
             final active = dossier.tone == label || dossier.tone == key;
@@ -909,8 +915,10 @@ Format strictly as:
               selected: active,
               selectedColor: Tg.accent.withValues(alpha: 0.2),
               backgroundColor: Tg.field,
+              visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               labelStyle: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 color: active ? Tg.accent : Tg.textDim,
                 fontWeight: active ? FontWeight.w600 : FontWeight.normal,
               ),
@@ -936,23 +944,23 @@ Format strictly as:
       children: [
         Row(
           children: [
-            const Icon(Icons.fingerprint_rounded, size: 15, color: Tg.accent),
-            const SizedBox(width: 7),
+            const Icon(Icons.fingerprint_rounded, size: 14, color: Tg.accent),
+            const SizedBox(width: 6),
             Text(
               tr('ai_psychotype_title'),
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Tg.text),
+              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Tg.text),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
             color: Tg.field,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(7),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
           child: TextField(
             controller: _psychotypeController,
             minLines: 1,
@@ -962,13 +970,13 @@ Format strictly as:
             onChanged: (val) {
               _dossierNotifier.value = dossier.copyWith(psychotype: val);
             },
-            style: const TextStyle(fontSize: 12, color: Tg.text, height: 1.35),
+            style: const TextStyle(fontSize: 11, color: Tg.text, height: 1.3),
             decoration: InputDecoration(
               hintText: tr('ai_psychotype_hint'),
-              hintStyle: const TextStyle(fontSize: 11.5, color: Tg.textFaint),
+              hintStyle: const TextStyle(fontSize: 10.5, color: Tg.textFaint),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 6),
+              contentPadding: const EdgeInsets.symmetric(vertical: 4),
             ),
           ),
         ),
@@ -1061,42 +1069,42 @@ Format strictly as:
       children: [
         Row(
           children: [
-            const Icon(Icons.tune_rounded, size: 15, color: Tg.accent),
-            const SizedBox(width: 7),
+            const Icon(Icons.tune_rounded, size: 14, color: Tg.accent),
+            const SizedBox(width: 6),
             Text(
               isRu ? 'Системные инструкции (Директивы агента)' : 'System Instructions (Agent Directives)',
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w600,
                 color: Tg.text,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         TextFormField(
           controller: _promptController,
           maxLines: 4,
           minLines: 2,
-          style: const TextStyle(fontSize: 12, color: Tg.text, height: 1.35),
+          style: const TextStyle(fontSize: 11, color: Tg.text, height: 1.3),
           decoration: InputDecoration(
             filled: true,
             fillColor: Tg.field,
             hintText: isRu
                 ? 'Например: Отвечай коротко и вежливо. Главная задача — выяснить дедлайн проекта и предложить встречу.'
                 : 'E.g.: Reply concisely and professionally. Primary goal is to clarify deadline and propose call.',
-            hintStyle: const TextStyle(color: Tg.textDim, fontSize: 11.5),
-            contentPadding: const EdgeInsets.all(10),
+            hintStyle: const TextStyle(color: Tg.textDim, fontSize: 10.5),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(7),
               borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(7),
               borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(7),
               borderSide: const BorderSide(color: Tg.accent, width: 1.2),
             ),
           ),
@@ -1122,19 +1130,23 @@ Format strictly as:
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                isRu ? 'Глубина сбора фактов (RAG):' : 'Fact extraction depth (RAG):',
-                style: const TextStyle(fontSize: 11.5, color: Tg.text, fontWeight: FontWeight.w500),
+              Flexible(
+                child: Text(
+                  isRu ? 'Глубина сбора фактов (RAG):' : 'Fact extraction depth (RAG):',
+                  style: const TextStyle(fontSize: 10.5, color: Tg.text, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                 decoration: BoxDecoration(
                   color: Tg.accent.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   isRu ? '$_messageLimit сообщ.' : '$_messageLimit msgs',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Tg.accent),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Tg.accent),
                 ),
               ),
             ],
@@ -1515,47 +1527,47 @@ Format strictly as:
 
   Widget _buildBottomActions() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 10,
-        runSpacing: 8,
+        spacing: 8,
+        runSpacing: 6,
         children: [
           OutlinedButton.icon(
             onPressed: _openOrCreateCopilotChat,
-            icon: const Icon(Icons.forum_outlined, size: 15, color: Tg.accent),
+            icon: const Icon(Icons.forum_outlined, size: 14, color: Tg.accent),
             label: Text(
               tr('ai_chat_about_contact'),
               style: const TextStyle(
                 color: Tg.accent,
-                fontSize: 11.5,
+                fontSize: 10.5,
                 fontWeight: Tg.fontMedium,
               ),
             ),
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: Tg.accent.withValues(alpha: 0.35)),
               backgroundColor: Tg.field,
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
             ),
           ),
           OutlinedButton.icon(
             onPressed: _openExportDialog,
-            icon: const Icon(Icons.badge_outlined, size: 15, color: Tg.accentHover),
+            icon: const Icon(Icons.badge_outlined, size: 14, color: Tg.accentHover),
             label: Text(
               tr('ai_export_advisor'),
               style: const TextStyle(
                 color: Tg.accentHover,
-                fontSize: 11.5,
+                fontSize: 10.5,
                 fontWeight: Tg.fontMedium,
               ),
             ),
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: Tg.accent.withValues(alpha: 0.25)),
               backgroundColor: Tg.accentSubtle,
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
             ),
           ),
           Row(
@@ -1563,18 +1575,18 @@ Format strictly as:
             children: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text(tr('close'), style: const TextStyle(color: Tg.textDim, fontSize: 12.5)),
+                child: Text(tr('close'), style: const TextStyle(color: Tg.textDim, fontSize: 11)),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               ElevatedButton(
                 onPressed: () => _saveAll(close: true),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Tg.accentDark,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
                 ),
-                child: Text(tr('ai_save_changes'), style: const TextStyle(fontSize: 12.5, fontWeight: Tg.fontMedium)),
+                child: Text(tr('ai_save_changes'), style: const TextStyle(fontSize: 11, fontWeight: Tg.fontMedium)),
               ),
             ],
           ),
@@ -1647,18 +1659,21 @@ class _CollapsibleCardState extends State<_CollapsibleCard> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              widget.title,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Tg.text,
+                            Flexible(
+                              child: Text(
+                                widget.title,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Tg.text,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if (widget.badge != null) ...[
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
                                   color: Tg.accent.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(4),
@@ -1666,7 +1681,7 @@ class _CollapsibleCardState extends State<_CollapsibleCard> {
                                 child: Text(
                                   widget.badge!,
                                   style: const TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 9.5,
                                     color: Tg.accent,
                                     fontWeight: FontWeight.w500,
                                   ),

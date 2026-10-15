@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
+import '../../../core/widgets/tg_toast.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../state/app_state.dart';
 import '../models/contact_dossier.dart';
 import '../models/copilot_session.dart';
 import '../services/copilot_session_store.dart';
 import '../services/smart_reply_engine.dart';
+import '../services/voice_transcription_service.dart';
 
 /// Всплывающее меню AI Reply с тремя действиями:
 /// 1. «Автоответ» — мгновенно формирует ответ на основе контекста чата и целей из досье.
@@ -35,15 +40,19 @@ class SmartRepliesBar extends StatefulWidget {
 class _SmartRepliesBarState extends State<SmartRepliesBar> {
   bool _isDictationMode = false;
   bool _isRecording = false;
+  bool _isTranscribing = false;
   int _recordSeconds = 0;
   Timer? _recordTimer;
   bool _isGenerating = false;
+  String? _voicePath;
+  final AudioRecorder _audioRecorder = AudioRecorder();
 
   final TextEditingController _instructionController = TextEditingController();
 
   @override
   void dispose() {
     _recordTimer?.cancel();
+    _audioRecorder.dispose();
     _instructionController.dispose();
     super.dispose();
   }
@@ -63,45 +72,95 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
     });
   }
 
-  void _toggleRecording() {
+  Future<void> _toggleRecording() async {
     if (_isRecording) {
-      // Остановить запись и подставить транскрибацию
       _recordTimer?.cancel();
+      final path = await _audioRecorder.stop();
+      final finalPath = path ?? _voicePath;
+      final sec = _recordSeconds;
+
       setState(() {
         _isRecording = false;
-        if (_instructionController.text.trim().isEmpty) {
-          _instructionController.text = I18n.instance.isRu
-              ? 'Мне этот человек неприятен, ответь вежливо, чтобы он отстал без грубости'
-              : 'I want to reply politely to decline without being rude';
-        }
-      });
-    } else {
-      // Начать запись
-      setState(() {
-        _isRecording = true;
         _recordSeconds = 0;
+        _isTranscribing = true;
       });
-      _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (!mounted) return;
-        setState(() => _recordSeconds++);
-      });
+
+      if (finalPath != null && File(finalPath).existsSync() && sec > 0) {
+        if (mounted) {
+          TgToast.show(
+            context,
+            I18n.instance.isRu ? '🎤 Распознавание речи...' : '🎤 Transcribing speech...',
+            icon: Icons.mic_rounded,
+          );
+        }
+        try {
+          final text = await VoiceTranscriptionService.instance.transcribeVoiceFile(
+            filePath: finalPath,
+            durationSeconds: sec,
+          );
+          if (mounted && text.isNotEmpty && !text.startsWith('[')) {
+            _instructionController.text = text;
+          }
+        } catch (e) {
+          if (mounted) TgToast.show(context, 'Ошибка STT: $e');
+        }
+      }
+      if (mounted) {
+        setState(() => _isTranscribing = false);
+      }
+    } else {
+      try {
+        if (!await _audioRecorder.hasPermission()) {
+          if (mounted) {
+            TgToast.show(
+              context,
+              tr('no_mic_permission'),
+              icon: Icons.mic_off_rounded,
+            );
+          }
+          return;
+        }
+        final tempDir = await getTemporaryDirectory();
+        final path = '${tempDir.path}/smart_reply_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await _audioRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100),
+          path: path,
+        );
+        setState(() {
+          _isRecording = true;
+          _recordSeconds = 0;
+          _voicePath = path;
+        });
+        _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (!mounted) return;
+          setState(() => _recordSeconds++);
+        });
+      } catch (e) {
+        if (mounted) {
+          TgToast.show(
+            context,
+            tr('recording_error', {'error': e.toString()}),
+            icon: Icons.error_outline_rounded,
+          );
+        }
+      }
     }
   }
 
-  void _handleInstructionSubmit() {
-    final text = _instructionController.text.trim();
-    if (text.isEmpty && !_isRecording) return;
-
+  void _handleInstructionSubmit() async {
     if (_isRecording) {
-      _recordTimer?.cancel();
-      _isRecording = false;
+      await _toggleRecording();
     }
-
-    final query = text.isNotEmpty
-        ? text
-        : (I18n.instance.isRu
-            ? 'Мне этот человек неприятен, ответь вежливо, чтобы он отстал без грубости'
-            : 'I want to reply politely to decline without being rude');
+    final text = _instructionController.text.trim();
+    if (text.isEmpty) {
+      if (mounted) {
+        TgToast.show(
+          context,
+          I18n.instance.isRu ? 'Надиктуйте или введите инструкцию' : 'Dictate or enter instruction',
+        );
+      }
+      return;
+    }
 
     final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
     setState(() => _isGenerating = true);
@@ -110,7 +169,7 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
       final reply = SmartReplyEngine.generateInstructionReply(
         chatTitle: widget.chat.title,
         messages: widget.messages,
-        instruction: query,
+        instruction: text,
         dossier: dossier,
       );
       setState(() => _isGenerating = false);
@@ -419,7 +478,9 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
                   decoration: InputDecoration(
                     hintText: _isRecording
                         ? tr('ai_recording_status', {'sec': '$_recordSeconds'})
-                        : tr('ai_dictate_placeholder'),
+                        : (_isTranscribing
+                            ? (I18n.instance.isRu ? 'Распознавание речи...' : 'Transcribing speech...')
+                            : tr('ai_dictate_placeholder')),
                     hintStyle: const TextStyle(fontSize: 11.5, color: Tg.textFaint),
                     border: InputBorder.none,
                     isDense: true,
