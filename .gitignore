@@ -3,3 +3,5 @@ build/
 *.iml
 .idea/
 lib/config/credentials.dart
+releases/
+android/.kotlin/
