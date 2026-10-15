@@ -192,7 +192,26 @@ class AccountManager {
     return mockChats;
   }
 
+  bool isRealTelegramUser = false;
+  final ValueNotifier<List<TgContact>> realContacts = ValueNotifier<List<TgContact>>([]);
+  final Map<String, List<TgContact>> _contactsPerAccount = {};
+
+  void setContacts(List<TgContact> contacts, {String? accountId}) {
+    final accId = accountId ?? currentAccount.value.id;
+    _contactsPerAccount[accId] = contacts;
+    realContacts.value = contacts;
+  }
+
   List<TgContact> getContacts(String accountId) {
+    if (_contactsPerAccount.containsKey(accountId) && _contactsPerAccount[accountId]!.isNotEmpty) {
+      return _contactsPerAccount[accountId]!;
+    }
+    if (realContacts.value.isNotEmpty && (accountId == 'sergei' || accountId == currentAccount.value.id)) {
+      return realContacts.value;
+    }
+    if (isRealTelegramUser && (accountId == 'sergei' || accountId == currentAccount.value.id)) {
+      return const [];
+    }
     if (accountId == 'sergei') {
       return sergeiMockContacts;
     } else if (accountId == 'caban') {
@@ -202,6 +221,7 @@ class AccountManager {
   }
 
   void syncAuthorizedUser(TgUser user, {String? bio, String? avatarPath}) {
+    isRealTelegramUser = true;
     final cur = accounts.value.firstWhere(
       (a) => a.id == 'sergei',
       orElse: () => accounts.value.first,

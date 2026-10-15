@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
 import '../../../core/widgets/tg_toast.dart';
-import '../../settings/settings_dialog.dart';
+import '../../../state/app_state.dart';
+import '../../profile/widgets/profile_pane.dart';
 import '../models/ai_settings_model.dart';
 import '../services/ai_model_service.dart';
 
@@ -15,7 +16,6 @@ class AiSettingsScreen extends StatefulWidget {
 }
 
 class _AiSettingsScreenState extends State<AiSettingsScreen> {
-  int _selectedTab = 0; // 0: Models, 1: Auto-Pilot, 2: Context, 3: Voice, 4: Cache
   bool _loadingModels = false;
 
   late final Map<String, List<String>> _providerModels;
@@ -92,118 +92,115 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.transparent,
-      child: Column(
-        children: [
-          _buildHeader(),
-          _buildTabs(),
-          Expanded(
-            child: ValueListenableBuilder<AiSettings>(
-              valueListenable: AiSettingsStore.instance.settings,
-              builder: (context, settings, _) {
-                return ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  children: [
-                    if (_selectedTab == 0) _buildModelsSection(settings),
-                    if (_selectedTab == 1) _buildAutoPilotSection(settings),
-                    if (_selectedTab == 2) _buildContextSection(settings),
-                    if (_selectedTab == 3) _buildVoiceSection(settings),
-                    if (_selectedTab == 4) _buildCacheSection(settings),
-                  ],
-                );
-              },
-            ),
+    return ValueListenableBuilder<SettingsSection>(
+      valueListenable: AppState.activeSettingsSection,
+      builder: (context, activeSection, _) {
+        return Container(
+          color: Colors.transparent,
+          child: Column(
+            children: [
+              _buildHeader(activeSection),
+              Expanded(
+                child: activeSection == SettingsSection.profile
+                    ? const ProfilePane()
+                    : ValueListenableBuilder<AiSettings>(
+                        valueListenable: AiSettingsStore.instance.settings,
+                        builder: (context, settings, _) {
+                          return ListView(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            children: [
+                              if (activeSection == SettingsSection.general) _buildModelsSection(settings),
+                              if (activeSection == SettingsSection.autopilot) _buildAutoPilotSection(settings),
+                              if (activeSection == SettingsSection.context) _buildContextSection(settings),
+                              if (activeSection == SettingsSection.voice) _buildVoiceSection(settings),
+                              if (activeSection == SettingsSection.cache) _buildCacheSection(settings),
+                            ],
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(SettingsSection section) {
+    IconData icon;
+    String title;
+    switch (section) {
+      case SettingsSection.profile:
+        icon = Icons.person_outline_rounded;
+        title = tr('settings_profile');
+        break;
+      case SettingsSection.general:
+        icon = Icons.tune_rounded;
+        title = tr('settings_general');
+        break;
+      case SettingsSection.autopilot:
+        icon = Icons.smart_toy_outlined;
+        title = tr('settings_autopilot');
+        break;
+      case SettingsSection.context:
+        icon = Icons.psychology_outlined;
+        title = tr('settings_context');
+        break;
+      case SettingsSection.voice:
+        icon = Icons.mic_none_rounded;
+        title = tr('settings_voice');
+        break;
+      case SettingsSection.cache:
+        icon = Icons.storage_rounded;
+        title = tr('settings_cache');
+        break;
+    }
+
     return Container(
-      height: 52,
+      height: 48,
       margin: const EdgeInsets.fromLTRB(10, 10, 10, 6),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Tg.sidebar,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Tg.border),
       ),
       child: Row(
         children: [
-          const Icon(Icons.settings_suggest_rounded, color: Tg.accent, size: 22),
-          const SizedBox(width: 12),
+          Icon(icon, color: Tg.accent, size: 20),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              tr('ai_settings_header'),
-              style: Tg.title,
-            ),
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Tg.accentDark,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-                side: const BorderSide(color: Tg.border),
+              title,
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: Tg.fontMedium,
+                color: Tg.text,
               ),
-              elevation: 0,
             ),
-            icon: const Icon(Icons.manage_accounts_rounded, size: 16),
-            label: Text(
-              tr('ai_profile_accounts'),
-              style: const TextStyle(fontSize: 12.5, fontWeight: Tg.fontMedium),
-            ),
-            onPressed: () => SettingsDialog.show(context),
           ),
+          if (section == SettingsSection.general)
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Tg.card,
+                foregroundColor: Tg.accent,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: Tg.border),
+                ),
+                elevation: 0,
+              ),
+              icon: _loadingModels
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Tg.accent))
+                  : const Icon(Icons.refresh_rounded, size: 16),
+              label: Text(
+                tr('ai_check_connection'),
+                style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium),
+              ),
+              onPressed: _loadingModels ? null : () => _refreshModels(AiSettingsStore.instance.settings.value),
+            ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTabs() {
-    final tabs = [
-      (Icons.memory_rounded, tr('ai_tab_models')),
-      (Icons.rocket_launch_rounded, tr('ai_tab_autopilot')),
-      (Icons.psychology_rounded, tr('ai_tab_context')),
-      (Icons.mic_none_rounded, tr('ai_tab_voice')),
-      (Icons.storage_rounded, tr('ai_tab_cache')),
-    ];
-
-    return Container(
-      height: 42,
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: tabs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final tab = tabs[i];
-          final active = _selectedTab == i;
-          return ChoiceChip(
-            avatar: Icon(
-              tab.$1,
-              size: 15,
-              color: active ? Colors.white : Tg.textDim,
-            ),
-            label: Text(tab.$2),
-            selected: active,
-            selectedColor: Tg.accentDark,
-            backgroundColor: Tg.sidebar,
-            labelStyle: TextStyle(
-              fontSize: 12,
-              fontWeight: active ? Tg.fontMedium : Tg.fontRegular,
-              color: active ? Colors.white : Tg.textDim,
-            ),
-            side: BorderSide(
-              color: active ? Tg.accent : Tg.border,
-            ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            onSelected: (_) => setState(() => _selectedTab = i),
-          );
-        },
       ),
     );
   }
@@ -738,7 +735,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   Text(tr('ai_comp_raw_window'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
                   Text(
                     tr('ai_comp_raw_count', {'count': settings.compressionKeepRawCount.toString()}),
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF51B2FF)),
+                    style: const TextStyle(fontSize: 12.5, fontWeight: Tg.fontMedium, color: Tg.accent),
                   ),
                 ],
               ),
@@ -747,7 +744,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 min: 3,
                 max: 20,
                 divisions: 17,
-                activeColor: const Color(0xFF51B2FF),
+                activeColor: Tg.accent,
                 inactiveColor: Tg.field,
                 onChanged: (val) {
                   AiSettingsStore.instance.settings.value =
@@ -973,7 +970,7 @@ class _SandwichLayerTile extends StatelessWidget {
                   name,
                   style: TextStyle(
                     fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: Tg.fontMedium,
                     color: color,
                   ),
                 ),

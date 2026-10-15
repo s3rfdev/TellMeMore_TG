@@ -43,6 +43,8 @@ class TdlibService {
   void loadMe() {}
   void syncUserProfile() {}
   void openUserByUsername(String username) {}
+  void syncContacts() {}
+  void createPrivateChat(int userId) {}
   void createGroup(String title) {}
   void openChat(int chatId) {}
   void deleteMessages(int chatId, List<int> messageIds, {bool revoke = true}) {}

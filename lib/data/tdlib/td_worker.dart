@@ -116,6 +116,8 @@ class _Store {
   final Set<String> _dirtyHistories = {};
   final Map<int, Map<String, dynamic>> _callProtocols = {};
   int? _currentOpenChatId;
+  final Set<int> _contactUserIds = {};
+  bool _contactsDirty = false;
 
   void _openChat(int chatId) {
     if (_currentOpenChatId == chatId) return;
@@ -427,6 +429,18 @@ class _Store {
         } else {
           _send({'@type': 'getMe', '@extra': {'action': 'getMe'}});
         }
+      case 'getContacts':
+        _send({'@type': 'getContacts', '@extra': {'action': 'getContacts'}});
+      case 'createPrivateChat':
+        final uid = cmd['userId'] as int?;
+        if (uid != null) {
+          _send({
+            '@type': 'createPrivateChat',
+            'user_id': uid,
+            'force': false,
+            '@extra': {'action': 'openPrivateChat'},
+          });
+        }
     }
   }
 
@@ -524,6 +538,7 @@ class _Store {
             _authorized = true;
             _send({'@type': 'getMe', '@extra': {'action': 'getMe'}});
             _send({'@type': 'getChats', 'limit': 50});
+            _send({'@type': 'getContacts', '@extra': {'action': 'getContacts'}});
         }
         return;
       case 'user':
@@ -531,6 +546,9 @@ class _Store {
         final id = m['id'] as int?;
         if (id != null) {
           _users[id] = m;
+          if (_contactUserIds.contains(id)) {
+            _contactsDirty = true;
+          }
           final isMe = extra?['action'] == 'getMe' || (_myId > 0 && id == _myId);
           if (isMe) {
             _myId = id;
@@ -559,6 +577,9 @@ class _Store {
         if (id != null) {
           _users[id] = user!;
           _chatsDirty = true;
+          if (_contactUserIds.contains(id)) {
+            _contactsDirty = true;
+          }
           if (_myId == id) {
             final fn = user['first_name'] as String? ?? '';
             final ln = user['last_name'] as String? ?? '';
@@ -575,6 +596,31 @@ class _Store {
               },
             });
             _syncUserProfile(user);
+          }
+        }
+        return;
+      case 'users':
+        final extra = m['@extra'] as Map<String, dynamic>?;
+        if (extra?['action'] == 'getContacts') {
+          final userIds = (m['user_ids'] as List?)?.cast<num>().map((n) => n.toInt()).toList() ?? [];
+          // ignore: avoid_print
+          print('[worker] got contacts from TDLib: count=${userIds.length}');
+          _contactUserIds.addAll(userIds);
+          for (final uid in userIds) {
+            if (!_users.containsKey(uid)) {
+              _send({'@type': 'getUser', 'user_id': uid, '@extra': {'action': 'getContactUser'}});
+            }
+          }
+          _contactsDirty = true;
+        }
+        return;
+      case 'updateUserStatus':
+        final uid = (m['user_id'] as num?)?.toInt();
+        final status = m['status'] as Map<String, dynamic>?;
+        if (uid != null && status != null && _users.containsKey(uid)) {
+          _users[uid]!['status'] = status;
+          if (_contactUserIds.contains(uid)) {
+            _contactsDirty = true;
           }
         }
         return;
@@ -756,7 +802,7 @@ class _Store {
         st.chat = chat;
         _chatsDirty = true;
         final extra = m['@extra'] as Map<String, dynamic>?;
-        if (extra?['action'] == 'openUsername' || extra?['action'] == 'createGroup') {
+        if (extra?['action'] == 'openUsername' || extra?['action'] == 'createGroup' || extra?['action'] == 'openPrivateChat') {
           _ui.send({'type': 'selectChat', 'chatId': id.toString()});
         }
         return;
@@ -1100,6 +1146,11 @@ class _Store {
         final built = _buildChats();
         _log('flush chats: ${built.length}');
         _ui.send({'type': 'chats', 'chats': built});
+        _contactsDirty = true;
+      }
+      if (_contactsDirty) {
+        _contactsDirty = false;
+        _sendContactsToUi();
       }
       if (_dirtyHistories.isNotEmpty) {
         final payload = <String, TgChatHistory>{};
@@ -1125,6 +1176,150 @@ class _Store {
     } catch (e, stack) {
       // ignore: avoid_print
       print('[worker] error in flush: $e\n$stack');
+    }
+  }
+
+  void _sendContactsToUi() {
+    try {
+      final contactMap = <int, Map<String, dynamic>>{};
+
+      // 1. All user IDs from getContacts
+      for (final uid in _contactUserIds) {
+        if (uid == _myId) continue;
+        final u = _users[uid];
+        if (u != null) {
+          contactMap[uid] = u;
+        }
+      }
+
+      // 2. All users from private chats
+      for (final st in _chats.values) {
+        final chatType = st.chat['type'] as Map<String, dynamic>?;
+        if (chatType?['@type'] == 'chatTypePrivate') {
+          final uid = (chatType?['user_id'] as num?)?.toInt();
+          if (uid != null && uid != _myId) {
+            final u = _users[uid];
+            if (u != null) {
+              contactMap[uid] = u;
+            }
+          }
+        }
+      }
+
+      final contactsList = <Map<String, dynamic>>[];
+      for (final entry in contactMap.entries) {
+        final uid = entry.key;
+        final u = entry.value;
+
+        final userType = u['type']?['@type'] as String?;
+        final isDeleted = userType == 'userTypeDeleted';
+
+        final fn = (u['first_name'] as String?)?.trim() ?? '';
+        final ln = (u['last_name'] as String?)?.trim() ?? '';
+        var name = '$fn $ln'.trim();
+
+        final rawUsername = (u['usernames']?['active_usernames'] as List?)?.firstOrNull?.toString().trim() ??
+            (u['username'] as String?)?.trim() ??
+            '';
+        final rawPhone = (u['phone_number'] as String?)?.trim() ?? '';
+
+        // Filter out deleted accounts and nameless ghost debris from contacts list
+        if (isDeleted || (fn.isEmpty && ln.isEmpty && rawUsername.isEmpty && rawPhone.isEmpty)) {
+          continue;
+        }
+
+        if (name.isEmpty) {
+          if (rawUsername.isNotEmpty) {
+            name = rawUsername.startsWith('@') ? rawUsername : '@$rawUsername';
+          } else if (rawPhone.isNotEmpty) {
+            name = rawPhone.startsWith('+') ? rawPhone : '+$rawPhone';
+          } else {
+            name = 'User $uid';
+          }
+        }
+
+        final username = rawUsername.isNotEmpty
+            ? (rawUsername.startsWith('@') ? rawUsername : '@$rawUsername')
+            : '';
+
+        final phone = rawPhone.isNotEmpty
+            ? (rawPhone.startsWith('+') ? rawPhone : '+$rawPhone')
+            : '';
+
+        String statusStr = '';
+        bool isOnline = false;
+        final status = u['status'] as Map<String, dynamic>?;
+        if (status != null) {
+          final sType = status['@type'] as String?;
+          if (sType == 'userStatusOnline') {
+            isOnline = true;
+            statusStr = 'в сети';
+          } else if (sType == 'userStatusRecently') {
+            statusStr = 'был(а) недавно';
+          } else if (sType == 'userStatusLastWeek') {
+            statusStr = 'был(а) на этой неделе';
+          } else if (sType == 'userStatusLastMonth') {
+            statusStr = 'был(а) в этом месяце';
+          } else if (sType == 'userStatusOffline') {
+            final wasOnline = (status['was_online'] as num?)?.toInt() ?? 0;
+            if (wasOnline > 0) {
+              statusStr = 'был(а) ${formatTime(wasOnline)}';
+            } else {
+              statusStr = 'не в сети';
+            }
+          }
+        }
+
+        String? avatarPath;
+        final profilePhoto = u['profile_photo'] as Map<String, dynamic>?;
+        if (profilePhoto != null) {
+          final small = profilePhoto['small'] as Map<String, dynamic>?;
+          if (small != null) {
+            final local = small['local'] as Map<String, dynamic>?;
+            final localPath = (local?['path'] as String?) ?? '';
+            final isDone = local?['is_downloading_completed'] == true;
+            if (isDone && localPath.isNotEmpty && File(localPath).existsSync()) {
+              avatarPath = localPath;
+            } else {
+              _downloadFileIfNeeded(small);
+            }
+          }
+        }
+
+        // Check if there is an existing chat with this user
+        String chatId = uid.toString();
+        for (final st in _chats.values) {
+          final ct = st.chat['type'] as Map<String, dynamic>?;
+          if (ct?['@type'] == 'chatTypePrivate' && (ct?['user_id'] as num?)?.toInt() == uid) {
+            chatId = st.chat['id'].toString();
+            break;
+          }
+        }
+
+        contactsList.add({
+          'id': chatId,
+          'userId': uid,
+          'name': name,
+          'username': username,
+          'phone': phone,
+          'status': statusStr.isEmpty ? (isOnline ? 'в сети' : 'не в сети') : statusStr,
+          'isOnline': isOnline,
+          'avatarColor': TdContent.colorFor(name),
+          'avatarEmoji': TdContent.initials(name),
+          'avatarPath': avatarPath,
+          'bio': '',
+        });
+      }
+
+      contactsList.sort((a, b) => (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase()));
+
+      _ui.send({
+        'type': 'contacts',
+        'contacts': contactsList,
+      });
+    } catch (e, stack) {
+      // ignore: avoid_print
+      print('[worker] error in _sendContactsToUi: $e\n$stack');
     }
   }
 

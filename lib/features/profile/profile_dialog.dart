@@ -131,8 +131,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
             child: Text(
               tr('profile'),
               style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+                fontSize: 14.5,
+                fontWeight: Tg.fontMedium,
                 color: Tg.text,
               ),
             ),
@@ -388,8 +388,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 child: Text(
                   tr('posts'),
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: _activeTab == 0 ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 12.5,
+                    fontWeight: _activeTab == 0 ? Tg.fontMedium : Tg.fontRegular,
                     color: _activeTab == 0 ? Colors.white : Tg.textDim,
                   ),
                 ),
@@ -408,8 +408,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 child: Text(
                   tr('archived_posts'),
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: _activeTab == 1 ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 12.5,
+                    fontWeight: _activeTab == 1 ? Tg.fontMedium : Tg.fontRegular,
                     color: _activeTab == 1 ? Colors.white : Tg.textDim,
                   ),
                 ),
@@ -464,14 +464,14 @@ class _ProfileDialogState extends State<ProfileDialog> {
                       _activeTab == 0
                           ? tr('publications_header', {'count': '${posts.length}'})
                           : tr('archive_header', {'count': '${posts.length}'}),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Tg.textDim),
+                      style: const TextStyle(fontSize: 12.5, fontWeight: Tg.fontMedium, color: Tg.textDim),
                     ),
                     TextButton.icon(
                       onPressed: () => _showCreatePostDialog(context),
-                      icon: const Icon(Icons.add_rounded, size: 16, color: Color(0xFF55A5EB)),
+                      icon: const Icon(Icons.add_rounded, size: 16, color: Tg.accent),
                       label: Text(
                         tr('add_post'),
-                        style: const TextStyle(fontSize: 12.5, color: Color(0xFF55A5EB), fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 12, color: Tg.accent, fontWeight: Tg.fontMedium),
                       ),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,

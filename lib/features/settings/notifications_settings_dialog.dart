@@ -103,8 +103,8 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
             child: Text(
               tr('notifications_sounds'),
               style: const TextStyle(
-                fontSize: 16.5,
-                fontWeight: FontWeight.w600,
+                fontSize: 14.5,
+                fontWeight: Tg.fontMedium,
                 color: Tg.text,
               ),
             ),
@@ -127,7 +127,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
             padding: const EdgeInsets.only(left: 6, bottom: 6),
             child: Text(
               header,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF55A5EB)),
+              style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium, color: Tg.accent),
             ),
           ),
         ],

@@ -60,8 +60,8 @@ class _MainDrawerState extends State<MainDrawer> {
                       child: Text(
                         isPrimary ? tr('log_out_confirm_title') : tr('delete_account_confirm_title'),
                         style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14.5,
+                          fontWeight: Tg.fontMedium,
                           color: Colors.white,
                         ),
                       ),
@@ -212,8 +212,8 @@ class _MainDrawerState extends State<MainDrawer> {
                           Text(
                             acc.name,
                             style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 14.5,
+                              fontWeight: Tg.fontMedium,
                               color: Tg.text,
                             ),
                           ),
@@ -600,8 +600,8 @@ class _MainDrawerState extends State<MainDrawer> {
                   Text(
                     tr('contacts'),
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 14.5,
+                      fontWeight: Tg.fontMedium,
                       color: Colors.white,
                     ),
                   ),

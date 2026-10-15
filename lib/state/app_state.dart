@@ -8,6 +8,15 @@ enum SidebarTab {
   settings,
 }
 
+enum SettingsSection {
+  profile,      // Профиль и аккаунт
+  general,      // Общие настройки & Модели AI
+  autopilot,    // Автопилот AI
+  context,      // Контекст и память
+  voice,        // Распознавание речи
+  cache,        // Кэш и базы данных
+}
+
 /// Глобальное состояние приложения (до подключения реального API).
 class AppState {
   AppState._();
@@ -15,6 +24,10 @@ class AppState {
   /// Активная вкладка в нижней панели навигации слева.
   static final ValueNotifier<SidebarTab> activeSidebarTab =
       ValueNotifier<SidebarTab>(SidebarTab.chats);
+
+  /// Активный раздел в режиме настроек.
+  static final ValueNotifier<SettingsSection> activeSettingsSection =
+      ValueNotifier<SettingsSection>(SettingsSection.profile);
 
   static final ValueNotifier<String?> selectedChatId =
       ValueNotifier<String?>('taras');

@@ -5,6 +5,7 @@ import '../../core/theme/tg_theme.dart';
 import '../../core/widgets/tg_avatar.dart';
 import '../../core/widgets/tg_toast.dart';
 import '../../data/models/tg_account.dart';
+import '../../data/tdlib/tdlib_service.dart';
 import '../../state/app_state.dart';
 import 'models/tg_contact.dart';
 
@@ -20,6 +21,13 @@ class ContactsListView extends StatefulWidget {
 class _ContactsListViewState extends State<ContactsListView> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _filter = '';
+  bool _showDeleted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    TdlibService.instance.syncContacts();
+  }
 
   @override
   void dispose() {
@@ -32,14 +40,22 @@ class _ContactsListViewState extends State<ContactsListView> {
     return ValueListenableBuilder<TgAccount>(
       valueListenable: AccountManager.instance.currentAccount,
       builder: (context, currentAcc, _) {
-        final sourceContacts = AccountManager.instance.getContacts(currentAcc.id);
-        final contacts = sourceContacts.where((c) {
-          if (_filter.isEmpty) return true;
-          final q = _filter.toLowerCase();
-          return c.name.toLowerCase().contains(q) ||
-              c.username.toLowerCase().contains(q) ||
-              c.phone.contains(q);
-        }).toList();
+        return ValueListenableBuilder<List<TgContact>>(
+          valueListenable: AccountManager.instance.realContacts,
+          builder: (context, realContactsList, _) {
+            final sourceContacts = AccountManager.instance.getContacts(currentAcc.id);
+            final contacts = sourceContacts.where((c) {
+              final trimmedName = c.name.trim();
+              if (trimmedName.isEmpty || trimmedName == '#') return false;
+              if (!_showDeleted && (trimmedName == 'Удаленный аккаунт' || trimmedName == 'Deleted Account')) {
+                return false;
+              }
+              if (_filter.isEmpty) return true;
+              final q = _filter.toLowerCase();
+              return c.name.toLowerCase().contains(q) ||
+                  c.username.toLowerCase().contains(q) ||
+                  c.phone.contains(q);
+            }).toList();
 
         return Stack(
           children: [
@@ -90,6 +106,8 @@ class _ContactsListViewState extends State<ContactsListView> {
         ),
       ],
     );
+          },
+        );
       },
     );
   }
@@ -130,10 +148,55 @@ class _ContactsListViewState extends State<ContactsListView> {
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.sort_rounded, size: 20, color: Tg.textDim),
-            tooltip: tr('sorted_by_name'),
-            onPressed: () => TgToast.show(context, tr('sort_contacts_toast')),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, size: 20, color: Tg.textDim),
+            tooltip: tr('options'),
+            color: Tg.card,
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: Tg.border),
+            ),
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: 'toggle_deleted',
+                child: Row(
+                  children: [
+                    Icon(
+                      _showDeleted ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      size: 17,
+                      color: Tg.textDim,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _showDeleted ? tr('hide_deleted_contacts') : tr('show_deleted_contacts'),
+                      style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: Tg.fontRegular),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'sort',
+                child: Row(
+                  children: [
+                    const Icon(Icons.sort_rounded, size: 17, color: Tg.textDim),
+                    const SizedBox(width: 8),
+                    Text(
+                      tr('sorted_by_name'),
+                      style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: Tg.fontRegular),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            onSelected: (val) {
+              if (val == 'toggle_deleted') {
+                setState(() => _showDeleted = !_showDeleted);
+                TgToast.show(context, _showDeleted ? tr('show_deleted_contacts') : tr('hide_deleted_contacts'));
+              } else if (val == 'sort') {
+                TgToast.show(context, tr('sort_contacts_toast'));
+              }
+            },
           ),
         ],
       ),
@@ -202,9 +265,12 @@ class _ContactsListViewState extends State<ContactsListView> {
                     child: const Icon(Icons.person_add_alt_1_rounded, size: 17, color: Tg.accent),
                   ),
                   const SizedBox(width: 14),
-                  Text(
-                    tr('invite_friends'),
-                    style: const TextStyle(fontSize: 13.5, color: Colors.white, fontWeight: Tg.fontRegular),
+                  Expanded(
+                    child: Text(
+                      tr('invite_friends'),
+                      style: const TextStyle(fontSize: 13.5, color: Colors.white, fontWeight: Tg.fontRegular),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -224,9 +290,12 @@ class _ContactsListViewState extends State<ContactsListView> {
                     child: const Icon(Icons.phone_rounded, size: 17, color: Color(0xFF4CAF50)),
                   ),
                   const SizedBox(width: 14),
-                  Text(
-                    tr('recent_calls'),
-                    style: const TextStyle(fontSize: 13.5, color: Colors.white, fontWeight: Tg.fontRegular),
+                  Expanded(
+                    child: Text(
+                      tr('recent_calls'),
+                      style: const TextStyle(fontSize: 13.5, color: Colors.white, fontWeight: Tg.fontRegular),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -266,7 +335,12 @@ class _ContactsListViewState extends State<ContactsListView> {
 
             return InkWell(
               onTap: () {
-                AppState.selectedChatId.value = contact.id;
+                final chatId = contact.id;
+                final intId = int.tryParse(chatId);
+                if (intId != null && !TdlibService.instance.chats.value.any((c) => c.id == chatId)) {
+                  TdlibService.instance.createPrivateChat(intId);
+                }
+                AppState.selectedChatId.value = chatId;
                 AppState.activeSidebarTab.value = SidebarTab.chats;
                 widget.onContactOpened?.call();
               },

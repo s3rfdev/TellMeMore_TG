@@ -11,6 +11,7 @@ import '../../data/tdlib/tdlib_service.dart';
 import '../../state/app_state.dart';
 import '../ai_copilot/widgets/copilot_session_list_view.dart';
 import '../contacts/contacts_list_view.dart';
+import '../settings/widgets/settings_sidebar_view.dart';
 import 'chat_row.dart';
 
 /// Левая колонка: шапка, профиль, поиск, архив, список чатов, нижняя панель.
@@ -67,6 +68,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   else if (activeTab == SidebarTab.copilot)
                     Expanded(
                       child: CopilotSessionListView(onSessionOpened: widget.onChatOpened),
+                    )
+                  else if (activeTab == SidebarTab.settings)
+                    Expanded(
+                      child: SettingsSidebarView(
+                        onClose: () => AppState.activeSidebarTab.value = SidebarTab.chats,
+                      ),
                     )
                   else ...[
                     _header(),
@@ -400,7 +407,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           badgeText,
                           style: const TextStyle(
                             fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: Tg.fontMedium,
                             color: Colors.white,
                           ),
                         ),

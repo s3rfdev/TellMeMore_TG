@@ -89,8 +89,8 @@ class SettingsDialog extends StatelessWidget {
             child: Text(
               tr('settings_title'),
               style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+                fontSize: 14.5,
+                fontWeight: Tg.fontMedium,
                 color: Tg.text,
               ),
             ),
@@ -186,7 +186,7 @@ class SettingsDialog extends StatelessWidget {
           padding: const EdgeInsets.only(left: 6, bottom: 6),
           child: Text(
             tr('accounts'),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF55A5EB)),
+            style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium, color: Tg.accent),
           ),
         ),
         Container(
@@ -230,7 +230,7 @@ class SettingsDialog extends StatelessWidget {
                             ),
                             child: Text(
                               '${acc.unreadBadge}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                              style: const TextStyle(fontSize: 11.5, fontWeight: Tg.fontMedium, color: Colors.white),
                             ),
                           ),
                         const SizedBox(width: 8),
@@ -249,11 +249,11 @@ class SettingsDialog extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                   child: Row(
                     children: [
-                      const Icon(Icons.add_rounded, color: Color(0xFF55A5EB), size: 22),
+                      const Icon(Icons.add_rounded, color: Tg.accent, size: 20),
                       const SizedBox(width: 14),
                       Text(
                         tr('add_account'),
-                        style: const TextStyle(fontSize: 14, color: Color(0xFF55A5EB), fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 13.5, color: Tg.accent, fontWeight: Tg.fontMedium),
                       ),
                     ],
                   ),
@@ -437,8 +437,8 @@ class SettingsDialog extends StatelessWidget {
                     Text(
                       tr('language'),
                       style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 14.5,
+                        fontWeight: Tg.fontMedium,
                         color: Colors.white,
                       ),
                     ),
@@ -559,8 +559,8 @@ class SettingsDialog extends StatelessWidget {
                       child: Text(
                         tr('log_out_confirm_title'),
                         style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14.5,
+                          fontWeight: Tg.fontMedium,
                           color: Colors.white,
                         ),
                       ),

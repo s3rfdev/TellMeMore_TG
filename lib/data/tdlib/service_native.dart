@@ -9,6 +9,7 @@ import '../../core/utils/session_paths.dart';
 import '../../state/app_state.dart';
 import '../models/tg_account.dart';
 import '../models/tg_chat.dart';
+import '../../features/contacts/models/tg_contact.dart';
 import 'auth_phase.dart';
 import 'td_content.dart';
 import 'td_json_ffi.dart';
@@ -190,6 +191,21 @@ class TdlibService {
         final ids = (msg['chatIds'] as List).cast<int>().toSet();
         final all = chats.value;
         searchResults.value = all.where((c) => ids.contains(int.tryParse(c.id))).toList();
+      case 'contacts':
+        final rawContacts = (msg['contacts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final list = rawContacts.map((c) => TgContact(
+          id: c['id'] as String,
+          name: c['name'] as String,
+          username: c['username'] as String? ?? '',
+          phone: c['phone'] as String? ?? '',
+          status: c['status'] as String? ?? '',
+          isOnline: c['isOnline'] as bool? ?? false,
+          avatarColor: c['avatarColor'] as int? ?? 0xFF5288C1,
+          avatarEmoji: c['avatarEmoji'] as String? ?? '👤',
+          avatarPath: c['avatarPath'] as String?,
+          bio: c['bio'] as String? ?? '',
+        )).toList();
+        AccountManager.instance.setContacts(list);
       case 'chats':
         final list = (msg['chats'] as List).cast<TgChat>();
         chats.value = list;
@@ -368,6 +384,14 @@ class TdlibService {
 
   void openUserByUsername(String username) {
     _sendCmd({'type': 'openUsername', 'username': username});
+  }
+
+  void syncContacts() {
+    _sendCmd({'type': 'getContacts'});
+  }
+
+  void createPrivateChat(int userId) {
+    _sendCmd({'type': 'createPrivateChat', 'userId': userId});
   }
 
   void createGroup(String title) {

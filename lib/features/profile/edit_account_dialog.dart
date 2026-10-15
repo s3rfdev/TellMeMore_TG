@@ -94,8 +94,8 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                       child: Text(
                         isPrimary ? tr('log_out_confirm_title') : tr('delete_account_confirm_title'),
                         style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14.5,
+                          fontWeight: Tg.fontMedium,
                           color: Colors.white,
                         ),
                       ),
@@ -215,8 +215,8 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
             child: Text(
               tr('account_settings'),
               style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+                fontSize: 14.5,
+                fontWeight: Tg.fontMedium,
                 color: Tg.text,
               ),
             ),
@@ -495,11 +495,11 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
               child: Row(
                 children: [
-                  const Icon(Icons.person_add_alt_1_outlined, color: Color(0xFF55A5EB), size: 22),
+                  const Icon(Icons.person_add_alt_1_outlined, color: Tg.accent, size: 20),
                   const SizedBox(width: 14),
                   Text(
                     tr('add_account'),
-                    style: const TextStyle(fontSize: 14.5, color: Color(0xFF55A5EB), fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 13.5, color: Tg.accent, fontWeight: Tg.fontMedium),
                   ),
                 ],
               ),
@@ -528,19 +528,19 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                     Expanded(
                       child: Text(
                         acc.name,
-                        style: const TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500),
+                        style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: Tg.fontRegular),
                       ),
                     ),
                     if (acc.unreadBadge > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2F6FA8),
+                          color: Tg.accentDark,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           '${acc.unreadBadge}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                          style: const TextStyle(fontSize: 11.5, fontWeight: Tg.fontMedium, color: Colors.white),
                         ),
                       ),
                     const SizedBox(width: 8),
@@ -558,11 +558,11 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                  const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 18),
                   const SizedBox(width: 14),
                   Text(
                     current.id == 'sergei' ? tr('log_out') : tr('delete_account'),
-                    style: const TextStyle(fontSize: 14.5, color: Colors.redAccent, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 13.5, color: Colors.redAccent, fontWeight: Tg.fontMedium),
                   ),
                 ],
               ),

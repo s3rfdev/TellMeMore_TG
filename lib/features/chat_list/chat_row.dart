@@ -54,8 +54,8 @@ class ChatRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 13.8,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 13.5,
+                            fontWeight: Tg.fontMedium,
                             color: Tg.text,
                           ),
                         ),
@@ -80,15 +80,16 @@ class ChatRow extends StatelessWidget {
                           TextSpan(
                             text: '${chat.sender}: ',
                             style: TextStyle(
-                              fontSize: 12.8,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 12.5,
+                              fontWeight: Tg.fontRegular,
                               color: selected ? Colors.white : Tg.textDim,
                             ),
                           ),
                         TextSpan(
                           text: chat.preview,
                           style: TextStyle(
-                            fontSize: 12.8,
+                            fontSize: 12.5,
+                            fontWeight: Tg.fontRegular,
                             color: selected
                                 ? const Color(0xFFDCEAF9)
                                 : Tg.textFaint,
