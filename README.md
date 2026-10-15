@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/s3rfdev/TellMeMore_TG/releases/tag/v1.0.0"><img src="https://img.shields.io/badge/Release-v1.0.0-brightgreen?logo=github" alt="Release v1.0.0" /></a>
   <img src="https://img.shields.io/badge/Flutter-3.10%2B-blue?logo=flutter" alt="Flutter" />
   <img src="https://img.shields.io/badge/TDLib-1.8.x-24A1DE?logo=telegram" alt="TDLib" />
   <img src="https://img.shields.io/badge/Platforms-Android%20%7C%20macOS%20%7C%20Linux%20%7C%20Windows-green" alt="Platforms" />
