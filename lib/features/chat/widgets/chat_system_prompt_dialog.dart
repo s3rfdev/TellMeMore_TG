@@ -89,7 +89,7 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
         agentRole: isRu ? 'Ассистент по ${widget.chat.title}' : 'Assistant for ${widget.chat.title}',
         systemPrompt: prompt,
         avatarIcon: Icons.person_pin_rounded,
-        avatarColor: const Color(0xFF8774E1),
+        avatarColor: Tg.accent,
         messages: [
           CopilotMessage(
             text: isRu
@@ -119,14 +119,14 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
     return Dialog(
       backgroundColor: Tg.sidebar,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Tg.border),
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Container(
         width: 540,
         constraints: const BoxConstraints(maxHeight: 680),
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -135,27 +135,23 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
             Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF8774E1).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF8774E1).withValues(alpha: 0.5)),
+                    color: Tg.accentDark.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Tg.accent.withValues(alpha: 0.4)),
                   ),
-                  child: const Icon(Icons.psychology_rounded, color: Color(0xFF8774E1), size: 22),
+                  child: const Icon(Icons.psychology_rounded, color: Tg.accent, size: 20),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         isRu ? 'Системный промпт AI' : 'AI System Prompt',
-                        style: const TextStyle(
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w600,
-                          color: Tg.text,
-                        ),
+                        style: Tg.title,
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -206,16 +202,16 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
                         hintStyle: const TextStyle(color: Tg.textDim, fontSize: 13),
                         contentPadding: const EdgeInsets.all(14),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Tg.border),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Tg.border),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF8774E1), width: 1.5),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Tg.accent, width: 1.5),
                         ),
                       ),
                     ),
@@ -224,33 +220,29 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
                     // Цель общения
                     Text(
                       isRu ? 'Цель общения' : 'Communication Goal',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Tg.text,
-                      ),
+                      style: Tg.caption,
                     ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _goalController,
-                      style: const TextStyle(fontSize: 13.5, color: Tg.text),
+                      style: const TextStyle(fontSize: 13, color: Tg.text),
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: Tg.field,
                         hintText: isRu ? 'Договориться о встрече / Закрыть сделку' : 'Schedule a meeting / Close deal',
-                        hintStyle: const TextStyle(color: Tg.textDim, fontSize: 13),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        hintStyle: const TextStyle(color: Tg.textDim, fontSize: 12.5),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Tg.border),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Tg.border),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF8774E1), width: 1.5),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Tg.accent, width: 1.5),
                         ),
                       ),
                     ),
@@ -259,33 +251,29 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
                     // Тон и стиль
                     Text(
                       isRu ? 'Тон и стиль общения' : 'Tone & Style of Voice',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Tg.text,
-                      ),
+                      style: Tg.caption,
                     ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _toneController,
-                      style: const TextStyle(fontSize: 13.5, color: Tg.text),
+                      style: const TextStyle(fontSize: 13, color: Tg.text),
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: Tg.field,
                         hintText: isRu ? 'Деловой / Дружелюбный / Экспертный' : 'Business / Friendly / Expert',
-                        hintStyle: const TextStyle(color: Tg.textDim, fontSize: 13),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        hintStyle: const TextStyle(color: Tg.textDim, fontSize: 12.5),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Tg.border),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Tg.border),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF8774E1), width: 1.5),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Tg.accent, width: 1.5),
                         ),
                       ),
                     ),
@@ -304,12 +292,15 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
               children: [
                 OutlinedButton.icon(
                   onPressed: _openInCopilot,
-                  icon: const Icon(Icons.forum_outlined, size: 16),
-                  label: Text(isRu ? 'Открыть в Copilot' : 'Open in Copilot'),
+                  icon: const Icon(Icons.forum_outlined, size: 15),
+                  label: Text(
+                    isRu ? 'Открыть в Copilot' : 'Open in Copilot',
+                    style: const TextStyle(fontSize: 12.5, fontWeight: Tg.fontMedium),
+                  ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8774E1),
-                    side: const BorderSide(color: Color(0xFF8774E1)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    foregroundColor: Tg.accent,
+                    side: const BorderSide(color: Tg.border),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
@@ -320,21 +311,25 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
                       onPressed: () => Navigator.of(context).pop(),
                       child: Text(
                         isRu ? 'Отмена' : 'Cancel',
-                        style: const TextStyle(color: Tg.textDim),
+                        style: const TextStyle(color: Tg.textDim, fontSize: 13),
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: _save,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8774E1),
+                        backgroundColor: Tg.accentDark,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: const BorderSide(color: Tg.border),
+                        ),
+                        elevation: 0,
                       ),
                       child: Text(
                         isRu ? 'Сохранить' : 'Save',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontWeight: Tg.fontMedium, fontSize: 13),
                       ),
                     ),
                   ],

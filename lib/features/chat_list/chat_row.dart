@@ -116,7 +116,7 @@ class ChatRow extends StatelessWidget {
                         child: Icon(
                           chat.outgoingRead ? Icons.done_all_rounded : Icons.done_rounded,
                           size: 13,
-                          color: chat.outgoingRead ? const Color(0xFF8774E1) : timeColor,
+                          color: chat.outgoingRead ? Tg.ticks : timeColor,
                         ),
                       ),
                     Text(chat.time,

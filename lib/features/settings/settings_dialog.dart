@@ -40,14 +40,7 @@ class SettingsDialog extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Tg.sidebar,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+                  border: Border.all(color: Tg.border),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
@@ -162,8 +155,8 @@ class SettingsDialog extends StatelessWidget {
                   Text(
                     acc.name,
                     style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                       color: Colors.white,
                     ),
                   ),
@@ -308,7 +301,7 @@ class SettingsDialog extends StatelessWidget {
         Tg.textDim,
       ),
       (
-        const Color(0xFF8774E1),
+        Tg.accent,
         Icons.auto_awesome_rounded,
         tr('ai_copilot_settings'),
         tr('ai_copilot_sub'),

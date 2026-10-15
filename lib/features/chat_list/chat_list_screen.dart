@@ -49,14 +49,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       decoration: BoxDecoration(
         color: Tg.sidebar,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Tg.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: ValueListenableBuilder<AppLanguage>(
@@ -93,12 +86,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         ? DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 28,
-                ),
-              ],
+              border: Border.all(color: Tg.border),
             ),
             child: body,
           )
@@ -333,7 +321,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 icon: Icons.auto_awesome_outlined,
                 activeIcon: Icons.auto_awesome,
                 tooltip: tr('copilot'),
-                activeColor: const Color(0xFF8774E1),
+                activeColor: Tg.accent,
               ),
               _bottomTabButton(
                 tab: SidebarTab.settings,

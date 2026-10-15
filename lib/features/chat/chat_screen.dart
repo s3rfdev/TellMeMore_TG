@@ -131,14 +131,7 @@ class _Header extends StatelessWidget {
           decoration: BoxDecoration(
             color: Tg.sidebar,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.22),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: Tg.border),
           ),
           clipBehavior: Clip.antiAlias,
           child: isSelection
@@ -314,7 +307,7 @@ class _Header extends StatelessWidget {
           child: CircleIconButton(
             icon: Icons.auto_awesome,
             iconSize: 19,
-            color: const Color(0xFF8774E1),
+            color: Tg.accent,
             onTap: () => ContactDossierDialog.show(context, chat),
           ),
         ),
@@ -323,7 +316,7 @@ class _Header extends StatelessWidget {
           child: CircleIconButton(
             icon: Icons.psychology_outlined,
             iconSize: 20,
-            color: const Color(0xFF51B2FF),
+            color: Tg.accentDark,
             onTap: () => ChatSystemPromptDialog.show(context, chat),
           ),
         ),
@@ -335,9 +328,13 @@ class _Header extends StatelessWidget {
         ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert_rounded, size: 20, color: Tg.textDim),
-          color: const Color(0xFF212D3B),
+          color: Tg.card,
+          elevation: 0,
           constraints: const BoxConstraints(minWidth: 260, maxWidth: 320),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: Tg.border),
+          ),
           onSelected: (val) {
             if (val == 'system_prompt') {
               ChatSystemPromptDialog.show(context, chat);
@@ -367,7 +364,7 @@ class _Header extends StatelessWidget {
               value: 'system_prompt',
               child: Row(
                 children: [
-                  const Icon(Icons.psychology_rounded, size: 18, color: Color(0xFF51B2FF)),
+                  const Icon(Icons.psychology_rounded, size: 18, color: Tg.accent),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -394,7 +391,7 @@ class _Header extends StatelessWidget {
               value: 'export_advisor',
               child: Row(
                 children: [
-                  const Icon(Icons.badge_outlined, size: 18, color: Color(0xFF8774E1)),
+                  const Icon(Icons.badge_outlined, size: 18, color: Tg.accent),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(tr('export_profile_advisor'), style: const TextStyle(color: Tg.text, fontSize: 13.5)),
@@ -753,14 +750,8 @@ class _MessageListState extends State<_MessageList> {
                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
                     decoration: BoxDecoration(
                       color: Tg.sidebar,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Tg.accent, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.4),
-                          blurRadius: 24,
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Tg.accent, width: 1.5),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -987,15 +978,8 @@ class _InputBarState extends State<_InputBar> {
       margin: const EdgeInsets.fromLTRB(10, 6, 10, 10),
       decoration: BoxDecoration(
         color: Tg.sidebar,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 14,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Tg.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -1341,7 +1325,7 @@ class _InputBarState extends State<_InputBar> {
                               ? Icons.keyboard_rounded
                               : Icons.sentiment_satisfied_alt_rounded,
                           size: 21,
-                          color: _showEmoji ? const Color(0xFF8774E1) : Tg.textFaint,
+                          color: _showEmoji ? Tg.accent : Tg.textFaint,
                         ),
                       ),
                       suffixIconConstraints:
@@ -1359,7 +1343,7 @@ class _InputBarState extends State<_InputBar> {
           child: CircleIconButton(
             icon: Icons.auto_awesome,
             iconSize: 20,
-            color: _showSmartReplies ? const Color(0xFF8774E1) : Tg.textDim,
+            color: _showSmartReplies ? Tg.accent : Tg.textDim,
             onTap: () => setState(() => _showSmartReplies = !_showSmartReplies),
           ),
         ),
@@ -1374,11 +1358,7 @@ class _InputBarState extends State<_InputBar> {
                 width: 42,
                 height: 42,
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF8774E1), Color(0xFF766AC8)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  gradient: Tg.accentGradient,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

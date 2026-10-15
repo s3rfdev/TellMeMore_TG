@@ -85,7 +85,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
       context,
       tr('export_copied_toast'),
       icon: Icons.content_copy_rounded,
-      accentColor: const Color(0xFF8774E1),
+      accentColor: Tg.accent,
     );
   }
 
@@ -102,7 +102,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
         context,
         tr('export_file_saved', {'path': path}),
         icon: Icons.download_done_rounded,
-        accentColor: const Color(0xFF4FAAFF),
+        accentColor: Tg.accent,
       );
     } catch (e) {
       if (!mounted) return;
@@ -160,12 +160,12 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: const Color(0xFF8774E1).withValues(alpha: 0.18),
+            color: Tg.accent.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
             Icons.badge_outlined,
-            color: Color(0xFF8774E1),
+            color: Tg.accent,
             size: 22,
           ),
         ),
@@ -240,17 +240,9 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF2B3A4C) : Colors.transparent,
+            color: isSelected ? Tg.selected : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ]
-                : null,
+            border: isSelected ? Border.all(color: Tg.border) : null,
           ),
           child: Center(
             child: Text(
@@ -258,7 +250,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
               style: TextStyle(
                 color: isSelected ? Colors.white : Tg.textDim,
                 fontSize: 12.5,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: isSelected ? Tg.fontMedium : Tg.fontRegular,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -300,21 +292,21 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF8774E1).withValues(alpha: 0.25)
+              ? Tg.accent.withValues(alpha: 0.22)
               : const Color(0xFF18222D),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF8774E1).withValues(alpha: 0.6)
+                ? Tg.accent.withValues(alpha: 0.6)
                 : Colors.white.withValues(alpha: 0.06),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? const Color(0xFFB1A4FF) : Tg.textDim,
+            color: isSelected ? Tg.accentLight : Tg.textDim,
             fontSize: 11.5,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
           ),
         ),
       ),
@@ -361,9 +353,9 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
           icon: const Icon(Icons.copy_rounded, size: 16),
           label: Text(tr('export_copy_btn')),
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFFB1A4FF),
-            side: BorderSide(color: const Color(0xFF8774E1).withValues(alpha: 0.45)),
-            backgroundColor: const Color(0xFF8774E1).withValues(alpha: 0.12),
+            foregroundColor: Tg.accentLight,
+            side: BorderSide(color: Tg.accent.withValues(alpha: 0.45)),
+            backgroundColor: Tg.accent.withValues(alpha: 0.12),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
@@ -380,7 +372,7 @@ class _ChatExportDialogState extends State<ChatExportDialog> {
               : const Icon(Icons.download_rounded, size: 16),
           label: Text(tr('export_save_btn')),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF3390EC),
+            backgroundColor: Tg.accentDark,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

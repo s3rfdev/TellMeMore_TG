@@ -87,14 +87,7 @@ class _EmojiPickerPopupState extends State<EmojiPickerPopup>
       decoration: BoxDecoration(
         color: Tg.sidebar,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Tg.hairline),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: Tg.border),
       ),
       child: Column(
         children: [
@@ -111,7 +104,7 @@ class _EmojiPickerPopupState extends State<EmojiPickerPopup>
                     controller: _tabController,
                     isScrollable: true,
                     tabAlignment: TabAlignment.start,
-                    indicatorColor: const Color(0xFF8774E1),
+                    indicatorColor: Tg.accent,
                     indicatorSize: TabBarIndicatorSize.label,
                     dividerColor: Colors.transparent,
                     padding: const EdgeInsets.symmetric(horizontal: 4),

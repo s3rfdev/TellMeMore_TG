@@ -151,13 +151,6 @@ class MessageBubble extends StatelessWidget {
               bottomRight: Radius.circular(out ? 4 : 14),
             ),
             border: isSelected ? Border.all(color: Tg.accent, width: 2) : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 4,
-                offset: const Offset(0, 1.5),
-              ),
-            ],
           ),
           child: (message.replyToMessageId > 0 || message.replySenderName.isNotEmpty)
               ? Column(
@@ -462,7 +455,7 @@ class MessageBubble extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: out ? const Color(0xFF8774E1) : Tg.accent,
+              color: out ? Tg.accentDark : Tg.accent,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.insert_drive_file_rounded, color: Colors.white, size: 22),

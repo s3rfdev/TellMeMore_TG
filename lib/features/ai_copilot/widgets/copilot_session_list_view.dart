@@ -136,12 +136,11 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF8774E1), Color(0xFF51B2FF)],
-              ),
+              color: Tg.accentDark,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Tg.border),
             ),
-            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 16),
           ),
           const SizedBox(width: 10),
           ValueListenableBuilder<List<CopilotSession>>(
@@ -151,25 +150,22 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
                 children: [
                   Text(
                     tr('copilot_chats_header'),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Tg.text,
-                    ),
+                    style: Tg.title,
                   ),
                   const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF8774E1).withValues(alpha: 0.25),
+                      color: Tg.field,
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Tg.border),
                     ),
                     child: Text(
                       '${list.length}',
                       style: const TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF8774E1),
+                        fontWeight: Tg.fontMedium,
+                        color: Tg.accent,
                       ),
                     ),
                   ),
@@ -180,17 +176,20 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
           const Spacer(),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8774E1),
+              backgroundColor: Tg.accentDark,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Tg.border),
+              ),
               elevation: 0,
             ),
             onPressed: () => CreateCopilotChatDialog.show(context),
-            icon: const Icon(Icons.add, size: 16),
+            icon: const Icon(Icons.add, size: 15),
             label: Text(
               tr('new_chat_btn'),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium),
             ),
           ),
         ],
@@ -264,13 +263,20 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8774E1),
+                    backgroundColor: Tg.accentDark,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: const BorderSide(color: Tg.border),
+                    ),
+                    elevation: 0,
                   ),
                   onPressed: () => CreateCopilotChatDialog.show(context),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: Text(tr('create_first_chat_btn')),
+                  icon: const Icon(Icons.add, size: 15),
+                  label: Text(
+                    tr('create_first_chat_btn'),
+                    style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium),
+                  ),
                 ),
               ],
             ),
@@ -313,10 +319,10 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF2B5278) : Colors.transparent,
+            color: isActive ? Tg.selected : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: isActive
-                ? Border.all(color: const Color(0xFF8774E1).withValues(alpha: 0.4), width: 1)
+                ? Border.all(color: Tg.accent.withValues(alpha: 0.4), width: 1)
                 : null,
           ),
           child: Row(

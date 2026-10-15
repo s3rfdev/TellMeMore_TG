@@ -127,42 +127,34 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Tg.sidebar,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Tg.border),
       ),
       child: Row(
         children: [
-          const Icon(Icons.settings_suggest_rounded, color: Color(0xFF8774E1), size: 24),
+          const Icon(Icons.settings_suggest_rounded, color: Tg.accent, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               tr('ai_settings_header'),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Tg.text,
-              ),
+              style: Tg.title,
             ),
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2F6FA8),
+              backgroundColor: Tg.accentDark,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Tg.border),
+              ),
               elevation: 0,
             ),
-            icon: const Icon(Icons.manage_accounts_rounded, size: 17),
+            icon: const Icon(Icons.manage_accounts_rounded, size: 16),
             label: Text(
               tr('ai_profile_accounts'),
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 12.5, fontWeight: Tg.fontMedium),
             ),
             onPressed: () => SettingsDialog.show(context),
           ),
@@ -181,7 +173,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     ];
 
     return Container(
-      height: 44,
+      height: 42,
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
@@ -193,20 +185,20 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
           return ChoiceChip(
             avatar: Icon(
               tab.$1,
-              size: 16,
+              size: 15,
               color: active ? Colors.white : Tg.textDim,
             ),
             label: Text(tab.$2),
             selected: active,
-            selectedColor: const Color(0xFF8774E1),
+            selectedColor: Tg.accentDark,
             backgroundColor: Tg.sidebar,
             labelStyle: TextStyle(
-              fontSize: 12.5,
-              fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+              fontSize: 12,
+              fontWeight: active ? Tg.fontMedium : Tg.fontRegular,
               color: active ? Colors.white : Tg.textDim,
             ),
             side: BorderSide(
-              color: active ? const Color(0xFF8774E1) : Colors.white.withValues(alpha: 0.08),
+              color: active ? Tg.accent : Tg.border,
             ),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             onSelected: (_) => setState(() => _selectedTab = i),
@@ -219,24 +211,20 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
   Widget _buildCard({required String title, required Widget child}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Tg.sidebar,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        color: Tg.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Tg.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w600,
-              color: Tg.text,
-            ),
+            style: Tg.title,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           child,
         ],
       ),
@@ -254,22 +242,23 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: 8,
+                runSpacing: 8,
                 children: _providerModels.keys.map((p) {
                   final active = settings.provider == p;
                   return ChoiceChip(
                     label: Text(p),
                     selected: active,
-                    selectedColor: const Color(0xFF8774E1).withValues(alpha: 0.3),
+                    selectedColor: Tg.accentDark.withValues(alpha: 0.35),
                     backgroundColor: Tg.field,
                     labelStyle: TextStyle(
-                      color: active ? const Color(0xFF8774E1) : Tg.textDim,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+                      color: active ? Tg.accent : Tg.textDim,
+                      fontSize: 12,
+                      fontWeight: active ? Tg.fontMedium : Tg.fontRegular,
                     ),
                     side: BorderSide(
-                      color: active ? const Color(0xFF8774E1) : Colors.transparent,
-                      width: 1.5,
+                      color: active ? Tg.accent : Tg.border,
+                      width: 1,
                     ),
                     onSelected: (selected) {
                       if (selected) {
@@ -284,24 +273,24 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     tr('ai_current_model'),
-                    style: const TextStyle(fontSize: 13, color: Tg.textDim),
+                    style: Tg.caption,
                   ),
                   if (_loadingModels)
                     const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8774E1)),
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 1.5, color: Tg.accent),
                     )
                   else
                     Text(
                       tr('ai_available_count', {'count': currentList.length.toString()}),
-                      style: const TextStyle(fontSize: 12, color: Tg.accent),
+                      style: const TextStyle(fontSize: 11.5, color: Tg.accent, fontWeight: Tg.fontMedium),
                     ),
                 ],
               ),
@@ -311,13 +300,14 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 decoration: BoxDecoration(
                   color: Tg.field,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Tg.border),
                 ),
                 child: DropdownButton<String>(
                   value: currentList.contains(settings.model) ? settings.model : currentList.first,
                   isExpanded: true,
                   underline: const SizedBox.shrink(),
-                  dropdownColor: const Color(0xFF212D3B),
-                  style: const TextStyle(color: Tg.text, fontSize: 13.5),
+                  dropdownColor: Tg.field,
+                  style: const TextStyle(color: Tg.text, fontSize: 13),
                   items: currentList
                       .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                       .toList(),
@@ -333,13 +323,20 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               ElevatedButton.icon(
                 onPressed: _loadingModels ? null : () => _refreshModels(settings),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8774E1),
+                  backgroundColor: Tg.accentDark,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(color: Tg.border),
+                  ),
+                  elevation: 0,
                 ),
-                icon: const Icon(Icons.sync_rounded, size: 16),
-                label: Text(tr('ai_refresh_models', {'provider': settings.provider})),
+                icon: const Icon(Icons.sync_rounded, size: 15),
+                label: Text(
+                  tr('ai_refresh_models', {'provider': settings.provider}),
+                  style: const TextStyle(fontSize: 12.5, fontWeight: Tg.fontMedium),
+                ),
               ),
             ],
           ),
@@ -437,27 +434,23 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF8774E1).withValues(alpha: 0.15),
-                      const Color(0xFF2F6FA8).withValues(alpha: 0.15),
-                    ],
-                  ),
+                  color: Tg.field,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF8774E1).withValues(alpha: 0.3)),
+                  border: Border.all(color: Tg.border),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF8774E1),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Tg.accentDark,
                         shape: BoxShape.circle,
+                        border: Border.all(color: Tg.border),
                       ),
-                      child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 24),
+                      child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 20),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,15 +458,15 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                           Text(
                             tr('ai_autopilot_header'),
                             style: const TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 13.5,
+                              fontWeight: Tg.fontMedium,
                               color: Colors.white,
                             ),
                           ),
                           const SizedBox(height: 3),
                           Text(
                             tr('ai_autopilot_banner_sub'),
-                            style: const TextStyle(fontSize: 12, color: Tg.textDim),
+                            style: Tg.caption,
                           ),
                         ],
                       ),
@@ -481,24 +474,26 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               SwitchListTile(
                 value: settings.autoPilotEnabled,
-                title: Text(tr('ai_enable_autopilot'), style: const TextStyle(color: Tg.text, fontSize: 14)),
-                subtitle: Text(tr('ai_enable_autopilot_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
-                activeThumbColor: const Color(0xFF8774E1),
+                title: Text(tr('ai_enable_autopilot'), style: const TextStyle(color: Tg.text, fontSize: 13, fontWeight: Tg.fontRegular)),
+                subtitle: Text(tr('ai_enable_autopilot_sub'), style: Tg.caption),
+                activeThumbColor: Tg.accent,
+                activeTrackColor: Tg.accentDark.withValues(alpha: 0.5),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (val) {
                   AiSettingsStore.instance.settings.value = settings.copyWith(autoPilotEnabled: val);
                   TgToast.show(context, val ? tr('ai_autopilot_enabled_toast') : tr('ai_autopilot_disabled_toast'));
                 },
               ),
-              const Divider(color: Tg.hairline, height: 16),
+              const Divider(color: Tg.hairline, height: 14),
               SwitchListTile(
                 value: settings.autoPilotDirectSend,
-                title: Text(tr('ai_direct_send'), style: const TextStyle(color: Tg.text, fontSize: 14)),
-                subtitle: Text(tr('ai_direct_send_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
-                activeThumbColor: const Color(0xFF8774E1),
+                title: Text(tr('ai_direct_send'), style: const TextStyle(color: Tg.text, fontSize: 13, fontWeight: Tg.fontRegular)),
+                subtitle: Text(tr('ai_direct_send_sub'), style: Tg.caption),
+                activeThumbColor: Tg.accent,
+                activeTrackColor: Tg.accentDark.withValues(alpha: 0.5),
                 contentPadding: EdgeInsets.zero,
                 onChanged: settings.autoPilotEnabled
                     ? (val) {
@@ -506,12 +501,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       }
                     : null,
               ),
-              const Divider(color: Tg.hairline, height: 16),
+              const Divider(color: Tg.hairline, height: 14),
               SwitchListTile(
                 value: settings.autoPilotReadIncoming,
-                title: Text(tr('ai_read_incoming'), style: const TextStyle(color: Tg.text, fontSize: 14)),
-                subtitle: Text(tr('ai_read_incoming_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
-                activeThumbColor: const Color(0xFF8774E1),
+                title: Text(tr('ai_read_incoming'), style: const TextStyle(color: Tg.text, fontSize: 13, fontWeight: Tg.fontRegular)),
+                subtitle: Text(tr('ai_read_incoming_sub'), style: Tg.caption),
+                activeThumbColor: Tg.accent,
+                activeTrackColor: Tg.accentDark.withValues(alpha: 0.5),
                 contentPadding: EdgeInsets.zero,
                 onChanged: settings.autoPilotEnabled
                     ? (val) {
@@ -519,12 +515,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       }
                     : null,
               ),
-              const Divider(color: Tg.hairline, height: 16),
+              const Divider(color: Tg.hairline, height: 14),
               SwitchListTile(
                 value: settings.autoPilotToneMatching,
-                title: Text(tr('ai_tone_matching'), style: const TextStyle(color: Tg.text, fontSize: 14)),
-                subtitle: Text(tr('ai_tone_matching_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
-                activeThumbColor: const Color(0xFF8774E1),
+                title: Text(tr('ai_tone_matching'), style: const TextStyle(color: Tg.text, fontSize: 13, fontWeight: Tg.fontRegular)),
+                subtitle: Text(tr('ai_tone_matching_sub'), style: Tg.caption),
+                activeThumbColor: Tg.accent,
+                activeTrackColor: Tg.accentDark.withValues(alpha: 0.5),
                 contentPadding: EdgeInsets.zero,
                 onChanged: settings.autoPilotEnabled
                     ? (val) {
@@ -611,24 +608,24 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                         decoration: BoxDecoration(
-                          color: isVolume ? const Color(0xFF8774E1).withValues(alpha: 0.18) : Tg.field,
+                          color: isVolume ? Tg.accentDark.withValues(alpha: 0.25) : Tg.field,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: isVolume ? const Color(0xFF8774E1) : Colors.white.withValues(alpha: 0.08),
-                            width: isVolume ? 1.5 : 1,
+                            color: isVolume ? Tg.accent : Tg.border,
+                            width: 1,
                           ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.speed_rounded, size: 16, color: isVolume ? const Color(0xFF8774E1) : Tg.textDim),
+                            Icon(Icons.speed_rounded, size: 16, color: isVolume ? Tg.accent : Tg.textDim),
                             const SizedBox(width: 8),
                             Text(
                               tr('ai_comp_volume_smart'),
                               style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: isVolume ? FontWeight.w600 : FontWeight.normal,
-                                color: isVolume ? const Color(0xFF8774E1) : Tg.text,
+                                fontSize: 12,
+                                fontWeight: isVolume ? Tg.fontMedium : Tg.fontRegular,
+                                color: isVolume ? Colors.white : Tg.text,
                               ),
                             ),
                           ],
@@ -647,24 +644,24 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                         decoration: BoxDecoration(
-                          color: !isVolume ? const Color(0xFF8774E1).withValues(alpha: 0.18) : Tg.field,
+                          color: !isVolume ? Tg.accentDark.withValues(alpha: 0.25) : Tg.field,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: !isVolume ? const Color(0xFF8774E1) : Colors.white.withValues(alpha: 0.08),
-                            width: !isVolume ? 1.5 : 1,
+                            color: !isVolume ? Tg.accent : Tg.border,
+                            width: 1,
                           ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.format_list_numbered_rounded, size: 16, color: !isVolume ? const Color(0xFF8774E1) : Tg.textDim),
+                            Icon(Icons.format_list_numbered_rounded, size: 16, color: !isVolume ? Tg.accent : Tg.textDim),
                             const SizedBox(width: 8),
                             Text(
                               tr('ai_comp_msg_count'),
                               style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: !isVolume ? FontWeight.w600 : FontWeight.normal,
-                                color: !isVolume ? const Color(0xFF8774E1) : Tg.text,
+                                fontSize: 12,
+                                fontWeight: !isVolume ? Tg.fontMedium : Tg.fontRegular,
+                                color: !isVolume ? Colors.white : Tg.text,
                               ),
                             ),
                           ],
@@ -680,13 +677,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(tr('ai_comp_volume_threshold'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
+                    Text(tr('ai_comp_volume_threshold'), style: Tg.caption),
                     Text(
                       tr('ai_comp_volume_tokens', {
                         'tokens': settings.compressionVolumeThreshold.toString(),
                         'chars': approxChars.toString(),
                       }),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF00C48C)),
+                      style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium, color: Tg.accent),
                     ),
                   ],
                 ),
@@ -695,7 +692,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   min: 1000,
                   max: 32000,
                   divisions: 31,
-                  activeColor: const Color(0xFF00C48C),
+                  activeColor: Tg.accent,
                   inactiveColor: Tg.field,
                   onChanged: (val) {
                     AiSettingsStore.instance.settings.value =
@@ -710,10 +707,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(tr('ai_comp_msg_threshold'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
+                    Text(tr('ai_comp_msg_threshold'), style: Tg.caption),
                     Text(
                       tr('ai_comp_msgs_count', {'count': settings.contextMessageCount.toString()}),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF8774E1)),
+                      style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium, color: Tg.accent),
                     ),
                   ],
                 ),
@@ -722,7 +719,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   min: 10,
                   max: 100,
                   divisions: 18,
-                  activeColor: const Color(0xFF8774E1),
+                  activeColor: Tg.accent,
                   inactiveColor: Tg.field,
                   onChanged: (val) {
                     AiSettingsStore.instance.settings.value =
@@ -774,9 +771,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
             children: [
               SwitchListTile(
                 value: settings.sandwichContextEnabled,
-                title: Text(tr('ai_sandwich_layers'), style: const TextStyle(color: Tg.text, fontSize: 13.5)),
-                subtitle: Text(tr('ai_sandwich_layers_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
-                activeThumbColor: const Color(0xFF8774E1),
+                title: Text(tr('ai_sandwich_layers'), style: const TextStyle(color: Tg.text, fontSize: 13, fontWeight: Tg.fontRegular)),
+                subtitle: Text(tr('ai_sandwich_layers_sub'), style: Tg.caption),
+                activeThumbColor: Tg.accent,
+                activeTrackColor: Tg.accentDark.withValues(alpha: 0.5),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (val) {
                   AiSettingsStore.instance.settings.value =
@@ -789,7 +787,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 decoration: BoxDecoration(
                   color: Tg.field,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(color: Tg.border),
                 ),
                 child: Column(
                   children: [
@@ -811,7 +809,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       icon: '🥬',
                       name: tr('ai_sandwich_filling2'),
                       desc: tr('ai_sandwich_filling2_desc'),
-                      color: const Color(0xFF51B2FF),
+                      color: Tg.accent,
                     ),
                     const SizedBox(height: 8),
                     _SandwichLayerTile(
@@ -838,20 +836,21 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(tr('ai_voice_service'), style: const TextStyle(fontSize: 13, color: Tg.textDim)),
+              Text(tr('ai_voice_service'), style: Tg.caption),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: Tg.field,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Tg.border),
                 ),
                 child: DropdownButton<String>(
                   value: settings.voiceProvider,
                   isExpanded: true,
                   underline: const SizedBox.shrink(),
-                  dropdownColor: const Color(0xFF212D3B),
-                  style: const TextStyle(color: Tg.text, fontSize: 13.5),
+                  dropdownColor: Tg.field,
+                  style: const TextStyle(color: Tg.text, fontSize: 13),
                   items: ['Deepgram Nova-2', 'OpenAI Whisper-1', 'Vosk / Sherpa']
                       .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                       .toList(),
@@ -875,9 +874,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               const SizedBox(height: 8),
               SwitchListTile(
                 value: settings.autoDetectVoiceLang,
-                title: Text(tr('ai_voice_autodetect'), style: const TextStyle(color: Tg.text, fontSize: 13.5)),
-                subtitle: Text(tr('ai_voice_autodetect_sub'), style: const TextStyle(color: Tg.textDim, fontSize: 12)),
-                activeThumbColor: const Color(0xFF8774E1),
+                title: Text(tr('ai_voice_autodetect'), style: const TextStyle(color: Tg.text, fontSize: 13, fontWeight: Tg.fontRegular)),
+                subtitle: Text(tr('ai_voice_autodetect_sub'), style: Tg.caption),
+                activeThumbColor: Tg.accent,
+                activeTrackColor: Tg.accentDark.withValues(alpha: 0.5),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (val) {
                   AiSettingsStore.instance.settings.value =

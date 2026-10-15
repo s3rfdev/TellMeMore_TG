@@ -78,14 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: BoxDecoration(
                     color: Tg.sidebar,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+                    border: Border.all(color: Tg.border),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -102,11 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 76,
                             height: 76,
                             decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF8774E1), Color(0xFF6B58C9)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
+                              gradient: Tg.accentGradient,
                               shape: BoxShape.circle,
                             ),
                             alignment: Alignment.center,
@@ -119,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         'TG Answer',
                         style: TextStyle(
                           fontSize: 22,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           color: Tg.text,
                           letterSpacing: 0.3,
                         ),

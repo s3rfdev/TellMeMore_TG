@@ -52,14 +52,7 @@ class _NotificationsSettingsDialogState extends State<NotificationsSettingsDialo
         decoration: BoxDecoration(
           color: Tg.sidebar,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.5),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          border: Border.all(color: Tg.border),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),

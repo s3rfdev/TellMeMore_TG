@@ -78,14 +78,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 decoration: BoxDecoration(
                   color: Tg.sidebar,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+                  border: Border.all(color: Tg.border),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
@@ -216,8 +209,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
           Text(
             acc.name.isNotEmpty ? acc.name : tr('user_default'),
             style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
+              fontSize: 17,
+              fontWeight: FontWeight.w500,
               color: Colors.white,
             ),
           ),
@@ -567,7 +560,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                                 color: Colors.black.withValues(alpha: 0.7),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text('VIDEO', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.white)),
+                              child: const Text('VIDEO', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Colors.white)),
                             ),
                           ),
                         if (post.views > 0)
@@ -769,19 +762,14 @@ class _ProfileDialogState extends State<ProfileDialog> {
                                   alignment: Alignment.center,
                                   children: [
                                     Container(
-                                      width: 60,
-                                      height: 60,
+                                      width: 56,
+                                      height: 56,
                                       decoration: BoxDecoration(
                                         color: Tg.accent.withValues(alpha: 0.9),
                                         shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Tg.accent.withValues(alpha: 0.4),
-                                            blurRadius: 16,
-                                          ),
-                                        ],
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                                       ),
-                                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
                                     ),
                                     Positioned(
                                       bottom: 12,

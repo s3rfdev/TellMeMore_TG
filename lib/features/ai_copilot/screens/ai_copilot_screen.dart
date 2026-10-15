@@ -329,16 +329,16 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
         return AlertDialog(
           backgroundColor: Tg.sidebar,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Tg.border),
           ),
           title: Row(
             children: [
-              const Icon(Icons.layers_outlined, color: Color(0xFF8774E1), size: 22),
+              const Icon(Icons.layers_outlined, color: Tg.accent, size: 20),
               const SizedBox(width: 10),
               Text(
                 tr('context_sandwich_title'),
-                style: const TextStyle(color: Tg.text, fontSize: 16, fontWeight: FontWeight.w600),
+                style: Tg.title,
               ),
             ],
           ),
@@ -487,7 +487,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
               Expanded(
                 child: Text(
                   layerName,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color),
                 ),
               ),
               Container(
@@ -498,7 +498,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                 ),
                 child: Text(
                   '$tokens tok',
-                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: color),
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: color),
                 ),
               ),
             ],
@@ -555,14 +555,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       decoration: BoxDecoration(
         color: Tg.sidebar,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: Tg.border),
       ),
       child: Row(
         children: [
@@ -647,14 +640,14 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                     Icon(
                       session.contextSummary != null ? Icons.compress : Icons.layers_outlined,
                       size: 14,
-                      color: session.contextSummary != null ? const Color(0xFF00C48C) : const Color(0xFF8774E1),
+                      color: session.contextSummary != null ? const Color(0xFF00C48C) : Tg.accent,
                     ),
                     const SizedBox(width: 5),
                     Text(
                       '${session.totalTokens} tok',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: Tg.fontMedium,
                         color: session.contextSummary != null ? const Color(0xFF00C48C) : Tg.text,
                       ),
                     ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/localization/app_locale.dart';
 import '../core/services/call_sound_service.dart';
+import '../core/theme/tg_theme.dart';
 import '../core/widgets/tg_avatar.dart';
 import '../data/models/tg_chat.dart';
 import '../data/tdlib/td_content.dart';
@@ -217,8 +218,8 @@ class _DragHandleState extends State<_DragHandle> {
               duration: const Duration(milliseconds: 120),
               width: active ? 2.5 : 1,
               color: active
-                  ? const Color(0xFF8774E1)
-                  : Colors.white.withValues(alpha: 0.08),
+                  ? Tg.accent
+                  : Tg.border,
             ),
           ),
         ),
@@ -243,16 +244,9 @@ class _IncomingCallBanner extends StatelessWidget {
           width: 330,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1B232E),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF43D39E).withValues(alpha: 0.5), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
+            color: Tg.sidebar,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Tg.accent, width: 1.5),
           ),
           child: Row(
             children: [
@@ -271,8 +265,8 @@ class _IncomingCallBanner extends StatelessWidget {
                     Text(
                       call.userName,
                       style: const TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
                         color: Colors.white,
                       ),
                       maxLines: 1,

@@ -26,7 +26,7 @@ class CopilotSessionStore {
             ? 'Ты персональный AI-копилот для Telegram. Ты умеешь изучать любые переписки, отвечать на вопросы по чатам, анализировать сообщения и помогать в решении задач пользователя.'
             : 'You are a personal AI Copilot for Telegram. You can study any conversations, answer questions about chats, analyze messages, and assist with user tasks.',
         avatarIcon: Icons.auto_awesome,
-        avatarColor: const Color(0xFF8774E1),
+        avatarColor: const Color(0xFF5288C1),
         messages: [
           CopilotMessage(
             text: isRu
@@ -75,7 +75,7 @@ class CopilotSessionStore {
       systemPrompt: prompt ?? '',
       model: model,
       avatarIcon: icon ?? Icons.auto_awesome,
-      avatarColor: color ?? const Color(0xFF8774E1),
+      avatarColor: color ?? const Color(0xFF5288C1),
       messages: [
         CopilotMessage(
           text: isRu

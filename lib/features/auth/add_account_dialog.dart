@@ -119,16 +119,9 @@ class _AddAccountDialogState extends State<AddAccountDialog> {
         width: 440,
         constraints: const BoxConstraints(maxHeight: 620),
         decoration: BoxDecoration(
-          color: const Color(0xFF1B232E),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.55),
-              blurRadius: 32,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          color: Tg.sidebar,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Tg.border),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -249,13 +242,7 @@ class _AddAccountDialogState extends State<AddAccountDialog> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(color: Colors.white24),
           ),
           child: QrImageView(
             data: 'tg://login?token=amos_session_${DateTime.now().millisecondsSinceEpoch}',

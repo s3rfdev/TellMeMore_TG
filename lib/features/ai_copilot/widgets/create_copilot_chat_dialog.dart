@@ -28,16 +28,16 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
   final _promptController = TextEditingController();
 
   IconData _selectedIcon = Icons.auto_awesome;
-  Color _selectedColor = const Color(0xFF8774E1);
+  Color _selectedColor = Tg.accent;
   String? _selectedModel;
 
   static const List<Color> _colorPalette = [
-    Color(0xFF8774E1),
+    Tg.accent,
+    Tg.accentDark,
     Color(0xFF51B2FF),
     Color(0xFF00C48C),
     Color(0xFFFF9F43),
     Color(0xFFFF7675),
-    Color(0xFFA55EEA),
     Color(0xFF20BF6B),
     Color(0xFF45AAF2),
   ];
@@ -94,14 +94,14 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
     return Dialog(
       backgroundColor: Tg.sidebar,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Tg.border),
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Container(
         width: 520,
         constraints: const BoxConstraints(maxHeight: 640),
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -109,32 +109,28 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
             Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: _selectedColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _selectedColor.withValues(alpha: 0.5)),
+                    color: _selectedColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _selectedColor.withValues(alpha: 0.4)),
                   ),
-                  child: Icon(_selectedIcon, color: _selectedColor, size: 22),
+                  child: Icon(_selectedIcon, color: _selectedColor, size: 20),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         tr('new_copilot_chat_title'),
-                        style: const TextStyle(
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w600,
-                          color: Tg.text,
-                        ),
+                        style: Tg.title,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         tr('create_context_desc'),
-                        style: const TextStyle(fontSize: 12, color: Tg.textDim),
+                        style: Tg.caption,
                       ),
                     ],
                   ),
@@ -251,17 +247,20 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
                 const SizedBox(width: 10),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _selectedColor,
+                    backgroundColor: _selectedColor == Tg.accent ? Tg.accentDark : _selectedColor,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: const BorderSide(color: Tg.border),
+                    ),
                     elevation: 0,
                   ),
                   onPressed: _submit,
-                  icon: const Icon(Icons.add_comment_rounded, size: 18),
+                  icon: const Icon(Icons.add_comment_rounded, size: 16),
                   label: Text(
                     tr('create_chat_btn'),
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                    style: const TextStyle(fontWeight: Tg.fontMedium, fontSize: 12.5),
                   ),
                 ),
               ],
@@ -281,14 +280,14 @@ class _CreateCopilotChatDialogState extends State<CreateCopilotChatDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Tg.textDim)),
+        Text(label, style: Tg.caption),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
           decoration: BoxDecoration(
             color: Tg.field,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(color: Tg.border),
           ),
           child: TextField(
             controller: controller,

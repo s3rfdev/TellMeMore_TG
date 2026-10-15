@@ -106,7 +106,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: widget.outgoing ? const Color(0xFF8774E1) : Tg.accent,
+                color: widget.outgoing ? Tg.accentDark : Tg.accent,
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -150,7 +150,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                             ? Colors.white
                             : (widget.outgoing
                                 ? Colors.white.withValues(alpha: 0.45)
-                                : const Color(0xFF8774E1).withValues(alpha: 0.5)),
+                                : Tg.accent.withValues(alpha: 0.5)),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     );

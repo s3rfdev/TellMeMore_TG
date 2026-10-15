@@ -159,7 +159,7 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
         agentRole: isRu ? 'Ассистент по ${widget.chat.title}' : 'Assistant for ${widget.chat.title}',
         systemPrompt: prompt,
         avatarIcon: Icons.person_pin_rounded,
-        avatarColor: const Color(0xFF8774E1),
+        avatarColor: Tg.accent,
         messages: [
           CopilotMessage(
             text: isRu
@@ -196,34 +196,24 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
       margin: const EdgeInsets.fromLTRB(14, 0, 14, 6),
       padding: const EdgeInsets.fromLTRB(12, 6, 8, 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B2735),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFF8774E1).withValues(alpha: 0.35),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Tg.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Tg.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Заголовок более мелким шрифтом, чтобы занимать минимум места
           Row(
             children: [
-              const Icon(Icons.auto_awesome, size: 12, color: Color(0xFF8774E1)),
+              const Icon(Icons.auto_awesome, size: 12, color: Tg.accent),
               const SizedBox(width: 5),
               Text(
                 tr('ai_reply_title'),
                 style: const TextStyle(
                   fontSize: 10.5,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF8774E1),
+                  fontWeight: Tg.fontMedium,
+                  color: Tg.accent,
                   letterSpacing: 0.1,
                 ),
               ),
@@ -248,14 +238,14 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8774E1)),
+                      strokeWidth: 1.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Tg.accent),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     tr('ai_reply_generating'),
-                    style: const TextStyle(fontSize: 11.5, color: Tg.textDim),
+                    style: Tg.caption,
                   ),
                 ],
               ),
@@ -269,7 +259,7 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
     );
   }
 
-  /// Две кнопки вместо прежних пресетов
+  /// Кнопки действий
   Widget _buildTwoActionButtons() {
     return Row(
       children: [
@@ -282,27 +272,20 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF8774E1).withValues(alpha: 0.25),
-                    const Color(0xFF766AC8).withValues(alpha: 0.15),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(
-                  color: const Color(0xFF8774E1).withValues(alpha: 0.4),
-                ),
+                color: Tg.accentDark,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Tg.border),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF51B2FF)),
+                  const Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
                   const SizedBox(width: 5),
                   Text(
                     tr('ai_reply_auto'),
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: Tg.fontMedium,
                       color: Colors.white,
                     ),
                   ),
@@ -322,22 +305,20 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: Tg.sidebar,
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(
-                  color: const Color(0xFF51B2FF).withValues(alpha: 0.35),
-                ),
+                color: Tg.field,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Tg.border),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.mic_rounded, size: 14, color: Color(0xFF51B2FF)),
+                  const Icon(Icons.mic_rounded, size: 14, color: Tg.accent),
                   const SizedBox(width: 5),
                   Text(
                     tr('ai_reply_dictate'),
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: Tg.fontMedium,
                       color: Tg.text,
                     ),
                   ),
@@ -357,23 +338,21 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: const Color(0xFF8774E1).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(
-                  color: const Color(0xFF8774E1).withValues(alpha: 0.4),
-                ),
+                color: Tg.field,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Tg.border),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.forum_outlined, size: 14, color: Color(0xFF8774E1)),
+                  const Icon(Icons.forum_outlined, size: 14, color: Tg.accent),
                   const SizedBox(width: 5),
                   Text(
                     tr('ai_reply_copilot_chat'),
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF8774E1),
+                      fontWeight: Tg.fontMedium,
+                      color: Tg.text,
                     ),
                   ),
                 ],
@@ -401,17 +380,17 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: _isRecording
-                      ? Colors.redAccent.withValues(alpha: 0.25)
-                      : const Color(0xFF8774E1).withValues(alpha: 0.2),
+                      ? Tg.danger.withValues(alpha: 0.2)
+                      : Tg.field,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: _isRecording ? Colors.redAccent : const Color(0xFF8774E1),
+                    color: _isRecording ? Tg.danger : Tg.border,
                   ),
                 ),
                 child: Icon(
                   _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
                   size: 15,
-                  color: _isRecording ? Colors.redAccent : const Color(0xFF8774E1),
+                  color: _isRecording ? Tg.danger : Tg.accent,
                 ),
               ),
             ),
@@ -422,11 +401,9 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
               child: Container(
                 height: 30,
                 decoration: BoxDecoration(
-                  color: Tg.sidebar,
+                  color: Tg.field,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
+                  border: Border.all(color: Tg.border),
                 ),
                 child: TextField(
                   controller: _instructionController,
@@ -455,10 +432,9 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF8774E1), Color(0xFF766AC8)],
-                    ),
+                    color: Tg.accentDark,
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Tg.border),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -470,7 +446,7 @@ ${dossier.facts.map((f) => '• $f').join('\n')}
                         style: const TextStyle(
                           fontSize: 11,
                           color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: Tg.fontMedium,
                         ),
                       ),
                     ],

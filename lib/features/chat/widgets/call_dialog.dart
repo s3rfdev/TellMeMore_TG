@@ -150,16 +150,9 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
         width: 330,
         height: 460,
         decoration: BoxDecoration(
-          color: const Color(0xFF1B232E),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 32,
-              offset: const Offset(0, 12),
-            ),
-          ],
+          color: Tg.sidebar,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Tg.border),
         ),
         child: Column(
           children: [
@@ -219,8 +212,8 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF8774E1).withValues(alpha: 0.3 * (1 - _pulseController.value)),
-                        width: 4,
+                        color: Tg.accent.withValues(alpha: 0.35 * (1 - _pulseController.value)),
+                        width: 3,
                       ),
                     ),
                     child: TgAvatar(
@@ -244,8 +237,8 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                   color: Colors.white,
                 ),
               ),
@@ -304,23 +297,16 @@ class _CallDialogState extends State<CallDialog> with SingleTickerProviderStateM
                   GestureDetector(
                     onTap: _endCall,
                     child: Container(
-                      width: 58,
-                      height: 58,
+                      width: 54,
+                      height: 54,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFE53935),
+                        color: Tg.danger,
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x66E53935),
-                            blurRadius: 16,
-                            offset: Offset(0, 6),
-                          ),
-                        ],
                       ),
                       child: const Icon(
                         Icons.call_end_rounded,
                         color: Colors.white,
-                        size: 28,
+                        size: 26,
                       ),
                     ),
                   ),

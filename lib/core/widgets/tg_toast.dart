@@ -114,19 +114,12 @@ class _ToastOverlayState extends State<_ToastOverlay>
                     constraints: const BoxConstraints(maxWidth: 420),
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xEE1A222D),
-                      borderRadius: BorderRadius.circular(22),
+                      color: const Color(0xEE17212B),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.14),
+                        color: Tg.border,
                         width: 1,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          blurRadius: 18,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

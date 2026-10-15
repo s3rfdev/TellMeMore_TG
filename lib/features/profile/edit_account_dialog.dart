@@ -164,14 +164,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
             decoration: BoxDecoration(
               color: Tg.sidebar,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+              border: Border.all(color: Tg.border),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
@@ -438,7 +431,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                     width: 32,
                     height: 32,
                     decoration: const BoxDecoration(
-                      gradient: LinearGradient(colors: [Color(0xFF8774E1), Color(0xFFAB47BC)]),
+                      gradient: Tg.accentGradient,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.auto_awesome, color: Colors.white, size: 17),
@@ -454,8 +447,8 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                              decoration: BoxDecoration(color: const Color(0xFF8774E1), borderRadius: BorderRadius.circular(6)),
-                              child: const Text('NEW', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.white)),
+                              decoration: BoxDecoration(color: Tg.accentDark, borderRadius: BorderRadius.circular(6)),
+                              child: const Text('NEW', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Colors.white)),
                             ),
                           ],
                         ),
@@ -466,7 +459,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                   ),
                   Switch(
                     value: aiSettings.autoPilotEnabled,
-                    activeThumbColor: const Color(0xFF8774E1),
+                    activeThumbColor: Tg.accent,
                     onChanged: (val) {
                       AiSettingsStore.instance.settings.value = aiSettings.copyWith(autoPilotEnabled: val);
                       TgToast.show(context, val ? tr('ai_autopilot_on') : tr('ai_autopilot_off'));

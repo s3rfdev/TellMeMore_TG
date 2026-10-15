@@ -250,7 +250,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
         agentRole: isRu ? 'Ассистент по ${widget.chat.title}' : 'Assistant for ${widget.chat.title}',
         systemPrompt: prompt,
         avatarIcon: Icons.person_pin_rounded,
-        avatarColor: const Color(0xFF8774E1),
+        avatarColor: Tg.accent,
         messages: [
           CopilotMessage(
             text: isRu
@@ -306,7 +306,10 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
 
     return Dialog(
       backgroundColor: Tg.sidebar,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Tg.border),
+      ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -366,8 +369,8 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             emoji: widget.chat.avatarEmoji,
             color: Color(widget.chat.avatarColor),
             imagePath: widget.chat.avatarPath,
-            size: 44,
-            fontSize: 18,
+            size: 42,
+            fontSize: 16,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -379,8 +382,8 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                     Text(
                       widget.chat.title,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        fontWeight: Tg.fontMedium,
                         color: Tg.text,
                       ),
                     ),
@@ -388,20 +391,21 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF8774E1).withValues(alpha: 0.18),
+                        color: Tg.accentSubtle,
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Tg.accent.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.auto_awesome, size: 12, color: Color(0xFF8774E1)),
+                          const Icon(Icons.auto_awesome, size: 12, color: Tg.accent),
                           const SizedBox(width: 4),
                           Text(
                             tr('ai_dossier_crm_badge'),
                             style: const TextStyle(
                               fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF8774E1),
+                              fontWeight: Tg.fontMedium,
+                              color: Tg.accent,
                             ),
                           ),
                         ],
@@ -412,7 +416,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                 const SizedBox(height: 2),
                 Text(
                   tr('ai_dossier_desc'),
-                  style: const TextStyle(fontSize: 12, color: Tg.textFaint),
+                  style: const TextStyle(fontSize: 11.5, color: Tg.textFaint),
                 ),
               ],
             ),
@@ -422,7 +426,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             child: CircleIconButton(
               icon: Icons.ios_share_rounded,
               iconSize: 18,
-              color: const Color(0xFF8774E1),
+              color: Tg.accent,
               onTap: _openExportDialog,
             ),
           ),
@@ -442,29 +446,24 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF8774E1).withValues(alpha: 0.18),
-            const Color(0xFF2F6FA8).withValues(alpha: 0.14),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF8774E1).withValues(alpha: 0.3)),
+        color: Tg.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Tg.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.psychology_outlined, size: 20, color: Color(0xFF8774E1)),
+              const Icon(Icons.psychology_outlined, size: 20, color: Tg.accent),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   tr('ai_sherlock_header'),
                   style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF8774E1),
+                    fontSize: 13,
+                    fontWeight: Tg.fontMedium,
+                    color: Tg.accent,
                   ),
                 ),
               ),
@@ -486,7 +485,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             child: ElevatedButton.icon(
               onPressed: _isAnalyzing ? null : _runAutoAnalysis,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8774E1),
+                backgroundColor: Tg.accentDark,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -500,7 +499,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                   : const Icon(Icons.refresh_rounded, size: 16),
               label: Text(
                 _isAnalyzing ? tr('ai_sherlock_analyzing') : tr('ai_sherlock_refresh'),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium),
               ),
             ),
           ),
@@ -515,11 +514,11 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
       children: [
         Row(
           children: [
-            const Icon(Icons.flag_outlined, size: 17, color: Color(0xFF51B2FF)),
+            const Icon(Icons.flag_outlined, size: 17, color: Tg.accent),
             const SizedBox(width: 8),
             Text(
               tr('ai_goal_title'),
-              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
+              style: const TextStyle(fontSize: 13, fontWeight: Tg.fontMedium, color: Tg.text),
             ),
           ],
         ),
@@ -533,15 +532,15 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             return ChoiceChip(
               label: Text(label),
               selected: active,
-              selectedColor: const Color(0xFF8774E1).withValues(alpha: 0.3),
+              selectedColor: Tg.accent.withValues(alpha: 0.22),
               backgroundColor: Tg.field,
               labelStyle: TextStyle(
                 fontSize: 12,
-                color: active ? const Color(0xFF8774E1) : Tg.textDim,
-                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+                color: active ? Tg.accent : Tg.textDim,
+                fontWeight: active ? Tg.fontMedium : Tg.fontRegular,
               ),
               side: BorderSide(
-                color: active ? const Color(0xFF8774E1) : Colors.transparent,
+                color: active ? Tg.accent : Tg.borderSubtle,
               ),
               onSelected: (selected) {
                 if (selected) {
@@ -681,11 +680,11 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
       children: [
         Row(
           children: [
-            const Icon(Icons.checklist_rounded, size: 17, color: Color(0xFF8774E1)),
+            const Icon(Icons.checklist_rounded, size: 17, color: Tg.accent),
             const SizedBox(width: 8),
             Text(
               tr('ai_facts_title'),
-              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Tg.text),
+              style: const TextStyle(fontSize: 13, fontWeight: Tg.fontMedium, color: Tg.text),
             ),
           ],
         ),
@@ -697,7 +696,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             padding: const EdgeInsets.only(bottom: 6),
             child: Row(
               children: [
-                const Icon(Icons.circle, size: 6, color: Color(0xFF8774E1)),
+                const Icon(Icons.circle, size: 6, color: Tg.accent),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -724,6 +723,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                 decoration: BoxDecoration(
                   color: Tg.field,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Tg.borderSubtle),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TextField(
@@ -742,7 +742,7 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
             ),
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF8774E1), size: 24),
+              icon: const Icon(Icons.add_circle_outline_rounded, color: Tg.accent, size: 24),
               onPressed: _addFact,
             ),
           ],
@@ -762,35 +762,36 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
         children: [
           OutlinedButton.icon(
             onPressed: _openOrCreateCopilotChat,
-            icon: const Icon(Icons.forum_outlined, size: 16, color: Color(0xFF8774E1)),
+            icon: const Icon(Icons.forum_outlined, size: 16, color: Tg.accent),
             label: Text(
               tr('ai_chat_about_contact'),
               style: const TextStyle(
-                color: Color(0xFF8774E1),
+                color: Tg.accent,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: Tg.fontMedium,
               ),
             ),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF8774E1)),
+              side: const BorderSide(color: Tg.border),
+              backgroundColor: Tg.field,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
           OutlinedButton.icon(
             onPressed: _openExportDialog,
-            icon: const Icon(Icons.badge_outlined, size: 16, color: Color(0xFFB1A4FF)),
+            icon: const Icon(Icons.badge_outlined, size: 16, color: Tg.accentHover),
             label: Text(
               tr('ai_export_advisor'),
               style: const TextStyle(
-                color: Color(0xFFB1A4FF),
+                color: Tg.accentHover,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: Tg.fontMedium,
               ),
             ),
             style: OutlinedButton.styleFrom(
-              side: BorderSide(color: const Color(0xFF8774E1).withValues(alpha: 0.6)),
-              backgroundColor: const Color(0xFF8774E1).withValues(alpha: 0.1),
+              side: BorderSide(color: Tg.accent.withValues(alpha: 0.3)),
+              backgroundColor: Tg.accentSubtle,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
@@ -813,12 +814,12 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                   Navigator.of(context).pop();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Tg.accent,
+                  backgroundColor: Tg.accentDark,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: Text(tr('ai_save_changes'), style: const TextStyle(fontSize: 13)),
+                child: Text(tr('ai_save_changes'), style: const TextStyle(fontSize: 13, fontWeight: Tg.fontMedium)),
               ),
             ],
           ),

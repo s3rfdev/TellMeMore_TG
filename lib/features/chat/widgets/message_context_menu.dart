@@ -215,16 +215,9 @@ class _ContextMenuDialog extends StatelessWidget {
             child: Container(
               width: menuWidth,
               decoration: BoxDecoration(
-                color: const Color(0xFF212124),
+                color: Tg.sidebar,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF2F2F34)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    blurRadius: 18,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                border: Border.all(color: Tg.border),
               ),
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Column(
@@ -257,11 +250,11 @@ class _ContextMenuDialog extends StatelessWidget {
                     label: tr('pin'),
                     onTap: () => _onPin(context),
                   ),
-                  const Divider(color: Color(0xFF2C2C30), height: 7, thickness: 1),
+                  const Divider(color: Tg.hairline, height: 7, thickness: 1),
                   _menuItem(
                     icon: Icons.delete_outline_rounded,
                     label: tr('delete'),
-                    color: const Color(0xFFFF595A),
+                    color: Tg.danger,
                     onTap: () => _onDelete(context),
                   ),
                 ],

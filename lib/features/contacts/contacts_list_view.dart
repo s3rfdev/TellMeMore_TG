@@ -72,9 +72,16 @@ class _ContactsListViewState extends State<ContactsListView> {
           bottom: 16,
           right: 16,
           child: FloatingActionButton(
-            backgroundColor: const Color(0xFF2F6FA8),
+            backgroundColor: Tg.accentDark,
             foregroundColor: Colors.white,
-            elevation: 4,
+            elevation: 0,
+            focusElevation: 0,
+            hoverElevation: 0,
+            highlightElevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: Tg.border),
+            ),
             mini: true,
             tooltip: tr('add_contact'),
             onPressed: () => TgToast.show(context, tr('add_contact_toast')),
@@ -117,8 +124,8 @@ class _ContactsListViewState extends State<ContactsListView> {
             child: Text(
               tr('contacts'),
               style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                fontWeight: Tg.fontMedium,
                 color: Tg.text,
               ),
             ),
@@ -141,6 +148,7 @@ class _ContactsListViewState extends State<ContactsListView> {
       decoration: BoxDecoration(
         color: Tg.field,
         borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: Tg.borderSubtle),
       ),
       child: Row(
         children: [
@@ -150,10 +158,10 @@ class _ContactsListViewState extends State<ContactsListView> {
             child: TextField(
               controller: _searchCtrl,
               onChanged: (val) => setState(() => _filter = val.trim()),
-              style: const TextStyle(fontSize: 13.5, color: Tg.text),
+              style: const TextStyle(fontSize: 13, color: Tg.text),
               decoration: InputDecoration(
                 hintText: tr('search_contacts'),
-                hintStyle: const TextStyle(fontSize: 13.5, color: Tg.textFaint),
+                hintStyle: const TextStyle(fontSize: 13, color: Tg.textFaint),
                 border: InputBorder.none,
                 isDense: true,
               ),
@@ -175,50 +183,50 @@ class _ContactsListViewState extends State<ContactsListView> {
   Widget _buildQuickActionsCard(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2B38),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        color: Tg.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Tg.border),
       ),
       child: Column(
         children: [
           InkWell(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             onTap: () => TgToast.show(context, tr('invite_friends_toast')),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               child: Row(
                 children: [
-                  const CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Color(0xFF29B6F6),
-                    child: Icon(Icons.person_add_alt_1_rounded, size: 18, color: Colors.white),
+                  CircleAvatar(
+                    radius: 15,
+                    backgroundColor: Tg.accent.withValues(alpha: 0.2),
+                    child: const Icon(Icons.person_add_alt_1_rounded, size: 17, color: Tg.accent),
                   ),
                   const SizedBox(width: 14),
                   Text(
                     tr('invite_friends'),
-                    style: const TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500),
+                    style: const TextStyle(fontSize: 13.5, color: Colors.white, fontWeight: Tg.fontRegular),
                   ),
                 ],
               ),
             ),
           ),
-          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
           InkWell(
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
             onTap: () => TgToast.show(context, tr('recent_calls_toast')),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               child: Row(
                 children: [
-                  const CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Color(0xFF4CAF50),
-                    child: Icon(Icons.phone_rounded, size: 18, color: Colors.white),
+                  CircleAvatar(
+                    radius: 15,
+                    backgroundColor: const Color(0xFF4CAF50).withValues(alpha: 0.2),
+                    child: const Icon(Icons.phone_rounded, size: 17, color: Color(0xFF4CAF50)),
                   ),
                   const SizedBox(width: 14),
                   Text(
                     tr('recent_calls'),
-                    style: const TextStyle(fontSize: 14.5, color: Colors.white, fontWeight: FontWeight.w500),
+                    style: const TextStyle(fontSize: 13.5, color: Colors.white, fontWeight: Tg.fontRegular),
                   ),
                 ],
               ),
@@ -231,23 +239,23 @@ class _ContactsListViewState extends State<ContactsListView> {
 
   Widget _buildContactsSection(List<TgContact> contacts) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2B38),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        color: Tg.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Tg.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 6, 16, 10),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
             child: Text(
-              'Sorted by name',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF55A5EB),
+              tr('sorted_by_name'),
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: Tg.fontMedium,
+                color: Tg.accent,
               ),
             ),
           ),
@@ -263,16 +271,16 @@ class _ContactsListViewState extends State<ContactsListView> {
                 widget.onContactOpened?.call();
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 24,
+                      width: 22,
                       child: Text(
                         letter,
                         style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                          fontWeight: Tg.fontRegular,
                           color: Tg.textDim,
                         ),
                       ),
@@ -282,10 +290,10 @@ class _ContactsListViewState extends State<ContactsListView> {
                       emoji: contact.avatarEmoji,
                       color: Color(contact.avatarColor),
                       imagePath: contact.avatarPath ?? '',
-                      size: 40,
-                      fontSize: 17,
+                      size: 38,
+                      fontSize: 15,
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,8 +301,8 @@ class _ContactsListViewState extends State<ContactsListView> {
                           Text(
                             contact.name,
                             style: const TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 13.5,
+                              fontWeight: Tg.fontMedium,
                               color: Colors.white,
                             ),
                           ),
@@ -302,7 +310,8 @@ class _ContactsListViewState extends State<ContactsListView> {
                           Text(
                             contact.status,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11.5,
+                              fontWeight: Tg.fontRegular,
                               color: contact.isOnline ? const Color(0xFF4BD964) : Tg.textDim,
                             ),
                           ),

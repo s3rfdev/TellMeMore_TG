@@ -259,7 +259,7 @@ class _MainDrawerState extends State<MainDrawer> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
             tr('accounts'),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF55A5EB)),
+            style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium, color: Tg.accent),
           ),
         ),
         ...all.map((acc) {
@@ -276,27 +276,27 @@ class _MainDrawerState extends State<MainDrawer> {
             title: Text(
               acc.name,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? const Color(0xFF55A5EB) : Tg.text,
+                fontSize: 13.5,
+                fontWeight: isSelected ? Tg.fontMedium : Tg.fontRegular,
+                color: isSelected ? Tg.accent : Tg.text,
               ),
             ),
             subtitle: Text(
               acc.phone,
-              style: const TextStyle(fontSize: 12, color: Tg.textDim),
+              style: Tg.caption,
             ),
             trailing: isSelected
-                ? const Icon(Icons.check_rounded, color: Color(0xFF55A5EB), size: 18)
+                ? const Icon(Icons.check_rounded, color: Tg.accent, size: 18)
                 : (acc.unreadBadge > 0
                     ? Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2F6FA8),
+                          color: Tg.accentDark,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           '${acc.unreadBadge}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+                          style: const TextStyle(fontSize: 11, fontWeight: Tg.fontMedium, color: Colors.white),
                         ),
                       )
                     : null),
@@ -313,8 +313,8 @@ class _MainDrawerState extends State<MainDrawer> {
         _menuItem(
           icon: Icons.add_rounded,
           title: tr('add_account'),
-          iconColor: const Color(0xFF55A5EB),
-          textColor: const Color(0xFF55A5EB),
+          iconColor: Tg.accent,
+          textColor: Tg.accent,
           onTap: () {
             widget.onClose();
             AddAccountDialog.show(context);
@@ -404,8 +404,8 @@ class _MainDrawerState extends State<MainDrawer> {
         _menuItem(
           icon: Icons.add_rounded,
           title: tr('add_account'),
-          iconColor: const Color(0xFF55A5EB),
-          textColor: const Color(0xFF55A5EB),
+          iconColor: Tg.accent,
+          textColor: Tg.accent,
           onTap: () {
             widget.onClose();
             AddAccountDialog.show(context);
@@ -426,10 +426,10 @@ class _MainDrawerState extends State<MainDrawer> {
     return ListTile(
       dense: true,
       visualDensity: const VisualDensity(vertical: -2),
-      leading: Icon(icon, color: iconColor ?? Tg.textDim, size: 21),
+      leading: Icon(icon, color: iconColor ?? Tg.textDim, size: 20),
       title: Text(
         title,
-        style: TextStyle(fontSize: 14, color: textColor ?? Tg.text),
+        style: TextStyle(fontSize: 13.5, fontWeight: Tg.fontRegular, color: textColor ?? Tg.text),
       ),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -442,17 +442,18 @@ class _MainDrawerState extends State<MainDrawer> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          const Icon(Icons.nightlight_round, color: Tg.textDim, size: 21),
+          const Icon(Icons.nightlight_round, color: Tg.textDim, size: 20),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               I18n.instance.isRu ? 'Ночной режим' : 'Night Mode',
-              style: const TextStyle(fontSize: 14, color: Tg.text),
+              style: const TextStyle(fontSize: 13.5, color: Tg.text),
             ),
           ),
           Switch(
             value: true,
-            activeThumbColor: const Color(0xFF8774E1),
+            activeThumbColor: Tg.accent,
+            activeTrackColor: Tg.accentDark.withValues(alpha: 0.5),
             onChanged: (val) {},
           ),
         ],
@@ -466,10 +467,10 @@ class _MainDrawerState extends State<MainDrawer> {
       context: context,
       barrierColor: Colors.black54,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF212126),
+        backgroundColor: Tg.sidebar,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: Color(0xFF2E2E34), width: 1),
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Tg.border, width: 1),
         ),
         child: Container(
           width: 360,
@@ -482,47 +483,44 @@ class _MainDrawerState extends State<MainDrawer> {
                 isGroup
                     ? (I18n.instance.isRu ? 'Создать группу' : 'New Group')
                     : (I18n.instance.isRu ? 'Создать канал' : 'New Channel'),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+                style: Tg.title,
               ),
               const SizedBox(height: 18),
               Row(
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF8774E1),
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Tg.accentDark,
                       shape: BoxShape.circle,
+                      border: Border.all(color: Tg.border),
                     ),
                     child: const Icon(
                       Icons.camera_alt_rounded,
                       color: Colors.white,
-                      size: 24,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF18181B),
+                        color: Tg.field,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF2E2E34)),
+                        border: Border.all(color: Tg.border),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: TextField(
                         controller: titleController,
                         autofocus: true,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style: const TextStyle(color: Colors.white, fontSize: 13.5),
                         decoration: InputDecoration(
                           border: InputBorder.none,
                           hintText: isGroup
                               ? (I18n.instance.isRu ? 'Название группы' : 'Group Name')
                               : (I18n.instance.isRu ? 'Название канала' : 'Channel Name'),
-                          hintStyle: const TextStyle(color: Tg.textFaint, fontSize: 13.5),
+                          hintStyle: const TextStyle(color: Tg.textFaint, fontSize: 13),
                         ),
                       ),
                     ),
@@ -532,9 +530,9 @@ class _MainDrawerState extends State<MainDrawer> {
               const SizedBox(height: 12),
               Text(
                 isGroup ? tr('new_group_hint') : tr('new_channel_hint'),
-                style: const TextStyle(fontSize: 12, color: Tg.textDim),
+                style: Tg.caption,
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -542,9 +540,9 @@ class _MainDrawerState extends State<MainDrawer> {
                     onPressed: () => Navigator.pop(ctx),
                     style: TextButton.styleFrom(
                       foregroundColor: Tg.textDim,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     ),
-                    child: Text(tr('cancel'), style: const TextStyle(fontSize: 13.5)),
+                    child: Text(tr('cancel'), style: const TextStyle(fontSize: 13)),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -556,15 +554,18 @@ class _MainDrawerState extends State<MainDrawer> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8774E1),
+                      backgroundColor: Tg.accentDark,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: const BorderSide(color: Tg.border),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                     child: Text(
                       I18n.instance.isRu ? 'Создать' : 'Create',
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontSize: 13, fontWeight: Tg.fontMedium),
                     ),
                   ),
                 ],
@@ -581,10 +582,10 @@ class _MainDrawerState extends State<MainDrawer> {
       context: context,
       barrierColor: Colors.black54,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF212126),
+        backgroundColor: Tg.sidebar,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: Color(0xFF2E2E34), width: 1),
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Tg.border, width: 1),
         ),
         child: Container(
           width: 360,
