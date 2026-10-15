@@ -1,16 +1,103 @@
-# tg_answer
+# 🚀 TellMeMore TG (TellMeMore Telegram Client)
 
-A new Flutter project.
+<p align="center">
+  <img src="https://img.shields.io/badge/Flutter-3.10%2B-blue?logo=flutter" alt="Flutter" />
+  <img src="https://img.shields.io/badge/TDLib-1.8.x-24A1DE?logo=telegram" alt="TDLib" />
+  <img src="https://img.shields.io/badge/Platforms-Android%20%7C%20macOS%20%7C%20Linux%20%7C%20Windows-green" alt="Platforms" />
+  <img src="https://img.shields.io/badge/AI-Gemini%20%7C%20GLM%20%7C%20OpenAI%20%7C%20Claude%20%7C%20Deepgram-orange" alt="AI" />
+  <img src="https://img.shields.io/badge/License-Proprietary-red" alt="License" />
+</p>
 
-## Getting Started
+**TellMeMore TG** — кроссплатформенный клиент Telegram нового поколения, объединяющий официальное ядро **TDLib** с автономным мультиагентным **AI Copilot**, модулем психологического анализа собеседников (**Sherlock**), интеллектуальным сжатием контекста диалогов и глубокой интеграцией LLM.
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+## 🌟 Ключевые возможности
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 🤖 Автономный Multi-Agent AI Copilot
+* **Многопоточные сессии агентов**: создание узкоспециализированных копилотов (бизнес-ассистент, аналитик переписок, HR/рекрутер, парсер лидов).
+* **Сборка контекста по принципу «Бутерброд» (Sandwich Context Assembly)**:
+  1. *Верхний слой*: системные директивы, персона агента, ролевые правила и ограничения.
+  2. *Начинка 1*: интеллектуальная сжатая выжимка ранней истории общения без потери ключевых договоренностей.
+  3. *Начинка 2*: активное окно свежих сырых сообщений с сохранением точных формулировок и нюансов.
+  4. *Нижний слой*: текущая задача пользователя, CRM-цели и директивы генерации ответа.
+* **RAG-экстракция сухих фактов**: мгновенное извлечение дат, цен, контактов, договоренностей и скрытых мотивов из сотен сообщений переписки.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 🕵️ Sherlock Contact Dossier & CRM
+* Автоматический анализ переписки с контактом.
+* Определение **психотипа** собеседника (Прагматик, Аналитик, Эмоционал, Консерватор).
+* Оценка **манипулятивных паттернов** и скрытых мотивов.
+* Формулирование долгосрочной **цели общения** (выявить потребности, закрыть сделку, мягко отказать).
+* **Goal-based AI Replies**: быстрые ответы («Автоответ», «Голос», «Copilot») в один тап с адаптацией стиля под психотип контакта.
+
+### 🎙️ Мультимодальность: Звук и Зрение
+* **STT (Speech-to-Text)**: поддержка Deepgram Nova-2 и Whisper/Gemini STT для мгновенного распознавания голосовых сообщений и диктовки инструкций.
+* **Computer Vision**: автоматическое распознавание скриншотов, документов и фотографий с генерацией кратких подписей для контекста LLM.
+
+### 📱 Полная адаптивность под любые устройства
+* **Android**: поддержка сенсорных жестов, шторка (Drawer), плавная навигация с перехватом аппаратной кнопки «Назад» (`PopScope`), фоновые уведомления (`POST_NOTIFICATIONS`, `WAKE_LOCK`).
+* **macOS / Linux / Windows**: трёхколоночный десктопный режим, глобальные горячие клавиши, системный трей, аппаратное ускорение видео (`media_kit`), корректный жизненный цикл закрытия TDLib.
+
+### 🔒 Локальное хранилище и Приватность
+* Все ключи API (Gemini, Zhipu GLM, OpenAI, Claude, Deepgram) хранятся локально на устройстве пользователя.
+* Сессии Copilot, настройки и досье контактов сохраняются на диск с использованием атомарных транзакций (`copilot_sessions.json`, `ai_settings.json`, `contact_dossiers.json`).
+* Полная изоляция TDLib в отдельном Dart-изоляте без блокировки UI-потока.
+
+---
+
+## 🌿 Структура веток репозитория
+
+Для удобства ведения релизов под разные операционные системы в репозитории принята следующая схема:
+
+| Ветка | Назначение |
+| :--- | :--- |
+| **`main`** | Основная стабильная кроссплатформенная кодовая база для всех поддерживаемых платформ. |
+| **`android`** | Специфичные доработки мобильного интерфейса, Gradle-скрипты, разрешения и сборка APK / AAB. |
+| **`macos`** | Специфичные настройки Xcode, CocoaPods, entitlements, песочницы macOS и сборка `.app` / `.dmg`. |
+| **`linux`** | Настройки GTK3 runner, CMake, медиа-библиотеки Linux и сборка AppImage/DEB. |
+| **`windows`** | Специфичные настройки Win32 runner и сборка инсталлятора Windows. |
+
+Каждый стабильный релиз маркируется соответствующим Git-тегом (например, `v1.0.0-android`, `v1.0.0-macos`, `v1.0.0-linux`).
+
+---
+
+## 🛠️ Сборка и запуск
+
+### Требования
+* **Flutter SDK**: `>= 3.10.4`
+* **Dart SDK**: `>= 3.10.4 < 4.0.0`
+* Нативные библиотеки **TDLib** (`libtdjson`) под целевую архитектуру.
+
+### 1. Подготовка зависимостей
+```bash
+flutter pub get
+```
+
+### 2. Запуск тестов
+```bash
+flutter test
+```
+
+### 3. Сборка под платформы
+
+#### Android (APK)
+```bash
+flutter build apk --release
+# Либо отладочная сборка для тестирования на подключенном смартфоне:
+flutter build apk --debug
+```
+
+#### macOS (Bundle & Archive)
+```bash
+flutter build macos --release
+```
+
+#### Linux (Binary)
+```bash
+flutter build linux --release
+```
+
+---
+
+## 👥 Авторство
+Разработано **s3rfdev** (Sergei Fomenko). Все права защищены.
