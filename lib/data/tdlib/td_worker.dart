@@ -1502,7 +1502,18 @@ class _Store {
           final voice = vn?['voice'] is Map ? vn!['voice'] as Map : null;
           fileId = (voice?['id'] as num?)?.toInt() ?? 0;
           final local = voice?['local'] is Map ? voice!['local'] as Map : null;
-          mediaPath = (local?['path'] as String?) ?? '';
+          final localPath = (local?['path'] as String?) ?? '';
+          final downloadedVoice = fileId != 0 ? _downloadedFiles[fileId] : null;
+          if (downloadedVoice != null && downloadedVoice.isNotEmpty && File(downloadedVoice).existsSync()) {
+            mediaPath = downloadedVoice;
+            isDownloaded = true;
+          } else if (local?['is_downloading_completed'] == true && localPath.isNotEmpty && File(localPath).existsSync()) {
+            mediaPath = localPath;
+            isDownloaded = true;
+          } else {
+            mediaPath = localPath;
+            isDownloading = _downloadingFiles.contains(fileId) || local?['is_downloading_active'] == true;
+          }
           _downloadFileIfNeeded(voice);
         } else if (kind == MessageKind.document) {
           final doc = content?['document'] is Map ? content!['document'] as Map : null;

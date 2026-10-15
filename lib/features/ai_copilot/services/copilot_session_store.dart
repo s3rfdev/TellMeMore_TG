@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/localization/app_locale.dart';
+import '../../../data/models/tg_chat.dart';
 import '../models/ai_settings_model.dart';
+import '../models/contact_dossier.dart';
 import '../models/copilot_session.dart';
+import 'ai_model_service.dart';
+import 'voice_transcription_service.dart';
 
 /// Хранилище сессий и агентов мультиагентного Copilot.
 class CopilotSessionStore {
@@ -30,8 +34,8 @@ class CopilotSessionStore {
         messages: [
           CopilotMessage(
             text: isRu
-                ? 'Привет! Я твой AI-копилот. Напиши мне задачу своими словами — например: *"изучи переписку с Тарасом"*, *"найди вакансии в чатах"* или *"напиши вежливый ответ"*.'
-                : 'Hello! I am your AI Copilot. Give me any task in your own words — e.g.: *"study chat with Taras"*, *"find job postings in chats"*, or *"draft a polite reply"*.',
+                ? 'Привет! Я твой AI-копилот. Напиши мне задачу своими словами — например: *"изучи последние сообщения чата"*, *"найди вакансии"* или *"помоги составить ответ"*.'
+                : 'Hello! I am your AI Copilot. Give me any task in your own words — e.g.: *"study recent chat messages"*, *"find job postings"*, or *"draft a reply"*.',
             isUser: false,
           ),
         ],
@@ -126,6 +130,60 @@ class CopilotSessionStore {
     }
   }
 
+  /// Обновить лимит сообщений чата, анализируемых агентом в сессии.
+  void updateSessionMessageLimit(String id, int limit) {
+    final current = sessions.value;
+    final idx = current.indexWhere((s) => s.id == id);
+    if (idx != -1) {
+      current[idx].messageLimit = limit;
+      current[idx].updatedAt = DateTime.now();
+      sessions.value = List.from(current);
+    }
+  }
+
+  /// Обновить конфигурацию сбора фактов RAG для сессии.
+  void updateSessionRagConfig(
+    String id, {
+    String? prompt,
+    String? summary,
+    int? count,
+  }) {
+    final current = sessions.value;
+    final idx = current.indexWhere((s) => s.id == id);
+    if (idx != -1) {
+      final s = current[idx];
+      if (prompt != null) s.ragPrompt = prompt.trim();
+      if (summary != null) {
+        s.ragFactSummary = summary.trim();
+        s.ragFactUpdatedAt = DateTime.now();
+      }
+      if (count != null) s.ragFactSummaryCount = count;
+      s.updatedAt = DateTime.now();
+      sessions.value = List.from(current);
+    }
+  }
+
+  /// Обновить конфигурацию компрессии диалога для сессии.
+  void updateSessionCompressionConfig(
+    String id, {
+    bool? enabled,
+    int? threshold,
+    int? keepRaw,
+    String? prompt,
+  }) {
+    final current = sessions.value;
+    final idx = current.indexWhere((s) => s.id == id);
+    if (idx != -1) {
+      final s = current[idx];
+      if (enabled != null) s.autoCompressEnabled = enabled;
+      if (threshold != null) s.autoCompressThreshold = threshold;
+      if (keepRaw != null) s.keepRawCount = keepRaw;
+      if (prompt != null) s.dialogueCompressionPrompt = prompt.trim();
+      s.updatedAt = DateTime.now();
+      sessions.value = List.from(current);
+    }
+  }
+
   /// Очистить сообщения сессии.
   void clearSessionMessages(String id) {
     final isRu = I18n.instance.isRu;
@@ -161,7 +219,7 @@ class CopilotSessionStore {
     }
   }
 
-  /// Выполнить компрессию контекста сессии.
+  /// Выполнить компрессию контекста сессии (синхронный базовый метод).
   /// Сохраняет [keepRawCount] последних сырых сообщений, а более ранние
   /// сообщения сжимает в структурированное резюме (Layer 1 начинки бутерброда).
   void compressSession(String sessionId, {int keepRawCount = 6}) {
@@ -205,17 +263,169 @@ class CopilotSessionStore {
     sessions.value = List.from(current);
   }
 
+  /// Интеллектуальное сжатие истории диалога с Копилотом (фоновое или ручное).
+  Future<bool> compressSessionIntelligent(String sessionId, {AiSettings? settings}) async {
+    final current = sessions.value;
+    final idx = current.indexWhere((s) => s.id == sessionId);
+    if (idx == -1) return false;
+
+    final session = current[idx];
+    final keepRaw = session.keepRawCount > 0 ? session.keepRawCount : 6;
+    if (session.messages.length <= keepRaw) return false;
+
+    final toCompress = session.messages.sublist(0, session.messages.length - keepRaw);
+    final rawRemaining = session.messages.sublist(session.messages.length - keepRaw);
+
+    final isRu = I18n.instance.isRu;
+    final historyLines = <String>[];
+    for (final m in toCompress) {
+      final sender = m.isUser ? (isRu ? 'Пользователь' : 'User') : 'Copilot';
+      historyLines.add('$sender: ${m.text.replaceAll('\n', ' ')}');
+    }
+    final dialogueText = historyLines.join('\n');
+
+    String summaryText = '';
+    final aiSettings = settings ?? AiSettingsStore.instance.settings.value;
+
+    try {
+      final systemPrompt = session.dialogueCompressionPrompt.isNotEmpty
+          ? session.dialogueCompressionPrompt
+          : CopilotSession.defaultDialogueCompressionPrompt;
+
+      final prompt = isRu
+          ? 'Сожми следующий диалог в структурированную сухую выжимку по хронологии (темы, аргументы, решения и гипотезы). Без воды:\n\n$dialogueText'
+          : 'Summarize the following conversation chronologically into a dry structured summary (topics, decisions, findings). No fluff:\n\n$dialogueText';
+
+      final result = await AiModelService.instance.generateChatCompletion(
+        prompt: prompt,
+        systemPrompt: systemPrompt,
+        history: [],
+        settings: aiSettings,
+      );
+      if (result.trim().isNotEmpty) {
+        summaryText = result.trim();
+      }
+    } catch (_) {}
+
+    if (summaryText.isEmpty) {
+      final buffer = StringBuffer();
+      buffer.writeln(
+        isRu
+            ? '📌 **Выжимка диалога (${toCompress.length} ранних сообщ.):**'
+            : '📌 **Dialogue summary (${toCompress.length} earlier msgs):**',
+      );
+      for (final m in toCompress) {
+        final sender = m.isUser ? (isRu ? 'Пользователь' : 'User') : 'Copilot';
+        final snippet = m.text.length > 140 ? '${m.text.substring(0, 140)}...' : m.text;
+        buffer.writeln('• $sender: ${snippet.replaceAll("\n", " ")}');
+      }
+      summaryText = buffer.toString();
+    }
+
+    if (session.contextSummary != null && session.contextSummary!.isNotEmpty) {
+      summaryText = '${session.contextSummary}\n\n$summaryText';
+    }
+
+    session.contextSummary = summaryText;
+    session.summaryTokenCount = CopilotMessage.estimateTokens(summaryText);
+    session.messages = rawRemaining;
+    session.updatedAt = DateTime.now();
+
+    sessions.value = List.from(current);
+    return true;
+  }
+
+  /// Извлечение сухих фактов из истории переписки (RAG).
+  Future<String> runRagFactExtraction({
+    required String sessionId,
+    String? chatId,
+    required List<TgMessage> messages,
+    required int limit,
+    required String ragPrompt,
+    required String chatTitle,
+    AiSettings? settings,
+  }) async {
+    final aiSettings = settings ?? AiSettingsStore.instance.settings.value;
+    final msgsToAnalyze = messages.take(limit).toList();
+    final isRu = I18n.instance.isRu;
+
+    final formatted = <String>[];
+    for (final m in msgsToAnalyze.reversed) {
+      final sender = m.outgoing ? (isRu ? 'Вы' : 'You') : chatTitle;
+      String content = m.text.replaceAll('\n', ' ').trim();
+      if (m.kind == MessageKind.voice) {
+        String? trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
+            VoiceTranscriptionService.instance.getCachedTranscription(m.mediaPath);
+        if (trans != null && trans.isNotEmpty && !trans.startsWith('[')) {
+          content = '[🎤 Voice: "$trans"]';
+        } else {
+          content = '[🎤 Voice note (${m.duration}s)]';
+        }
+      }
+      formatted.add('$sender: $content');
+    }
+
+    final transcript = formatted.join('\n');
+    final prompt = isRu
+        ? 'Вот история переписки ($chatTitle, ${msgsToAnalyze.length} сообщ.):\n\n$transcript\n\nИзвлеки сухие факты согласно директиве.'
+        : 'Here is conversation history ($chatTitle, ${msgsToAnalyze.length} msgs):\n\n$transcript\n\nExtract dry facts per instructions.';
+
+    String result = '';
+    try {
+      final res = await AiModelService.instance.generateChatCompletion(
+        prompt: prompt,
+        systemPrompt: ragPrompt.isNotEmpty ? ragPrompt : CopilotSession.defaultRagPrompt,
+        history: [],
+        settings: aiSettings,
+      );
+      if (res.trim().isNotEmpty) {
+        result = res.trim();
+      }
+    } catch (_) {}
+
+    if (result.isEmpty) {
+      final buffer = StringBuffer();
+      buffer.writeln(isRu ? '📌 Факты чата «$chatTitle» (сжато ${msgsToAnalyze.length} сообщ.):' : '📌 Facts of "$chatTitle" (${msgsToAnalyze.length} msgs):');
+      for (final m in msgsToAnalyze.take(20)) {
+        if (m.text.trim().isNotEmpty) {
+          buffer.writeln('• ${m.outgoing ? (isRu ? "Вы" : "You") : chatTitle}: ${m.text.trim().replaceAll("\n", " ")}');
+        }
+      }
+      result = buffer.toString();
+    }
+
+    updateSessionRagConfig(
+      sessionId,
+      prompt: ragPrompt,
+      summary: result,
+      count: msgsToAnalyze.length,
+    );
+
+    if (chatId != null) {
+      ContactDossierStore.instance.updateRagSummary(chatId, result, msgsToAnalyze.length);
+      ContactDossierStore.instance.updateRagPrompt(chatId, ragPrompt);
+    }
+
+    return result;
+  }
+
   /// Проверить условия и выполнить автокомпрессию по объёму или количеству.
   /// Возвращает true, если компрессия была выполнена.
   bool checkAndAutoCompress(String sessionId, AiSettings settings) {
-    if (!settings.contextCompression) return false;
+    final current = sessions.value;
+    final idx = current.indexWhere((s) => s.id == sessionId);
+    if (idx == -1) return false;
 
-    final session = sessions.value.firstWhere(
-      (s) => s.id == sessionId,
-      orElse: () => activeSession,
-    );
+    final session = current[idx];
+    if (!session.autoCompressEnabled && !settings.contextCompression) return false;
 
-    final keep = settings.compressionKeepRawCount;
+    final threshold = session.autoCompressThreshold > 0
+        ? session.autoCompressThreshold
+        : settings.contextMessageCount;
+    final keep = settings.compressionKeepRawCount > 0
+        ? settings.compressionKeepRawCount
+        : (session.keepRawCount > 0 ? session.keepRawCount : 6);
+
     if (session.messages.length <= keep) return false;
 
     bool shouldCompress = false;
@@ -224,7 +434,10 @@ class CopilotSessionStore {
       shouldCompress = session.totalTokens >= settings.compressionVolumeThreshold;
     } else {
       // Оценка по количеству сообщений
-      shouldCompress = session.rawMessagesCount >= settings.contextMessageCount;
+      final threshold = session.autoCompressThreshold > 0
+          ? session.autoCompressThreshold
+          : settings.contextMessageCount;
+      shouldCompress = session.rawMessagesCount >= threshold;
     }
 
     if (shouldCompress) {

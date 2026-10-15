@@ -1,4 +1,9 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import '../../../core/localization/app_locale.dart';
 import '../../../core/theme/tg_theme.dart';
@@ -12,7 +17,9 @@ import '../../../state/app_state.dart';
 import '../models/ai_settings_model.dart';
 import '../models/contact_dossier.dart';
 import '../models/copilot_session.dart';
+import '../services/ai_model_service.dart';
 import '../services/copilot_session_store.dart';
+import '../services/voice_transcription_service.dart';
 
 /// Экран активного чата с выбранным Copilot-агентом.
 class AiCopilotScreen extends StatefulWidget {
@@ -32,14 +39,116 @@ class AiCopilotScreen extends StatefulWidget {
 class _AiCopilotScreenState extends State<AiCopilotScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isLoading = false;
   bool _summaryExpanded = false;
+  bool _isRecordingVoice = false;
+  int _recordSeconds = 0;
+  Timer? _recordTimer;
+  String? _voicePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   void dispose() {
+    _recordTimer?.cancel();
+    _audioRecorder.dispose();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _startVoice() async {
+    try {
+      if (!await _audioRecorder.hasPermission()) {
+        if (mounted) {
+          TgToast.show(
+            context,
+            tr('no_mic_permission'),
+            icon: Icons.mic_off_rounded,
+          );
+        }
+        return;
+      }
+      final tempDir = await getTemporaryDirectory();
+      final path = '${tempDir.path}/copilot_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100),
+        path: path,
+      );
+      setState(() {
+        _isRecordingVoice = true;
+        _recordSeconds = 0;
+        _voicePath = path;
+      });
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) return;
+        setState(() => _recordSeconds++);
+      });
+    } catch (e) {
+      if (mounted) {
+        TgToast.show(
+          context,
+          tr('recording_error', {'error': e.toString()}),
+          icon: Icons.error_outline_rounded,
+        );
+      }
+    }
+  }
+
+  Future<void> _stopVoice({required bool send, required CopilotSession session}) async {
+    _recordTimer?.cancel();
+    final path = await _audioRecorder.stop();
+    final finalPath = path ?? _voicePath;
+    final sec = _recordSeconds;
+
+    setState(() {
+      _isRecordingVoice = false;
+      _recordSeconds = 0;
+      _voicePath = null;
+    });
+
+    if (send && finalPath != null && sec > 0) {
+      final isRu = I18n.instance.isRu;
+      if (mounted) {
+        TgToast.show(
+          context,
+          isRu ? '🎤 Распознавание речи...' : '🎤 Transcribing speech...',
+          icon: Icons.mic_rounded,
+        );
+      }
+
+      final transcription = await VoiceTranscriptionService.instance.transcribeVoiceFile(
+        filePath: finalPath,
+        durationSeconds: sec,
+      );
+
+      if (transcription.isNotEmpty && !transcription.startsWith('[')) {
+        _sendMessage(session, transcription);
+      } else {
+        if (mounted) {
+          TgToast.show(
+            context,
+            isRu
+                ? 'Не удалось распознать речь (проверьте Deepgram API ключ в настройках)'
+                : 'Could not transcribe speech (check Deepgram API key in settings)',
+            icon: Icons.warning_amber_rounded,
+          );
+        }
+      }
+    }
+  }
+
+  String _formatDuration(int sec) {
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   void _sendMessage(CopilotSession session, String text) async {
@@ -69,7 +178,17 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       );
     }
 
-    await Future.delayed(const Duration(milliseconds: 1100));
+    // Собираем историю диалога с Копилотом для multi-turn контекста (исключая текущее только что добавленное сообщение)
+    final conversationHistory = <Map<String, String>>[];
+    for (final m in session.messages) {
+      if (identical(m, userMsg)) continue;
+      conversationHistory.add({
+        'role': m.isUser ? 'user' : 'model',
+        'content': m.text,
+      });
+    }
+
+    await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
     String reply;
@@ -127,91 +246,176 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
     }
 
     if (matchedChat != null) {
-      final realHistory = TdlibService.instance.messagesOf(matchedChat.id).value;
-      final msgs = realHistory.messages.isNotEmpty ? realHistory.messages : matchedChat.messages;
+      final activeChat = matchedChat;
+      final realHistory = TdlibService.instance.messagesOf(activeChat.id).value;
+      final msgs = realHistory.messages.isNotEmpty ? realHistory.messages : activeChat.messages;
 
-      tool = 'tdlib.inspectChat(chat: "${matchedChat.title}", limit: ${msgs.length})';
-      output = isRu
-          ? 'Изучена переписка: ${msgs.length} сообщ. из чата «${matchedChat.title}»'
-          : 'Inspected ${msgs.length} messages from "${matchedChat.title}"';
+      final chatDossier = ContactDossierStore.instance.getDossier(activeChat.id).value;
+      final limit = session.messageLimit > 0
+          ? session.messageLimit
+          : (chatDossier.analysisMessageLimit > 0
+              ? chatDossier.analysisMessageLimit
+              : settings.contextMessageCount);
+      final msgsToAnalyze = msgs.take(limit).toList();
 
-      final lastIncoming = msgs.where((m) => !m.outgoing).firstOrNull ?? (msgs.isNotEmpty ? msgs.first : null);
+      final hasRag = (session.ragFactSummary?.isNotEmpty == true) ||
+          (chatDossier.ragFactSummary?.isNotEmpty == true);
+      final ragSummary = session.ragFactSummary?.isNotEmpty == true
+          ? session.ragFactSummary!
+          : (chatDossier.ragFactSummary ?? '');
+      final ragCount = session.ragFactSummaryCount > 0
+          ? session.ragFactSummaryCount
+          : (chatDossier.ragFactSummaryCount > 0 ? chatDossier.ragFactSummaryCount : msgsToAnalyze.length);
 
-      if (lower.contains('ответь') ||
-          lower.contains('напиши') ||
-          lower.contains('составь ответ') ||
-          lower.contains('предложи ответ') ||
-          lower.contains('reply') ||
-          lower.contains('draft')) {
-        final snippet = lastIncoming != null
-            ? (isRu ? 'в ответ на «${lastIncoming.text}»' : 'in reply to "${lastIncoming.text}"')
-            : (isRu ? 'для отправки в чат' : 'for the chat');
-
-        reply = isRu
-            ? '💡 **Предлагаемый вариант ответа для «${matchedChat.title}»** ($snippet):\n\n'
-                '«Здравствуйте! ${effectivePrompt.isNotEmpty ? "Учитывая установленные договоренности: " : ""}'
-                'Предлагаю зафиксировать следующие шаги и свериться по деталям.»\n\n'
-                '${effectivePrompt.isNotEmpty ? "🎯 *Директивы*: ответ составлен согласно системному промпту." : "🎯 *Подсказка*: вы можете настроить точные директивы в системном промпте чата."}'
-            : '💡 **Suggested reply for "${matchedChat.title}"** ($snippet):\n\n'
-                '«Hello! ${effectivePrompt.isNotEmpty ? "Taking into account our arrangements: " : ""}'
-                'I suggest we confirm the next steps and align on details.»\n\n'
-                '${effectivePrompt.isNotEmpty ? "🎯 *Directives*: response crafted according to system prompt." : "🎯 *Tip*: you can configure custom response directives in the chat system prompt."}';
-      } else if (lower.contains('саммари') ||
-          lower.contains('изучи') ||
-          lower.contains('проанализируй') ||
-          lower.contains('выжимк') ||
-          lower.contains('summary') ||
-          lower.contains('analyze')) {
-        final sb = StringBuffer();
-        if (isRu) {
-          sb.writeln('📋 **Анализ чата «${matchedChat.title}»** (изучено ${msgs.length} сообщений):');
-          if (msgs.isEmpty) {
-            sb.writeln('• История переписки пуста.');
-          } else {
-            if (lastIncoming != null) {
-              sb.writeln('• **Последнее сообщение**: «${lastIncoming.text}» (${lastIncoming.time})');
-            }
-            sb.writeln('• **Сообщений в ленте**: ${msgs.length} (исходящих: ${msgs.where((m) => m.outgoing).length}, входящих: ${msgs.where((m) => !m.outgoing).length})');
-            final sampleTexts = msgs.take(4).map((m) => '«${m.text.replaceAll("\n", " ")}»').join(', ');
-            sb.writeln('• **Темы и ключевой контекст**: $sampleTexts');
-            if (effectivePrompt.isNotEmpty) {
-              sb.writeln('• **Системные директивы**: $effectivePrompt');
-            }
-          }
-        } else {
-          sb.writeln('📋 **Analysis of "${matchedChat.title}"** (analyzed ${msgs.length} messages):');
-          if (msgs.isEmpty) {
-            sb.writeln('• Conversation is empty.');
-          } else {
-            if (lastIncoming != null) {
-              sb.writeln('• **Last message**: "${lastIncoming.text}" (${lastIncoming.time})');
-            }
-            sb.writeln('• **Messages in feed**: ${msgs.length} (outgoing: ${msgs.where((m) => m.outgoing).length}, incoming: ${msgs.where((m) => !m.outgoing).length})');
-            final sampleTexts = msgs.take(4).map((m) => '"${m.text.replaceAll("\n", " ")}"').join(', ');
-            sb.writeln('• **Topics & context**: $sampleTexts');
-            if (effectivePrompt.isNotEmpty) {
-              sb.writeln('• **System directives**: $effectivePrompt');
-            }
-          }
-        }
-        reply = sb.toString();
-      } else {
-        reply = isRu
-            ? 'Принял задачу по чату **${matchedChat.title}**: "$query".\n\n'
-                '${effectivePrompt.isNotEmpty ? "Действую по системному промпту: *$effectivePrompt*.\n\n" : ""}'
-                'Изучил историю сообщений. Что конкретно подготовить: сформулировать ответ собеседнику или сделать саммари?'
-            : 'Received task for **${matchedChat.title}**: "$query".\n\n'
-                '${effectivePrompt.isNotEmpty ? "Operating per system prompt: *$effectivePrompt*.\n\n" : ""}'
-                'Reviewed message history. What shall I prepare: formulate a response or generate a summary?';
+      final systemDirectives = StringBuffer();
+      systemDirectives.writeln('Ты — проницательный, откровенный и независимый AI-копилот и аналитик переговоров.');
+      systemDirectives.writeln('Ты помогаешь пользователю анализировать переписку в Telegram и вести диалоги.');
+      systemDirectives.writeln('');
+      systemDirectives.writeln('ГЛАВНЫЕ ПРИНЦИПЫ:');
+      systemDirectives.writeln('1. Будь предельно честен, прямолинеен и объективен. Не пытайся сглаживать углы, придумывать лесть или использовать пустые корпоративные штампы.');
+      systemDirectives.writeln('2. Если пользователь спрашивает твое мнение, оценку человека, мотивы, манипуляции, токсичность или "мудак ли он" — дай бескомпромиссную, психологически точную и доказательную оценку на основе реальных фактов и реплик.');
+      systemDirectives.writeln('3. Если собеседник некомпетентен, ведет себя неадекватно, перекладывает работу, юлит или манипулирует — укажи на конкретные сигналы и предложи четкую линию защиты.');
+      systemDirectives.writeln('4. Если пользователь просит предложить ответ — напиши уверенный, выверенный ответ, пресекающий манипуляции.');
+      if (effectivePrompt.isNotEmpty) {
+        systemDirectives.writeln('\nДОПОЛНИТЕЛЬНЫЕ ДИРЕКТИВЫ ПОЛЬЗОВАТЕЛЯ:\n$effectivePrompt');
       }
+
+      if (session.contextSummary != null && session.contextSummary!.isNotEmpty) {
+        systemDirectives.writeln('\n<dialogue_memory_summary>');
+        systemDirectives.writeln(session.contextSummary!);
+        systemDirectives.writeln('</dialogue_memory_summary>');
+      }
+
+      systemDirectives.writeln('');
+      systemDirectives.writeln('<target_contact>');
+      systemDirectives.writeln('Имя контакта: "${activeChat.title}"');
+      if (activeChat.headerSubtitle.isNotEmpty) {
+        systemDirectives.writeln('Статус/роль: "${activeChat.headerSubtitle}"');
+      }
+      if (chatDossier.goal.isNotEmpty) {
+        systemDirectives.writeln('Цель пользователя: "${chatDossier.goal}"');
+      }
+      if (chatDossier.psychotype.isNotEmpty) {
+        systemDirectives.writeln('Психотип контакта: "${chatDossier.psychotype}"');
+      }
+      if (chatDossier.tone.isNotEmpty) {
+        systemDirectives.writeln('Рекомендуемый тон: "${chatDossier.tone}"');
+      }
+      if (chatDossier.facts.isNotEmpty) {
+        systemDirectives.writeln('Факты: ${chatDossier.facts.join("; ")}');
+      }
+      if (chatDossier.summary.isNotEmpty) {
+        systemDirectives.writeln('Саммари: "${chatDossier.summary}"');
+      }
+      systemDirectives.writeln('</target_contact>');
+      systemDirectives.writeln('');
+
+      if (hasRag && ragSummary.isNotEmpty) {
+        // 10 recent raw messages for live conversational context
+        final recentRaw = msgs.take(10).toList();
+        final recentFormatted = <String>[];
+        for (final m in recentRaw.reversed) {
+          final sender = m.outgoing ? (isRu ? 'Вы' : 'You') : activeChat.title;
+          String content = m.text.replaceAll('\n', ' ').trim();
+          if (m.kind == MessageKind.voice) {
+            final trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
+                VoiceTranscriptionService.instance.getCachedTranscription(m.mediaPath);
+            if (trans != null && trans.isNotEmpty && !trans.startsWith('[')) {
+              content = isRu ? '[🎤 Расшифровка: "$trans"]' : '[🎤 Voice: "$trans"]';
+            } else {
+              content = isRu ? '[🎤 Голосовое (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
+            }
+          }
+          recentFormatted.add('$sender: $content');
+        }
+
+        systemDirectives.writeln('<rag_chat_facts messages_analyzed="$ragCount" chat="${activeChat.title}">');
+        systemDirectives.writeln(ragSummary);
+        systemDirectives.writeln('</rag_chat_facts>');
+        systemDirectives.writeln('');
+        systemDirectives.writeln('<telegram_recent_raw_messages count="${recentRaw.length}">');
+        systemDirectives.writeln(recentFormatted.join('\n'));
+        systemDirectives.writeln('</telegram_recent_raw_messages>');
+
+        tool = 'llm.analyzeRAG(chat: "${activeChat.title}", ragCount: $ragCount, recent: ${recentRaw.length}, model: "${settings.model}")';
+        output = isRu
+            ? 'Использована RAG-выжимка из $ragCount сообщ. + ${recentRaw.length} свежих реплик («${activeChat.title}»)'
+            : 'Used RAG summary of $ragCount msgs + ${recentRaw.length} recent replies ("${activeChat.title}")';
+      } else {
+        // Форматируем сообщения с включением транскрибированных голосовых заметок
+        final formattedList = <String>[];
+        for (final m in msgsToAnalyze.reversed) {
+          final sender = m.outgoing ? (isRu ? 'Вы' : 'You') : activeChat.title;
+          String content = m.text.replaceAll('\n', ' ').trim();
+          if (m.kind == MessageKind.voice) {
+            String? trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
+                VoiceTranscriptionService.instance.getCachedTranscription(m.mediaPath);
+            if (trans == null || trans.isEmpty) {
+              if (m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
+                try {
+                  trans = await VoiceTranscriptionService.instance.transcribeVoiceFile(
+                    filePath: m.mediaPath,
+                    messageId: m.id,
+                    durationSeconds: m.duration,
+                  );
+                } catch (_) {}
+              }
+            }
+            if (trans != null && trans.isNotEmpty && !trans.startsWith('[')) {
+              content = isRu ? '[🎤 Расшифровка голосового: "$trans"]' : '[🎤 Voice transcript: "$trans"]';
+            } else {
+              content = isRu ? '[🎤 Голосовое сообщение (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
+            }
+          } else if (m.kind == MessageKind.image) {
+            content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
+          } else if (m.kind == MessageKind.video) {
+            content = isRu ? '[🎬 Видео (${m.duration} сек)${content.isNotEmpty ? ": $content" : ""}]' : '[🎬 Video (${m.duration}s)${content.isNotEmpty ? ": $content" : ""}]';
+          } else if (m.kind == MessageKind.document) {
+            content = isRu ? '[📎 Документ: ${m.fileName} (${m.fileSize})${content.isNotEmpty ? ": $content" : ""}]' : '[📎 Document: ${m.fileName} (${m.fileSize})${content.isNotEmpty ? ": $content" : ""}]';
+          }
+          formattedList.add('$sender: $content');
+        }
+        final transcript = formattedList.join('\n');
+
+        systemDirectives.writeln('<telegram_chat_history chat="${activeChat.title}" messages_count="${msgsToAnalyze.length}">');
+        systemDirectives.writeln(transcript);
+        systemDirectives.writeln('</telegram_chat_history>');
+
+        tool = 'llm.analyzeChat(chat: "${activeChat.title}", limit: ${msgsToAnalyze.length}, model: "${settings.model}")';
+        output = isRu
+            ? 'Проанализировано ${msgsToAnalyze.length} сообщений из чата «${activeChat.title}»'
+            : 'Analyzed ${msgsToAnalyze.length} messages from "${activeChat.title}"';
+      }
+
+      reply = await AiModelService.instance.generateChatCompletion(
+        prompt: query,
+        systemPrompt: systemDirectives.toString(),
+        history: conversationHistory,
+        settings: settings,
+      );
     } else {
-      reply = isRu
-          ? 'Принял задачу: "$query".\n\n'
-              '${effectivePrompt.isNotEmpty ? "Действую строго по директивам агента: *$effectivePrompt*.\n\n" : ""}'
-              'Роль агента: **${session.agentRole}**. Если нужно изучить конкретный чат, назови его имя (например: «изучи переписку с Тарасом») или открой системный промпт в настройках чата.'
-          : 'Task received: "$query".\n\n'
-              '${effectivePrompt.isNotEmpty ? "Operating strictly under directives: *$effectivePrompt*.\n\n" : ""}'
-              'Agent role: **${session.agentRole}**. If you want me to inspect a specific chat, mention its name (e.g. "analyze chat with Taras") or open the system prompt in chat settings.';
+      tool = 'llm.chat(model: "${settings.model}")';
+      output = isRu ? 'Обработка запроса нейросетью ${settings.model}' : 'Processing via ${settings.model}';
+
+      final systemDirectives = StringBuffer();
+      systemDirectives.writeln('Ты — интеллектуальный персональный ассистент и советник.');
+      systemDirectives.writeln('Роль агента: ${session.agentRole}.');
+      if (effectivePrompt.isNotEmpty) {
+        systemDirectives.writeln('Директивы: $effectivePrompt');
+      }
+
+      if (session.contextSummary != null && session.contextSummary!.isNotEmpty) {
+        systemDirectives.writeln('\n<dialogue_memory_summary>');
+        systemDirectives.writeln(session.contextSummary!);
+        systemDirectives.writeln('</dialogue_memory_summary>');
+      }
+
+      reply = await AiModelService.instance.generateChatCompletion(
+        prompt: query,
+        systemPrompt: systemDirectives.toString(),
+        history: conversationHistory,
+        settings: settings,
+      );
     }
 
     final agentMsg = CopilotMessage(
@@ -248,76 +452,628 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
 
   void _showPromptEditor(CopilotSession session) {
     final controller = TextEditingController(text: session.systemPrompt);
+    final isContact = session.id.startsWith('contact_');
+    final chatId = isContact ? session.id.replaceFirst('contact_', '') : null;
+    final dossier = chatId != null ? ContactDossierStore.instance.getDossier(chatId).value : null;
+
+    int messageLimit = session.messageLimit > 0
+        ? session.messageLimit
+        : (dossier != null && dossier.analysisMessageLimit > 0 ? dossier.analysisMessageLimit : 30);
+
+    final ragPromptController = TextEditingController(
+      text: session.ragPrompt.isNotEmpty
+          ? session.ragPrompt
+          : (dossier?.ragPrompt ?? CopilotSession.defaultRagPrompt),
+    );
+
+    final dialogueCompressionController = TextEditingController(
+      text: session.dialogueCompressionPrompt.isNotEmpty
+          ? session.dialogueCompressionPrompt
+          : CopilotSession.defaultDialogueCompressionPrompt,
+    );
+
+    bool autoCompressEnabled = session.autoCompressEnabled;
+    int autoCompressThreshold = session.autoCompressThreshold;
+    int keepRawCount = session.keepRawCount;
+
+    String? currentRagSummary = session.ragFactSummary ?? dossier?.ragFactSummary;
+    int currentRagCount = session.ragFactSummaryCount > 0
+        ? session.ragFactSummaryCount
+        : (dossier?.ragFactSummaryCount ?? 0);
+    DateTime? currentRagDate = session.ragFactUpdatedAt ?? dossier?.ragFactUpdatedAt;
+
+    bool isExtractingRag = false;
+    bool isCompressingDialogue = false;
+
+    final isRu = I18n.instance.isRu;
+
+    // Поиск целевого чата для RAG-экстракции
+    final currentAcc = AccountManager.instance.currentAccount.value;
+    final allChats = [
+      ...TdlibService.instance.chats.value,
+      ...AccountManager.instance.getChats(currentAcc.id),
+    ];
+    TgChat? targetChat;
+    if (chatId != null) {
+      final found = allChats.where((c) => c.id == chatId).toList();
+      if (found.isNotEmpty) targetChat = found.first;
+    }
+    if (targetChat == null) {
+      final activeId = AppState.selectedChatId.value;
+      final found = allChats.where((c) => c.id == activeId).toList();
+      if (found.isNotEmpty) targetChat = found.first;
+    }
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: Tg.sidebar,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          title: Row(
-            children: [
-              Icon(session.avatarIcon, color: session.avatarColor, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  tr('agent_directives_title', {'role': session.agentRole}),
-                  style: const TextStyle(color: Tg.text, fontSize: 15),
-                ),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Tg.sidebar,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
               ),
-            ],
-          ),
-          content: SizedBox(
-            width: 480,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tr('system_prompt_desc'),
-                  style: const TextStyle(color: Tg.textDim, fontSize: 12),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Tg.field,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: TextField(
-                    controller: controller,
-                    maxLines: 5,
-                    style: const TextStyle(color: Tg.text, fontSize: 13),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: tr('agent_directives_hint'),
-                      hintStyle: const TextStyle(color: Tg.textFaint),
+              title: Row(
+                children: [
+                  Icon(session.avatarIcon, color: session.avatarColor, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      tr('agent_directives_title', {'role': session.agentRole}),
+                      style: const TextStyle(color: Tg.text, fontSize: 15, fontWeight: FontWeight.w600),
                     ),
                   ),
+                ],
+              ),
+              content: SizedBox(
+                width: 560,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // --- СЕКЦИЯ 1: ДИРЕКТИВЫ АГЕНТА ---
+                      Row(
+                        children: [
+                          const Icon(Icons.psychology_outlined, color: Tg.accent, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            isRu ? 'Директивы и системный промпт' : 'Agent Directives & Prompt',
+                            style: const TextStyle(color: Tg.text, fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        tr('system_prompt_desc'),
+                        style: const TextStyle(color: Tg.textDim, fontSize: 11.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Tg.field,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                        child: TextField(
+                          controller: controller,
+                          maxLines: 3,
+                          style: const TextStyle(color: Tg.text, fontSize: 12.5),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: tr('agent_directives_hint'),
+                            hintStyle: const TextStyle(color: Tg.textFaint),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // --- СЕКЦИЯ 2: RAG-ВЫЖИМКА ФАКТОВ ИЗ ПЕРЕПИСКИ ---
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Tg.field,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.hub_outlined, color: Color(0xFF51B2FF), size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    isRu ? 'RAG-сбор сухих фактов из чата' : 'Chat RAG & Fact Extraction',
+                                    style: const TextStyle(fontSize: 13, color: Tg.text, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                if (targetChat != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF51B2FF).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      targetChat.title,
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF51B2FF), fontWeight: FontWeight.w500),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              isRu
+                                  ? 'Сжимает историю переписки Telegram в выжимку фактов по заданной призме. Копилот получит эту выжимку + 10 свежих реплик.'
+                                  : 'Compresses chat history into dry facts per custom lens. Copilot receives this summary + 10 recent messages.',
+                              style: const TextStyle(fontSize: 11, color: Tg.textDim, height: 1.3),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Слайдер глубины RAG
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  isRu ? 'Глубина сбора фактов (RAG):' : 'Fact extraction depth (RAG):',
+                                  style: const TextStyle(fontSize: 12, color: Tg.text, fontWeight: FontWeight.w500),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF51B2FF).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    isRu ? '$messageLimit сообщ.' : '$messageLimit msgs',
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF51B2FF)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                              ),
+                              child: Slider(
+                                value: messageLimit.toDouble().clamp(10.0, 500.0),
+                                min: 10,
+                                max: 500,
+                                divisions: 49,
+                                activeColor: const Color(0xFF51B2FF),
+                                inactiveColor: Colors.white.withValues(alpha: 0.1),
+                                onChanged: (val) {
+                                  setDialogState(() => messageLimit = val.round());
+                                },
+                              ),
+                            ),
+
+                            // Призма RAG (промпт)
+                            const SizedBox(height: 4),
+                            Text(
+                              isRu ? 'Призма взгляда для RAG (какие факты извлекать):' : 'RAG filter lens (what facts to gather):',
+                              style: const TextStyle(fontSize: 11.5, color: Tg.text, fontWeight: FontWeight.w500),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Tg.sidebar,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                              ),
+                              child: TextField(
+                                controller: ragPromptController,
+                                maxLines: 2,
+                                style: const TextStyle(color: Tg.text, fontSize: 12),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  hintText: isRu ? 'Укажите фокус: договоренности, условия, спорные реплики...' : 'Extraction focus...',
+                                  hintStyle: const TextStyle(color: Tg.textFaint),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Кнопка экстракции RAG и статус
+                            Row(
+                              children: [
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF51B2FF).withValues(alpha: 0.2),
+                                    foregroundColor: const Color(0xFF51B2FF),
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: BorderSide(color: const Color(0xFF51B2FF).withValues(alpha: 0.4)),
+                                    ),
+                                  ),
+                                  icon: isExtractingRag
+                                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF51B2FF)))
+                                      : const Icon(Icons.bolt_rounded, size: 16),
+                                  label: Text(
+                                    isExtractingRag
+                                        ? (isRu ? 'Сбор фактов...' : 'Extracting...')
+                                        : (isRu ? 'Собрать RAG-выжимку ($messageLimit сообщ.)' : 'Extract RAG Facts ($messageLimit msgs)'),
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                  ),
+                                  onPressed: isExtractingRag || targetChat == null
+                                      ? null
+                                      : () async {
+                                          final chat = targetChat;
+                                          if (chat == null) return;
+                                          setDialogState(() => isExtractingRag = true);
+                                          try {
+                                            final realHistory = TdlibService.instance.messagesOf(chat.id).value;
+                                            final msgs = realHistory.messages.isNotEmpty ? realHistory.messages : chat.messages;
+                                            final summary = await CopilotSessionStore.instance.runRagFactExtraction(
+                                              sessionId: session.id,
+                                              chatId: chat.id,
+                                              messages: msgs,
+                                              limit: messageLimit,
+                                              ragPrompt: ragPromptController.text,
+                                              chatTitle: chat.title,
+                                            );
+                                            setDialogState(() {
+                                              currentRagSummary = summary;
+                                              currentRagCount = msgs.take(messageLimit).length;
+                                              currentRagDate = DateTime.now();
+                                            });
+                                            if (context.mounted) {
+                                              TgToast.show(context, isRu ? '⚡ RAG-выжимка из $currentRagCount сообщений собрана!' : '⚡ RAG summary extracted!');
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) TgToast.show(context, 'Ошибка RAG: $e');
+                                          } finally {
+                                            setDialogState(() => isExtractingRag = false);
+                                          }
+                                        },
+                                ),
+                                const Spacer(),
+                                if (currentRagSummary != null && currentRagSummary!.isNotEmpty)
+                                  IconButton(
+                                    tooltip: isRu ? 'Очистить RAG-выжимку' : 'Clear RAG summary',
+                                    icon: const Icon(Icons.delete_outline, size: 18, color: Tg.textDim),
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        currentRagSummary = null;
+                                        currentRagCount = 0;
+                                        currentRagDate = null;
+                                      });
+                                    },
+                                  ),
+                              ],
+                            ),
+
+                            // Превью активного RAG-саммари
+                            if (currentRagSummary != null && currentRagSummary!.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF00C48C).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF00C48C).withValues(alpha: 0.3)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.check_circle_outline, size: 14, color: Color(0xFF00C48C)),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            currentRagDate != null
+                                                ? (isRu
+                                                    ? 'RAG-выжимка активна (сжато $currentRagCount сообщ., в ${currentRagDate!.hour.toString().padLeft(2, "0")}:${currentRagDate!.minute.toString().padLeft(2, "0")})'
+                                                    : 'Active RAG summary ($currentRagCount msgs, at ${currentRagDate!.hour.toString().padLeft(2, "0")}:${currentRagDate!.minute.toString().padLeft(2, "0")})')
+                                                : (isRu ? 'RAG-выжимка активна (сжато $currentRagCount сообщ.)' : 'Active RAG summary ($currentRagCount msgs)'),
+                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF00C48C)),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      currentRagSummary!,
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 11, color: Tg.textDim, height: 1.3),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // --- СЕКЦИЯ 3: ПАМЯТЬ И АВТОКОМПРЕССИЯ ДИАЛОГА С КОПИЛОТОМ ---
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Tg.field,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.memory_rounded, color: Color(0xFFFF9F43), size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    isRu ? 'Память и автосжатие диалога с Copilot' : 'Copilot Dialogue Memory & Compression',
+                                    style: const TextStyle(fontSize: 13, color: Tg.text, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              isRu
+                                  ? 'Сжимает длинную историю нашего общения с Копилотом в память при достижении порога, сохраняя свежие реплики сырыми.'
+                                  : 'Compresses long user-Copilot conversation history into memory upon reaching threshold, keeping recent turns raw.',
+                              style: const TextStyle(fontSize: 11, color: Tg.textDim, height: 1.3),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Тумблер автокомпрессии
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  isRu ? 'Автокомпрессия при переполнении:' : 'Auto-compress on threshold:',
+                                  style: const TextStyle(fontSize: 12, color: Tg.text, fontWeight: FontWeight.w500),
+                                ),
+                                Switch.adaptive(
+                                  value: autoCompressEnabled,
+                                  activeTrackColor: const Color(0xFFFF9F43).withValues(alpha: 0.4),
+                                  activeThumbColor: const Color(0xFFFF9F43),
+                                  onChanged: (val) {
+                                    setDialogState(() => autoCompressEnabled = val);
+                                  },
+                                ),
+                              ],
+                            ),
+
+                            if (autoCompressEnabled) ...[
+                              const SizedBox(height: 8),
+                              // Слайдер порога срабатывания
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    isRu ? 'Порог срабатывания сжатия:' : 'Compression trigger threshold:',
+                                    style: const TextStyle(fontSize: 12, color: Tg.text),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF9F43).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      isRu ? '$autoCompressThreshold сообщ.' : '$autoCompressThreshold msgs',
+                                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFFF9F43)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 3,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                                ),
+                                child: Slider(
+                                  value: autoCompressThreshold.toDouble().clamp(10.0, 80.0),
+                                  min: 10,
+                                  max: 80,
+                                  divisions: 14,
+                                  activeColor: const Color(0xFFFF9F43),
+                                  inactiveColor: Colors.white.withValues(alpha: 0.1),
+                                  onChanged: (val) {
+                                    setDialogState(() => autoCompressThreshold = val.round());
+                                  },
+                                ),
+                              ),
+
+                              // Слайдер окна свежих сырых сообщений
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    isRu ? 'Свежих сообщений без сжатия (окно):' : 'Raw recent window:',
+                                    style: const TextStyle(fontSize: 12, color: Tg.text),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF9F43).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      isRu ? '$keepRawCount сообщ.' : '$keepRawCount msgs',
+                                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFFF9F43)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 3,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                                ),
+                                child: Slider(
+                                  value: keepRawCount.toDouble().clamp(3.0, 20.0),
+                                  min: 3,
+                                  max: 20,
+                                  divisions: 17,
+                                  activeColor: const Color(0xFFFF9F43),
+                                  inactiveColor: Colors.white.withValues(alpha: 0.1),
+                                  onChanged: (val) {
+                                    setDialogState(() => keepRawCount = val.round());
+                                  },
+                                ),
+                              ),
+
+                              // Призма сжатия диалога
+                              const SizedBox(height: 4),
+                              Text(
+                                isRu ? 'Призма сжатия диалога с Copilot:' : 'Dialogue compression lens:',
+                                style: const TextStyle(fontSize: 11.5, color: Tg.text, fontWeight: FontWeight.w500),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Tg.sidebar,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                                ),
+                                child: TextField(
+                                  controller: dialogueCompressionController,
+                                  maxLines: 2,
+                                  style: const TextStyle(color: Tg.text, fontSize: 12),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    hintText: isRu ? 'Инструкция для сжатия диалога...' : 'Compression instructions...',
+                                    hintStyle: const TextStyle(color: Tg.textFaint),
+                                  ),
+                                ),
+                              ),
+                            ],
+
+                            const SizedBox(height: 10),
+                            // Ручная кнопка сжатия диалога сейчас
+                            Row(
+                              children: [
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFFF9F43),
+                                    side: BorderSide(color: const Color(0xFFFF9F43).withValues(alpha: 0.4)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  icon: isCompressingDialogue
+                                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF9F43)))
+                                      : const Icon(Icons.archive_outlined, size: 16),
+                                  label: Text(
+                                    isCompressingDialogue
+                                        ? (isRu ? 'Сжатие...' : 'Compressing...')
+                                        : (isRu ? 'Сжать диалог сейчас (${session.messages.length} сообщ.)' : 'Compress dialogue now (${session.messages.length} msgs)'),
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                  ),
+                                  onPressed: isCompressingDialogue
+                                      ? null
+                                      : () async {
+                                          setDialogState(() => isCompressingDialogue = true);
+                                          try {
+                                            final compressed = await CopilotSessionStore.instance.compressSessionIntelligent(session.id);
+                                            if (context.mounted) {
+                                              if (compressed) {
+                                                TgToast.show(context, isRu ? '🗜️ Диалог сжат и сохранен в памяти!' : '🗜️ Dialogue compressed to memory!');
+                                              } else {
+                                                TgToast.show(context, isRu ? 'В диалоге мало сообщений (меньше окна $keepRawCount)' : 'Dialogue has fewer messages than window ($keepRawCount)');
+                                              }
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) TgToast.show(context, 'Ошибка сжатия: $e');
+                                          } finally {
+                                            setDialogState(() => isCompressingDialogue = false);
+                                          }
+                                        },
+                                ),
+                                const Spacer(),
+                                if (session.contextSummary != null && session.contextSummary!.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF9F43).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      isRu ? '${session.summaryTokenCount} токенов в памяти' : '${session.summaryTokenCount} tokens in memory',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFFFF9F43), fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: session.avatarColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    final text = controller.text;
+                    final ragPrompt = ragPromptController.text;
+                    final dialoguePrompt = dialogueCompressionController.text;
+
+                    CopilotSessionStore.instance.updateSessionPrompt(session.id, text);
+                    CopilotSessionStore.instance.updateSessionMessageLimit(session.id, messageLimit);
+                    CopilotSessionStore.instance.updateSessionRagConfig(
+                      session.id,
+                      prompt: ragPrompt,
+                      summary: currentRagSummary,
+                      count: currentRagCount,
+                    );
+                    CopilotSessionStore.instance.updateSessionCompressionConfig(
+                      session.id,
+                      enabled: autoCompressEnabled,
+                      threshold: autoCompressThreshold,
+                      keepRaw: keepRawCount,
+                      prompt: dialoguePrompt,
+                    );
+
+                    if (chatId != null) {
+                      ContactDossierStore.instance.updateSystemPrompt(chatId, text);
+                      ContactDossierStore.instance.updateAnalysisMessageLimit(chatId, messageLimit);
+                      ContactDossierStore.instance.updateRagPrompt(chatId, ragPrompt);
+                      if (currentRagSummary != null) {
+                        ContactDossierStore.instance.updateRagSummary(chatId, currentRagSummary!, currentRagCount);
+                      }
+                    }
+                    Navigator.of(context).pop();
+                    TgToast.show(context, tr('directives_updated_toast'));
+                    if (mounted) setState(() {});
+                  },
+                  child: Text(tr('save')),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(tr('cancel'), style: const TextStyle(color: Tg.textDim)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: session.avatarColor,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                CopilotSessionStore.instance.updateSessionPrompt(session.id, controller.text);
-                Navigator.of(context).pop();
-                TgToast.show(context, tr('directives_updated_toast'));
-              },
-              child: Text(tr('save')),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -760,34 +1516,43 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
   Widget _buildQuickActionCards(CopilotSession session) {
     List<String> actions;
     final role = session.agentRole.toLowerCase();
+    final isRu = I18n.instance.isRu;
 
-    if (role.contains('hunter') || role.contains('ваканси') || role.contains('лид')) {
+    if (session.id.startsWith('contact_')) {
       actions = [
-        '💼 Вакансии Flutter Remote',
-        '🔍 Спарсить чат заказов',
-        '📋 Подготовить отклик',
-        '🎯 Фильтр по рейту от \$4000',
+        isRu ? '📊 Анализ человека и переписки' : '📊 Analyze person & chat',
+        isRu ? '🧐 Манипулирует ли собеседник?' : '🧐 Is contact manipulating?',
+        isRu ? '🎯 Истинные мотивы собеседника' : '🎯 Real contact motives',
+        isRu ? '✍️ Предложи идеальный ответ' : '✍️ Suggest best reply',
+        isRu ? '⏳ Зафиксировать договоренности' : '⏳ Lock agreements',
+      ];
+    } else if (role.contains('hunter') || role.contains('ваканси') || role.contains('лид')) {
+      actions = [
+        isRu ? '💼 Вакансии Flutter Remote' : '💼 Flutter Remote Jobs',
+        isRu ? '🔍 Спарсить чат заказов' : '🔍 Parse Orders Chat',
+        isRu ? '📋 Подготовить отклик' : '📋 Draft Proposal',
+        isRu ? '🎯 Фильтр по рейту от \$4000' : '🎯 Rate Filter \$4000+',
       ];
     } else if (role.contains('crm') || role.contains('анали')) {
       actions = [
-        '📊 Саммари переписки с Тарасом',
-        '🎯 Досье контакта',
-        '⏳ Зафиксировать договоренности',
-        '📝 Экспорт в CRM заметки',
+        isRu ? '📊 Саммари переписки' : '📊 Conversation Summary',
+        isRu ? '🎯 Досье контакта' : '🎯 Contact Dossier',
+        isRu ? '⏳ Зафиксировать договоренности' : '⏳ Lock Agreements',
+        isRu ? '📝 Экспорт в CRM заметки' : '📝 Export to CRM Notes',
       ];
     } else if (role.contains('code') || role.contains('архитект')) {
       actions = [
-        '🛠️ Ревью Isolate C++ в TDLib',
-        '⚡ Анализ задержки звонков',
-        '🧪 Написать unit-тесты',
-        '📦 Проверить сжатие контекста',
+        isRu ? '🛠️ Ревью Isolate C++ в TDLib' : '🛠️ Review C++ Isolate in TDLib',
+        isRu ? '⚡ Анализ задержки звонков' : '⚡ Call Latency Analysis',
+        isRu ? '🧪 Написать unit-тесты' : '🧪 Generate Unit Tests',
+        isRu ? '📦 Проверить сжатие контекста' : '📦 Check Context Compression',
       ];
     } else {
       actions = [
-        '💼 Найти вакансии Flutter',
-        '📊 Саммари чатов',
-        '🔍 Спарсить группу Недвижимость',
-        '🎯 Пробить профиль по Шерлоку',
+        isRu ? '📊 Анализ активного диалога' : '📊 Analyze Active Chat',
+        isRu ? '🧐 Мотивы и скрытые цели' : '🧐 Motives & Hidden Goals',
+        isRu ? '💼 Найти вакансии Flutter' : '💼 Find Flutter Jobs',
+        isRu ? '✍️ Предложи ответ в чат' : '✍️ Draft Chat Reply',
       ];
     }
 
@@ -930,7 +1695,72 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
     );
   }
 
+  Widget _buildVoiceRecordingBar(CopilotSession session) {
+    final isRu = I18n.instance.isRu;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Tg.sidebar,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: const BoxDecoration(
+              color: Tg.danger,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            _formatDuration(_recordSeconds),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Tg.text,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              isRu ? 'Говорите, идёт распознавание...' : 'Recording voice for Copilot...',
+              style: const TextStyle(fontSize: 13, color: Tg.textDim),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 20, color: Tg.textFaint),
+            onPressed: () => _stopVoice(send: false, session: session),
+            tooltip: tr('cancel'),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: () => _stopVoice(send: true, session: session),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: session.avatarColor,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.arrow_upward_rounded, size: 20, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInputBar(CopilotSession session) {
+    if (_isRecordingVoice) {
+      return _buildVoiceRecordingBar(session);
+    }
+
+    final isTextEmpty = _controller.text.trim().isEmpty;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(10, 4, 10, 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -955,26 +1785,44 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => _sendMessage(session, _controller.text),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: session.avatarColor,
-                borderRadius: BorderRadius.circular(18),
+          if (isTextEmpty)
+            Tooltip(
+              message: I18n.instance.isRu ? 'Надиктовать голосом' : 'Voice dictation',
+              child: GestureDetector(
+                onTap: _startVoice,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Tg.field,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  child: Icon(Icons.mic_none_rounded, size: 20, color: session.avatarColor),
+                ),
               ),
-              child: _isLoading
-                  ? const Center(
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.arrow_upward_rounded, size: 20, color: Colors.white),
+            )
+          else
+            GestureDetector(
+              onTap: () => _sendMessage(session, _controller.text),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: session.avatarColor,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: _isLoading
+                    ? const Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.arrow_upward_rounded, size: 20, color: Colors.white),
+              ),
             ),
-          ),
         ],
       ),
     );

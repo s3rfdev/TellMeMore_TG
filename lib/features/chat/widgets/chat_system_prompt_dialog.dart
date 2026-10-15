@@ -30,6 +30,7 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
   late final TextEditingController _promptController;
   late final TextEditingController _goalController;
   late final TextEditingController _toneController;
+  int _messageLimit = 30;
 
   @override
   void initState() {
@@ -38,6 +39,7 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
     _promptController = TextEditingController(text: dossier.systemPrompt);
     _goalController = TextEditingController(text: dossier.goal);
     _toneController = TextEditingController(text: dossier.tone);
+    _messageLimit = dossier.analysisMessageLimit > 0 ? dossier.analysisMessageLimit : 30;
   }
 
   @override
@@ -57,6 +59,7 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
     store.updateSystemPrompt(widget.chat.id, prompt);
     store.updateGoal(widget.chat.id, goal);
     store.updateTone(widget.chat.id, tone);
+    store.updateAnalysisMessageLimit(widget.chat.id, _messageLimit);
 
     // Если уже открыта сессия Копилота для этого чата, обновляем её системный промпт
     final sessionId = 'contact_${widget.chat.id}';
@@ -275,6 +278,68 @@ class _ChatSystemPromptDialogState extends State<ChatSystemPromptDialog> {
                           borderRadius: BorderRadius.circular(10),
                           borderSide: const BorderSide(color: Tg.accent, width: 1.5),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Глубина сообщений в контексте LLM
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Tg.field,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Tg.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                isRu ? 'Глубина контекста LLM:' : 'LLM context depth:',
+                                style: const TextStyle(fontSize: 13, color: Tg.text, fontWeight: FontWeight.w500),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Tg.accent.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  isRu ? '$_messageLimit сообщ.' : '$_messageLimit msgs',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Tg.accent),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isRu
+                                ? 'Количество последних сообщений из чата, которые нейросеть берет для анализа и ответов (по умолчанию 30).'
+                                : 'Number of recent chat messages loaded into LLM context for analysis and responses (default 30).',
+                            style: const TextStyle(fontSize: 11.5, color: Tg.textDim, height: 1.3),
+                          ),
+                          const SizedBox(height: 8),
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              trackHeight: 3,
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                            ),
+                            child: Slider(
+                              value: _messageLimit.toDouble().clamp(5.0, 200.0),
+                              min: 5,
+                              max: 200,
+                              divisions: 39,
+                              activeColor: Tg.accent,
+                              inactiveColor: Colors.white.withValues(alpha: 0.1),
+                              onChanged: (val) {
+                                setState(() => _messageLimit = val.round());
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

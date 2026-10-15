@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 
 class AiSettings {
   AiSettings({
-    this.provider = 'Z-AI (ZIAI)',
-    this.model = 'glm-5',
+    this.provider = 'Google Gemini',
+    this.model = 'gemini-3.5-flash-lite',
     this.contextMessageCount = 30,
     this.contextCompression = true,
     this.compressionMode = 'volume',

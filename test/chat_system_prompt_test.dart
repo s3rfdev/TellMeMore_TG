@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tg_answer/data/models/tg_chat.dart';
 import 'package:tg_answer/features/ai_copilot/models/contact_dossier.dart';
+import 'package:tg_answer/features/ai_copilot/services/ai_model_service.dart';
 import 'package:tg_answer/features/chat/widgets/chat_system_prompt_dialog.dart';
 
 void main() {
@@ -32,11 +33,26 @@ void main() {
       store.updateSystemPrompt('test-direct-chat', 'Отвечай кратко, как технический лид.');
       store.updateGoal('test-direct-chat', 'Согласовать спецификацию протокола');
       store.updateTone('test-direct-chat', 'Лаконичный, инженерный');
+      store.updateAnalysisMessageLimit('test-direct-chat', 120);
 
       final saved = store.getDossier('test-direct-chat').value;
       expect(saved.systemPrompt, 'Отвечай кратко, как технический лид.');
       expect(saved.goal, 'Согласовать спецификацию протокола');
       expect(saved.tone, 'Лаконичный, инженерный');
+      expect(saved.analysisMessageLimit, 120);
+    });
+
+    test('AiModelService produces intelligent motive and manipulation assessment', () async {
+      final res = await AiModelService.instance.generateChatCompletion(
+        prompt: 'Он манипулирует мной? Какие у него мотивы?',
+        history: [
+          {'role': 'model', 'content': 'Привет, когда сможешь закончить?'},
+          {'role': 'user', 'content': 'Нужно срочно, прямо сейчас, бросай всё и делай быстрее!'},
+        ],
+      );
+      expect(res, isNotEmpty);
+      expect(res, contains('манипуля'));
+      expect(res, isNot(contains('Что конкретно подготовить: сформулировать ответ собеседнику или сделать саммари?')));
     });
   });
 

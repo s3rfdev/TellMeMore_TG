@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/localization/app_locale.dart';
@@ -9,9 +11,12 @@ import '../../../data/models/tg_chat.dart';
 import '../../../state/app_state.dart';
 import '../../chat/services/chat_export_service.dart';
 import '../../chat/widgets/chat_export_dialog.dart';
+import '../../../data/tdlib/tdlib_service.dart';
 import '../models/contact_dossier.dart';
 import '../models/copilot_session.dart';
+import '../services/ai_model_service.dart';
 import '../services/copilot_session_store.dart';
+import '../services/voice_transcription_service.dart';
 
 class ContactDossierDialog extends StatefulWidget {
   const ContactDossierDialog({super.key, required this.chat});
@@ -74,118 +79,167 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
 
   void _runAutoAnalysis() async {
     setState(() => _isAnalyzing = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
 
-    final current = _dossierNotifier.value;
-    final targetGoal = _goalController.text.trim();
-    final updatedFacts = List<String>.from(current.facts);
+    try {
+      final current = _dossierNotifier.value;
+      final targetGoal = _goalController.text.trim();
 
-    // Многофакторный анализ реальных сообщений диалога
-    final messages = widget.chat.messages;
-    int questionCount = 0;
-    bool hasPriceTerms = false;
-    bool hasTechTerms = false;
-    bool hasFriendlyTerms = false;
+      // Получаем реальные сообщения из TDLib (или чата)
+      final tdlibMsgs = TdlibService.instance.messagesOf(widget.chat.id).value.messages;
+      final allMessages = tdlibMsgs.isNotEmpty ? tdlibMsgs : widget.chat.messages;
 
-    final isRu = I18n.instance.isRu;
+      final limit = current.analysisMessageLimit > 0 ? current.analysisMessageLimit : 50;
+      final messagesToAnalyze = allMessages.take(limit).toList();
 
-    for (final m in messages) {
-      final t = m.text.toLowerCase();
-      if (t.contains('?')) questionCount++;
-      if (t.contains('сколько') ||
-          t.contains('цена') ||
-          t.contains('руб') ||
-          t.contains('\$') ||
-          t.contains('оплат') ||
-          t.contains('стоим') ||
-          t.contains('price') ||
-          t.contains('cost') ||
-          t.contains('pay')) {
-        hasPriceTerms = true;
-      }
-      if (t.contains('flutter') ||
-          t.contains('dart') ||
-          t.contains('api') ||
-          t.contains('код') ||
-          t.contains('git') ||
-          t.contains('сервер') ||
-          t.contains('code') ||
-          t.contains('server')) {
-        hasTechTerms = true;
-      }
-      if (t.contains('😊') ||
-          t.contains('спасибо') ||
-          t.contains('привет') ||
-          t.contains('здорово') ||
-          t.contains('рад') ||
-          t.contains('thanks') ||
-          t.contains('hello') ||
-          t.contains('great')) {
-        hasFriendlyTerms = true;
+      if (messagesToAnalyze.isEmpty) {
+        if (mounted) {
+          TgToast.show(context, I18n.instance.isRu ? 'История переписки пуста' : 'Chat history is empty');
+          setState(() => _isAnalyzing = false);
+        }
+        return;
       }
 
-      // Извлечение CRM-фактов из сообщений
-      if (t.contains('нячанг') && !updatedFacts.any((f) => f.contains('Нячанг') || f.contains('Nha Trang'))) {
-        updatedFacts.add(isRu ? '📍 Локация: Нячанг, Вьетнам' : '📍 Location: Nha Trang, Vietnam');
+      final isRu = I18n.instance.isRu;
+      final formattedList = <String>[];
+      for (final m in messagesToAnalyze.reversed) {
+        final sender = m.outgoing ? (isRu ? 'Вы' : 'You') : widget.chat.title;
+        String content = m.text.replaceAll('\n', ' ').trim();
+        if (m.kind == MessageKind.voice) {
+          String? trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
+              VoiceTranscriptionService.instance.getCachedTranscription(m.mediaPath);
+          if (trans == null || trans.isEmpty) {
+            if (m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
+              try {
+                trans = await VoiceTranscriptionService.instance.transcribeVoiceFile(
+                  filePath: m.mediaPath,
+                  messageId: m.id,
+                  durationSeconds: m.duration,
+                );
+              } catch (_) {}
+            }
+          }
+          if (trans != null && trans.isNotEmpty && !trans.startsWith('[')) {
+            content = isRu ? '[🎤 Расшифровка голосового: "$trans"]' : '[🎤 Voice transcript: "$trans"]';
+          } else {
+            content = isRu ? '[🎤 Голосовое сообщение (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
+          }
+        } else if (m.kind == MessageKind.image) {
+          content = isRu ? '[🖼 Изображение${content.isNotEmpty ? ": $content" : ""}]' : '[🖼 Image${content.isNotEmpty ? ": $content" : ""}]';
+        } else if (m.kind == MessageKind.video) {
+          content = isRu ? '[🎬 Видео (${m.duration} сек)${content.isNotEmpty ? ": $content" : ""}]' : '[🎬 Video (${m.duration}s)${content.isNotEmpty ? ": $content" : ""}]';
+        } else if (m.kind == MessageKind.document) {
+          content = isRu ? '[📎 Документ: ${m.fileName} (${m.fileSize})${content.isNotEmpty ? ": $content" : ""}]' : '[📎 Document: ${m.fileName} (${m.fileSize})${content.isNotEmpty ? ": $content" : ""}]';
+        }
+        formattedList.add('$sender: $content');
       }
-      if (t.contains('flutter') && !updatedFacts.any((f) => f.contains('Flutter'))) {
-        updatedFacts.add(isRu ? '💻 Стек: Flutter, Dart, мобильная и Desktop разработка' : '💻 Stack: Flutter, Dart, mobile & desktop development');
+      final transcript = formattedList.join('\n');
+
+      final prompt = isRu
+          ? '''
+Проведи объективный психологический анализ человека и диалога с "${widget.chat.title}" по реальной истории переписки (изучено ${messagesToAnalyze.length} сообщений):
+$transcript
+
+Цель пользователя по контакту: "${targetGoal.isNotEmpty ? targetGoal : 'Выяснить суть, мотивы и защитить свои интересы'}"
+
+ИНСТРУКЦИЯ ПО АНАЛИЗУ:
+1. Будь предельно честным, прямолинейным и независимым экспертом.
+2. Никаких слащавых корпоративных комплиментов, шаблонной лести и выдуманных клише (категорически запрещено писать "прагматичный новатор", если человек ведет себя неадекватно, грубо, пассивно или некомпетентно).
+3. Если человек проявляет токсичность, манипулирует, юлит, перекладывает вину, проявляет пассивную агрессию или ведет себя непрофессионально — назови вещи своими именами прямо и четко.
+4. Выяви реальные скрытые или явные мотивы человека.
+
+Выведи ответ строго по структуре:
+[ПСИХОТИП]: 1-2 предложения, честный психологический портрет и стиль общения
+[РЕЗЮМЕ]: 3-4 предложения: истинные мотивы, манипуляции, токсичность или ее отсутствие, уровень адекватности
+[ФАКТЫ]:
+- Реальный факт 1 из текста диалога
+- Реальный факт 2 из текста диалога
+'''
+          : '''
+Analyze the contact "${widget.chat.title}" based on conversation history (${messagesToAnalyze.length} messages):
+$transcript
+
+User goal: "${targetGoal.isNotEmpty ? targetGoal : 'Clarify terms and safeguard interests'}"
+
+Format strictly as:
+[PSYCHOTYPE]: 1-2 sentences candid profile
+[SUMMARY]: Motives and manipulation analysis
+[FACTS]:
+- Extracted fact 1
+- Extracted fact 2
+''';
+
+      final aiResponse = await AiModelService.instance.generateChatCompletion(
+        prompt: prompt,
+        systemPrompt: 'Ты — независимый психолог и эксперт по переговорам. Анализируешь людей честно, без цензуры и корпоративных штампов.',
+      );
+
+      String extractedPsycho = '';
+      String extractedSummary = '';
+      final extractedFacts = <String>[];
+
+      final lines = aiResponse.split('\n');
+      String currentSection = '';
+      final summaryBuffer = StringBuffer();
+
+      for (final line in lines) {
+        final t = line.trim();
+        if (t.startsWith('[ПСИХОТИП]:') || t.startsWith('[PSYCHOTYPE]:') || t.startsWith('ПСИХОТИП:')) {
+          extractedPsycho = t.replaceFirst(RegExp(r'^\[?(ПСИХОТИП|PSYCHOTYPE)\]?:?\s*'), '').trim();
+          currentSection = 'psycho';
+        } else if (t.startsWith('[РЕЗЮМЕ]:') || t.startsWith('[SUMMARY]:') || t.startsWith('РЕЗЮМЕ:')) {
+          currentSection = 'summary';
+          final rest = t.replaceFirst(RegExp(r'^\[?(РЕЗЮМЕ|SUMMARY)\]?:?\s*'), '').trim();
+          if (rest.isNotEmpty) summaryBuffer.writeln(rest);
+        } else if (t.startsWith('[ФАКТЫ]:') || t.startsWith('[FACTS]:') || t.startsWith('ФАКТЫ:')) {
+          currentSection = 'facts';
+        } else if (currentSection == 'summary') {
+          if (t.isNotEmpty && !t.startsWith('[') && !t.startsWith('ФАКТЫ:')) {
+            summaryBuffer.writeln(t);
+          }
+        } else if (currentSection == 'facts') {
+          if (t.startsWith('-') || t.startsWith('•') || t.startsWith('*')) {
+            final fact = t.replaceFirst(RegExp(r'^[-•*]\s*'), '').trim();
+            if (fact.isNotEmpty && !fact.startsWith('[')) extractedFacts.add(fact);
+          }
+        }
       }
-      if (t.contains('github') && !updatedFacts.any((f) => f.contains('GitHub'))) {
-        updatedFacts.add(isRu ? '🐙 Разработка открытых библиотек и репозиториев на GitHub' : '🐙 Open-source repository and library development on GitHub');
+
+      if (extractedPsycho.isEmpty) {
+        extractedPsycho = aiResponse.split('\n').first.trim();
       }
-      if (t.contains('вилл') && !updatedFacts.any((f) => f.contains('вилл') || f.contains('villa'))) {
-        updatedFacts.add(isRu ? '🏡 Фокус: аренда апартаментов и вилл у моря' : '🏡 Focus: sea-view villas and apartments rental');
+      extractedSummary = summaryBuffer.toString().trim();
+      if (extractedSummary.isEmpty) {
+        extractedSummary = aiResponse.trim();
+      }
+
+      // Объединяем факты
+      final mergedFacts = List<String>.from(current.facts);
+      for (final f in extractedFacts) {
+        if (!mergedFacts.contains(f)) {
+          mergedFacts.add(f);
+        }
+      }
+
+      _psychotypeController.text = extractedPsycho;
+      _dossierNotifier.value = current.copyWith(
+        psychotype: extractedPsycho,
+        summary: extractedSummary,
+        facts: mergedFacts,
+        lastAnalyzed: DateTime.now(),
+      );
+
+      if (mounted) {
+        TgToast.show(context, tr('ai_dossier_analyzed_toast'));
+      }
+    } catch (e) {
+      if (mounted) {
+        TgToast.show(context, 'Ошибка анализа: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAnalyzing = false);
       }
     }
-
-    if (!updatedFacts.any((f) => f.contains('быстрые решения') || f.contains('prompt decisions'))) {
-      updatedFacts.add(isRu ? '⚡ Предпочитает быстрые решения без бюрократии' : '⚡ Prefers prompt decisions without bureaucracy');
-    }
-    if (!updatedFacts.any((f) => f.contains('вовлеченность') || f.contains('engagement'))) {
-      updatedFacts.add(isRu ? '🎯 Высокая вовлеченность в обсуждение продукта' : '🎯 High product discussion engagement');
-    }
-
-    // Выведение психотипа на основе стиля общения собеседника
-    String newPsychotype;
-    if (hasPriceTerms) {
-      newPsychotype = isRu
-          ? 'Прагматик-контролёр. Внимателен к бюджетам, срокам и гарантиям. Принимает решения на основе прозрачных цифр.'
-          : 'Pragmatic Controller. Attentive to budgets, timelines, and guarantees. Makes decisions based on transparent metrics.';
-    } else if (hasTechTerms) {
-      newPsychotype = isRu
-          ? 'Технический архитектор / инноватор. Горит пет-проектами, ценит чистый код, открытые библиотеки и скорость.'
-          : 'Technical Architect / Innovator. Passionate about projects, values clean code, open libraries, and development velocity.';
-    } else if (hasFriendlyTerms) {
-      newPsychotype = isRu
-          ? 'Эмоциональный коммуникатор. Открыт к нетворкингу, ценит доверие, партнерские отношения и быструю обратную связь.'
-          : 'Empathetic Communicator. Open to networking, values trust, long-term partnerships, and prompt feedback.';
-    } else {
-      newPsychotype = isRu
-          ? 'Прагматичный новатор. Ориентирован на результат, открытость и надежность без бюрократии.'
-          : 'Pragmatic Innovator. Goal-oriented, values transparency and reliability without red tape.';
-    }
-
-    _psychotypeController.text = newPsychotype;
-
-    final summary = targetGoal.isNotEmpty
-        ? (isRu
-            ? 'Анализ диалога показал готовность к достижению цели "$targetGoal". Собеседник задал $questionCount уточняющих вопросов. Рекомендуется зафиксировать условия и перейти к следующему этапу.'
-            : 'Conversation analysis shows readiness towards goal "$targetGoal". Contact asked $questionCount clarifying questions. Recommended to fix terms and proceed to next stage.')
-        : (isRu
-            ? 'Анализ переписки показал готовность к прямому сотрудничеству. Собеседник ценит оперативную обратную связь и экспертизу.'
-            : 'Chat analysis indicates readiness for direct collaboration. Contact appreciates quick responses and technical expertise.');
-
-    _dossierNotifier.value = current.copyWith(
-      psychotype: newPsychotype,
-      summary: summary,
-      facts: updatedFacts,
-      lastAnalyzed: DateTime.now(),
-    );
-
-    setState(() => _isAnalyzing = false);
-    TgToast.show(context, tr('ai_dossier_analyzed_toast'));
   }
 
   void _saveCurrentState() {
@@ -219,7 +273,7 @@ class _ContactDossierDialogState extends State<ContactDossierDialog> {
 
     final isRu = I18n.instance.isRu;
     final defaultGoal = isRu ? "Установить контакт и выявить потребности" : "Establish contact and identify needs";
-    final defaultPsycho = isRu ? "Прагматик" : "Pragmatic";
+    final defaultPsycho = isRu ? "Не определен (требуется анализ)" : "Not analyzed yet";
 
     final prompt = isRu ? '''
 Ты персональный AI-ассистент по общению с контактом "${widget.chat.title}".
@@ -255,11 +309,11 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
           CopilotMessage(
             text: isRu
                 ? 'Привет! Я твой персональный AI-копилот по контакту **${widget.chat.title}**.\n\n'
-                    '🎯 **Наша цель**: *"${goal.isNotEmpty ? goal : "Установить контакт"}"*\n'
-                    '🧠 **Психотип**: *"${psychotype.isNotEmpty ? psychotype : "Прагматик"}"*\n'
+                    '🎯 **Наша цель**: *"${goal.isNotEmpty ? goal : defaultGoal}"*\n'
+                    '🧠 **Психотип**: *"${psychotype.isNotEmpty ? psychotype : defaultPsycho}"*\n'
                     '🗣️ **Тон**: *"${_dossierNotifier.value.tone}"*\n\n'
                     'Я держу в контексте всю историю вашей переписки, CRM-факты и досье. '
-                    'Ты можешь надиктовать мне любую задачу (например: *"как ему мягко отказать"*, *"составь оффер"* или *"проанализируй его последнее сообщение"*), и я помогу сформулировать идеальный ответ!'
+                    'Ты можешь надиктовать мне любую задачу (например: *"манипулирует ли он мной?"*, *"какие у него мотивы?"*, *"составь жесткий ответ"* или *"оцени его адекватность"*), и я помогу!'
                 : 'Hello! I am your personal AI Copilot for contact **${widget.chat.title}**.\n\n'
                     '🎯 **Our goal**: *"${goal.isNotEmpty ? goal : "Establish contact"}"*\n'
                     '🧠 **Psychotype**: *"${psychotype.isNotEmpty ? psychotype : "Pragmatic"}"*\n'
@@ -443,6 +497,11 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
   }
 
   Widget _buildAiAnalysisBanner(ContactDossier dossier) {
+    final tdlibMsgs = TdlibService.instance.messagesOf(widget.chat.id).value.messages;
+    final totalMsgs = tdlibMsgs.isNotEmpty ? tdlibMsgs.length : widget.chat.messages.length;
+    final limit = dossier.analysisMessageLimit.clamp(5, 500);
+    final effectiveCount = totalMsgs < limit ? totalMsgs : limit;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -474,12 +533,83 @@ ${_dossierNotifier.value.facts.map((f) => '• $f').join('\n')}
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            dossier.summary,
-            style: const TextStyle(fontSize: 12.5, color: Tg.text, height: 1.35),
-          ),
           const SizedBox(height: 12),
+
+          // Интерактивная ручка выбора глубины сообщений для анализа
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Tg.field,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      I18n.instance.isRu ? 'Глубина анализа переписки:' : 'Analysis message depth:',
+                      style: const TextStyle(fontSize: 12, color: Tg.textDim),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Tg.accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        I18n.instance.isRu
+                            ? '$effectiveCount из $totalMsgs сообщ.'
+                            : '$effectiveCount of $totalMsgs msgs',
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Tg.accent),
+                      ),
+                    ),
+                  ],
+                ),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 3,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                  ),
+                  child: Slider(
+                    value: limit.toDouble(),
+                    min: 5,
+                    max: totalMsgs > 100 ? totalMsgs.toDouble().clamp(100, 500) : 100,
+                    divisions: 19,
+                    activeColor: Tg.accent,
+                    inactiveColor: Colors.white.withValues(alpha: 0.1),
+                    onChanged: (val) {
+                      ContactDossierStore.instance.updateAnalysisMessageLimit(
+                        widget.chat.id,
+                        val.round(),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          if (dossier.summary.isNotEmpty) ...[
+            Text(
+              dossier.summary,
+              style: const TextStyle(fontSize: 12.5, color: Tg.text, height: 1.35),
+            ),
+            const SizedBox(height: 12),
+          ] else ...[
+            Text(
+              I18n.instance.isRu
+                  ? 'Запустите анализ, чтобы нейросеть изучила характер собеседника, скрытые мотивы и наличие манипуляций.'
+                  : 'Run analysis to examine interlocutor motives, psychotype, and manipulation markers.',
+              style: const TextStyle(fontSize: 12, color: Tg.textFaint, fontStyle: FontStyle.italic),
+            ),
+            const SizedBox(height: 12),
+          ],
+
           Align(
             alignment: Alignment.centerRight,
             child: ElevatedButton.icon(

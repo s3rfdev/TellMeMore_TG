@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/localization/app_locale.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../ai_copilot/models/contact_dossier.dart';
+import '../../ai_copilot/services/voice_transcription_service.dart';
 
 enum ExportContentType {
   advisorProfile,
@@ -141,9 +142,14 @@ class ChatExportService {
 
       String content = msg.text;
       if (msg.kind == MessageKind.voice) {
+        final cached = VoiceTranscriptionService.instance.getCachedTranscription(msg.id) ??
+            VoiceTranscriptionService.instance.getCachedTranscription(msg.mediaPath);
+        final voiceText = (cached != null && cached.isNotEmpty && !cached.startsWith('['))
+            ? cached
+            : msg.text;
         content = isRu
-            ? '[🎤 Голосовое сообщение, ${msg.duration} сек${msg.text.isNotEmpty ? ": ${msg.text}" : ""}]'
-            : '[🎤 Voice message, ${msg.duration} sec${msg.text.isNotEmpty ? ": ${msg.text}" : ""}]';
+            ? '[🎤 Голосовое сообщение, ${msg.duration} сек${voiceText.isNotEmpty ? ": \"$voiceText\"" : ""}]'
+            : '[🎤 Voice message, ${msg.duration} sec${voiceText.isNotEmpty ? ": \"$voiceText\"" : ""}]';
       } else if (msg.kind == MessageKind.image) {
         content = isRu
             ? '[🖼 Изображение${msg.fileName.isNotEmpty ? ": ${msg.fileName}" : ""}${msg.text.isNotEmpty ? " — ${msg.text}" : ""}]'

@@ -417,36 +417,42 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
                     const SizedBox(height: 3),
                     Row(
                       children: [
-                        // Роль агента
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 0.5),
-                          decoration: BoxDecoration(
-                            color: session.avatarColor.withValues(alpha: 0.22),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            session.agentRole,
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w600,
-                              color: session.avatarColor,
+                        // Роль агента (с ограничением ширины и ellipsis, чтобы не вызывать оверфлоу)
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 0.5),
+                            decoration: BoxDecoration(
+                              color: session.avatarColor.withValues(alpha: 0.22),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              session.agentRole,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w600,
+                                color: session.avatarColor,
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            snippet,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isActive
-                                  ? Colors.white.withValues(alpha: 0.8)
-                                  : Tg.textDim,
+                        if (snippet.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              snippet,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isActive
+                                    ? Colors.white.withValues(alpha: 0.8)
+                                    : Tg.textDim,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ],
@@ -454,12 +460,15 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
               ),
 
               // Выпадающее меню действий
-              PopupMenuButton<String>(
-                icon: Icon(
-                  Icons.more_vert,
-                  size: 18,
-                  color: isActive ? Colors.white.withValues(alpha: 0.8) : Tg.textDim,
-                ),
+              SizedBox(
+                width: 24,
+                child: PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    Icons.more_vert,
+                    size: 18,
+                    color: isActive ? Colors.white.withValues(alpha: 0.8) : Tg.textDim,
+                  ),
                 color: const Color(0xFF212D3B),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 onSelected: (val) {
@@ -524,8 +533,9 @@ class _CopilotSessionListViewState extends State<CopilotSessionListView> {
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
         ),
       ),
     );

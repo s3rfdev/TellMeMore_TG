@@ -58,6 +58,12 @@ class CopilotMessage {
 
 /// Модель чата/сессии с автономным агентом Copilot.
 class CopilotSession {
+  static const String defaultRagPrompt =
+      'Извлеки ключевые сухие факты из истории переписки: кто что сказал, биографические и контактные детали, договоренности, условия, спорные моменты и скрытые мотивы участников. Без оценочной шелухи, структурированным списком.';
+
+  static const String defaultDialogueCompressionPrompt =
+      'Сформируй связную хронологическую выжимку диалога с пользователем: ключевые вопросы пользователя, предложенные выводы, гипотезы и принятые решения. Сохрани суть контекста без потери договоренностей.';
+
   CopilotSession({
     required this.id,
     required this.title,
@@ -69,9 +75,20 @@ class CopilotSession {
     List<CopilotMessage>? messages,
     this.contextSummary,
     this.summaryTokenCount = 0,
+    this.messageLimit = 30,
+    String? ragPrompt,
+    this.ragFactSummary,
+    this.ragFactSummaryCount = 0,
+    this.ragFactUpdatedAt,
+    this.autoCompressEnabled = true,
+    this.autoCompressThreshold = 20,
+    this.keepRawCount = 6,
+    String? dialogueCompressionPrompt,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : messages = messages ?? [],
+  })  : ragPrompt = ragPrompt ?? defaultRagPrompt,
+        dialogueCompressionPrompt = dialogueCompressionPrompt ?? defaultDialogueCompressionPrompt,
+        messages = messages ?? [],
         createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
@@ -85,6 +102,15 @@ class CopilotSession {
   List<CopilotMessage> messages;
   String? contextSummary;
   int summaryTokenCount;
+  int messageLimit;
+  String ragPrompt;
+  String? ragFactSummary;
+  int ragFactSummaryCount;
+  DateTime? ragFactUpdatedAt;
+  bool autoCompressEnabled;
+  int autoCompressThreshold;
+  int keepRawCount;
+  String dialogueCompressionPrompt;
   final DateTime createdAt;
   DateTime updatedAt;
 
@@ -111,6 +137,15 @@ class CopilotSession {
     List<CopilotMessage>? messages,
     String? contextSummary,
     int? summaryTokenCount,
+    int? messageLimit,
+    String? ragPrompt,
+    String? ragFactSummary,
+    int? ragFactSummaryCount,
+    DateTime? ragFactUpdatedAt,
+    bool? autoCompressEnabled,
+    int? autoCompressThreshold,
+    int? keepRawCount,
+    String? dialogueCompressionPrompt,
     DateTime? updatedAt,
   }) {
     return CopilotSession(
@@ -124,6 +159,15 @@ class CopilotSession {
       messages: messages ?? List.from(this.messages),
       contextSummary: contextSummary ?? this.contextSummary,
       summaryTokenCount: summaryTokenCount ?? this.summaryTokenCount,
+      messageLimit: messageLimit ?? this.messageLimit,
+      ragPrompt: ragPrompt ?? this.ragPrompt,
+      ragFactSummary: ragFactSummary ?? this.ragFactSummary,
+      ragFactSummaryCount: ragFactSummaryCount ?? this.ragFactSummaryCount,
+      ragFactUpdatedAt: ragFactUpdatedAt ?? this.ragFactUpdatedAt,
+      autoCompressEnabled: autoCompressEnabled ?? this.autoCompressEnabled,
+      autoCompressThreshold: autoCompressThreshold ?? this.autoCompressThreshold,
+      keepRawCount: keepRawCount ?? this.keepRawCount,
+      dialogueCompressionPrompt: dialogueCompressionPrompt ?? this.dialogueCompressionPrompt,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
