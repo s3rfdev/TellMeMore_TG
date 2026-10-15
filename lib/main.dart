@@ -54,6 +54,9 @@ Future<void> main() async {
   // Cmd+Q и системный выход: сначала закрываем TDLib, потом выходим.
   // (листенер регистрируется в WidgetsBinding, хранить ссылку не нужно)
   AppLifecycleListener(
+    onDetach: () {
+      TdlibService.instance.shutdown();
+    },
     onExitRequested: () async {
       await TdlibService.instance.shutdown();
       return AppExitResponse.exit;
