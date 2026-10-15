@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tg_answer/data/models/tg_chat.dart';
-import 'package:tg_answer/features/ai_copilot/models/ai_settings_model.dart';
 import 'package:tg_answer/features/ai_copilot/models/contact_dossier.dart';
 import 'package:tg_answer/features/ai_copilot/models/copilot_session.dart';
 import 'package:tg_answer/features/ai_copilot/services/copilot_session_store.dart';

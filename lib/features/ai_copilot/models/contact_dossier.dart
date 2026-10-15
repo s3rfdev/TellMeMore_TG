@@ -18,7 +18,13 @@ class ContactDossier {
     this.ragFactSummaryCount = 0,
     this.ragFactUpdatedAt,
     String? ragPrompt,
-  }) : ragPrompt = ragPrompt ?? defaultRagPrompt;
+    this.autoCompressEnabled = true,
+    this.autoCompressThreshold = 20,
+    this.keepRawCount = 6,
+    String? dialogueCompressionPrompt,
+  })  : ragPrompt = ragPrompt ?? defaultRagPrompt,
+        dialogueCompressionPrompt = dialogueCompressionPrompt ??
+            'Сформируй связную хронологическую выжимку диалога с пользователем: ключевые вопросы пользователя, предложенные выводы, гипотезы и принятые решения. Сохрани суть контекста без потери договоренностей.';
 
   final String chatId;
   String systemPrompt;
@@ -33,6 +39,10 @@ class ContactDossier {
   int ragFactSummaryCount;
   DateTime? ragFactUpdatedAt;
   String ragPrompt;
+  bool autoCompressEnabled;
+  int autoCompressThreshold;
+  int keepRawCount;
+  String dialogueCompressionPrompt;
 
   ContactDossier copyWith({
     String? systemPrompt,
@@ -47,6 +57,10 @@ class ContactDossier {
     int? ragFactSummaryCount,
     DateTime? ragFactUpdatedAt,
     String? ragPrompt,
+    bool? autoCompressEnabled,
+    int? autoCompressThreshold,
+    int? keepRawCount,
+    String? dialogueCompressionPrompt,
   }) {
     return ContactDossier(
       chatId: chatId,
@@ -62,6 +76,10 @@ class ContactDossier {
       ragFactSummaryCount: ragFactSummaryCount ?? this.ragFactSummaryCount,
       ragFactUpdatedAt: ragFactUpdatedAt ?? this.ragFactUpdatedAt,
       ragPrompt: ragPrompt ?? this.ragPrompt,
+      autoCompressEnabled: autoCompressEnabled ?? this.autoCompressEnabled,
+      autoCompressThreshold: autoCompressThreshold ?? this.autoCompressThreshold,
+      keepRawCount: keepRawCount ?? this.keepRawCount,
+      dialogueCompressionPrompt: dialogueCompressionPrompt ?? this.dialogueCompressionPrompt,
     );
   }
 }
@@ -121,6 +139,22 @@ class ContactDossierStore {
     final dossierNotifier = getDossier(chatId);
     dossierNotifier.value = dossierNotifier.value.copyWith(
       ragPrompt: prompt.trim(),
+    );
+  }
+
+  void updateCompressionConfig(
+    String chatId, {
+    bool? enabled,
+    int? threshold,
+    int? keepRaw,
+    String? prompt,
+  }) {
+    final dossierNotifier = getDossier(chatId);
+    dossierNotifier.value = dossierNotifier.value.copyWith(
+      autoCompressEnabled: enabled,
+      autoCompressThreshold: threshold,
+      keepRawCount: keepRaw,
+      dialogueCompressionPrompt: prompt?.trim(),
     );
   }
 }

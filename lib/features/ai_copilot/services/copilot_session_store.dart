@@ -419,9 +419,6 @@ class CopilotSessionStore {
     final session = current[idx];
     if (!session.autoCompressEnabled && !settings.contextCompression) return false;
 
-    final threshold = session.autoCompressThreshold > 0
-        ? session.autoCompressThreshold
-        : settings.contextMessageCount;
     final keep = settings.compressionKeepRawCount > 0
         ? settings.compressionKeepRawCount
         : (session.keepRawCount > 0 ? session.keepRawCount : 6);

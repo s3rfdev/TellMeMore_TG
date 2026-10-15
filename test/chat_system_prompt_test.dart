@@ -81,8 +81,10 @@ void main() {
       expect(find.textContaining('Системный промпт AI'), findsOneWidget);
       expect(find.textContaining('Дмитрий Архитектор'), findsWidgets);
 
-      // Check form fields
-      expect(find.byType(TextField), findsNWidgets(3));
+      // Check form fields (Directives, Goal, Tone, RAG lens, Dialogue compression lens)
+      expect(find.byType(TextField), findsNWidgets(5));
+      expect(find.textContaining('RAG-сбор'), findsOneWidget);
+      expect(find.text('Автокомпрессия и память контекста'), findsOneWidget);
 
       // Check action buttons
       expect(find.text('Открыть в Copilot'), findsOneWidget);
@@ -120,6 +122,43 @@ void main() {
 
       final updated = ContactDossierStore.instance.getDossier('test-direct-chat').value;
       expect(updated.systemPrompt, 'Всегда предлагай готовые куски кода Dart.');
+    });
+
+    testWidgets('Saving RAG and compression lens from dialog persists in store', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => ChatSystemPromptDialog.show(context, testChat),
+                child: const Text('Open Dialog'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Dialog'));
+      await tester.pumpAndSettle();
+
+      // textFields: 0: prompt, 1: goal, 2: tone, 3: ragPrompt, 4: compressionPrompt
+      final textFields = find.byType(TextField);
+      expect(textFields, findsNWidgets(5));
+
+      await tester.enterText(textFields.at(3), 'Собирать только финансовые условия и сроки');
+      await tester.enterText(textFields.at(4), 'Сжимать ключевые договоренности кратко');
+      await tester.pumpAndSettle();
+
+      // Click save
+      await tester.tap(find.text('Сохранить'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 3));
+
+      final updated = ContactDossierStore.instance.getDossier('test-direct-chat').value;
+      expect(updated.ragPrompt, 'Собирать только финансовые условия и сроки');
+      expect(updated.dialogueCompressionPrompt, 'Сжимать ключевые договоренности кратко');
     });
   });
 }

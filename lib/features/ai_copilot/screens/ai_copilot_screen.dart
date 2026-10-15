@@ -807,7 +807,7 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Tg.field,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                         ),
                         child: Column(
@@ -815,24 +815,24 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.memory_rounded, color: Color(0xFFFF9F43), size: 18),
-                                const SizedBox(width: 8),
+                                const Icon(Icons.memory_rounded, color: Color(0xFF51B2FF), size: 16),
+                                const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     isRu ? 'Память и автосжатие диалога с Copilot' : 'Copilot Dialogue Memory & Compression',
-                                    style: const TextStyle(fontSize: 13, color: Tg.text, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(fontSize: 12, color: Tg.text, fontWeight: FontWeight.w500),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Text(
                               isRu
                                   ? 'Сжимает длинную историю нашего общения с Копилотом в память при достижении порога, сохраняя свежие реплики сырыми.'
                                   : 'Compresses long user-Copilot conversation history into memory upon reaching threshold, keeping recent turns raw.',
-                              style: const TextStyle(fontSize: 11, color: Tg.textDim, height: 1.3),
+                              style: const TextStyle(fontSize: 10.5, color: Tg.textDim, height: 1.25),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
 
                             // Тумблер автокомпрессии
                             Row(
@@ -840,55 +840,58 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                               children: [
                                 Text(
                                   isRu ? 'Автокомпрессия при переполнении:' : 'Auto-compress on threshold:',
-                                  style: const TextStyle(fontSize: 12, color: Tg.text, fontWeight: FontWeight.w500),
+                                  style: const TextStyle(fontSize: 11.5, color: Tg.text, fontWeight: FontWeight.w400),
                                 ),
-                                Switch.adaptive(
-                                  value: autoCompressEnabled,
-                                  activeTrackColor: const Color(0xFFFF9F43).withValues(alpha: 0.4),
-                                  activeThumbColor: const Color(0xFFFF9F43),
-                                  onChanged: (val) {
-                                    setDialogState(() => autoCompressEnabled = val);
-                                  },
+                                Transform.scale(
+                                  scale: 0.75,
+                                  child: Switch.adaptive(
+                                    value: autoCompressEnabled,
+                                    activeTrackColor: const Color(0xFF51B2FF).withValues(alpha: 0.35),
+                                    activeThumbColor: const Color(0xFF51B2FF),
+                                    onChanged: (val) {
+                                      setDialogState(() => autoCompressEnabled = val);
+                                    },
+                                  ),
                                 ),
                               ],
                             ),
 
                             if (autoCompressEnabled) ...[
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               // Слайдер порога срабатывания
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     isRu ? 'Порог срабатывания сжатия:' : 'Compression trigger threshold:',
-                                    style: const TextStyle(fontSize: 12, color: Tg.text),
+                                    style: const TextStyle(fontSize: 11.5, color: Tg.textDim),
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFF9F43).withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(6),
+                                      color: const Color(0xFF51B2FF).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       isRu ? '$autoCompressThreshold сообщ.' : '$autoCompressThreshold msgs',
-                                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFFF9F43)),
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF51B2FF)),
                                     ),
                                   ),
                                 ],
                               ),
                               SliderTheme(
                                 data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                                  trackHeight: 2,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
                                 ),
                                 child: Slider(
                                   value: autoCompressThreshold.toDouble().clamp(10.0, 80.0),
                                   min: 10,
                                   max: 80,
                                   divisions: 14,
-                                  activeColor: const Color(0xFFFF9F43),
-                                  inactiveColor: Colors.white.withValues(alpha: 0.1),
+                                  activeColor: const Color(0xFF51B2FF),
+                                  inactiveColor: Colors.white.withValues(alpha: 0.08),
                                   onChanged: (val) {
                                     setDialogState(() => autoCompressThreshold = val.round());
                                   },
@@ -901,34 +904,34 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                                 children: [
                                   Text(
                                     isRu ? 'Свежих сообщений без сжатия (окно):' : 'Raw recent window:',
-                                    style: const TextStyle(fontSize: 12, color: Tg.text),
+                                    style: const TextStyle(fontSize: 11.5, color: Tg.textDim),
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFF9F43).withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(6),
+                                      color: const Color(0xFF51B2FF).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       isRu ? '$keepRawCount сообщ.' : '$keepRawCount msgs',
-                                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFFF9F43)),
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF51B2FF)),
                                     ),
                                   ),
                                 ],
                               ),
                               SliderTheme(
                                 data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                                  trackHeight: 2,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
                                 ),
                                 child: Slider(
                                   value: keepRawCount.toDouble().clamp(3.0, 20.0),
                                   min: 3,
                                   max: 20,
                                   divisions: 17,
-                                  activeColor: const Color(0xFFFF9F43),
-                                  inactiveColor: Colors.white.withValues(alpha: 0.1),
+                                  activeColor: const Color(0xFF51B2FF),
+                                  inactiveColor: Colors.white.withValues(alpha: 0.08),
                                   onChanged: (val) {
                                     setDialogState(() => keepRawCount = val.round());
                                   },
@@ -936,52 +939,52 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                               ),
 
                               // Призма сжатия диалога
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 3),
                               Text(
                                 isRu ? 'Призма сжатия диалога с Copilot:' : 'Dialogue compression lens:',
-                                style: const TextStyle(fontSize: 11.5, color: Tg.text, fontWeight: FontWeight.w500),
+                                style: const TextStyle(fontSize: 11, color: Tg.text, fontWeight: FontWeight.w400),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 5),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                 decoration: BoxDecoration(
                                   color: Tg.sidebar,
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(6),
                                   border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                                 ),
                                 child: TextField(
                                   controller: dialogueCompressionController,
                                   maxLines: 2,
-                                  style: const TextStyle(color: Tg.text, fontSize: 12),
+                                  style: const TextStyle(color: Tg.text, fontSize: 11.5),
                                   decoration: InputDecoration(
                                     border: InputBorder.none,
                                     isDense: true,
                                     hintText: isRu ? 'Инструкция для сжатия диалога...' : 'Compression instructions...',
-                                    hintStyle: const TextStyle(color: Tg.textFaint),
+                                    hintStyle: const TextStyle(color: Tg.textFaint, fontSize: 11),
                                   ),
                                 ),
                               ),
                             ],
 
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             // Ручная кнопка сжатия диалога сейчас
                             Row(
                               children: [
                                 OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: const Color(0xFFFF9F43),
-                                    side: BorderSide(color: const Color(0xFFFF9F43).withValues(alpha: 0.4)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    foregroundColor: const Color(0xFF51B2FF),
+                                    side: BorderSide(color: const Color(0xFF51B2FF).withValues(alpha: 0.35)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                   ),
                                   icon: isCompressingDialogue
-                                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF9F43)))
-                                      : const Icon(Icons.archive_outlined, size: 16),
+                                      ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.8, color: Color(0xFF51B2FF)))
+                                      : const Icon(Icons.archive_outlined, size: 14),
                                   label: Text(
                                     isCompressingDialogue
                                         ? (isRu ? 'Сжатие...' : 'Compressing...')
                                         : (isRu ? 'Сжать диалог сейчас (${session.messages.length} сообщ.)' : 'Compress dialogue now (${session.messages.length} msgs)'),
-                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                                   ),
                                   onPressed: isCompressingDialogue
                                       ? null
@@ -1006,14 +1009,14 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                                 const Spacer(),
                                 if (session.contextSummary != null && session.contextSummary!.isNotEmpty)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFF9F43).withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(6),
+                                      color: const Color(0xFF51B2FF).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      isRu ? '${session.summaryTokenCount} токенов в памяти' : '${session.summaryTokenCount} tokens in memory',
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFFFF9F43), fontWeight: FontWeight.w500),
+                                      isRu ? '${session.summaryTokenCount} ток. в памяти' : '${session.summaryTokenCount} tok. in memory',
+                                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF51B2FF), fontWeight: FontWeight.w500),
                                     ),
                                   ),
                               ],
