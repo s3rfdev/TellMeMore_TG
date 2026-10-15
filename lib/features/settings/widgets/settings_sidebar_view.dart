@@ -9,9 +9,14 @@ import '../../../state/app_state.dart';
 /// Левая колонка для раздела "Настройки":
 /// Отображает разделы настроек вместо списка чатов в левой панели.
 class SettingsSidebarView extends StatelessWidget {
-  const SettingsSidebarView({super.key, this.onClose});
+  const SettingsSidebarView({
+    super.key,
+    this.onClose,
+    this.onSectionSelected,
+  });
 
   final VoidCallback? onClose;
+  final VoidCallback? onSectionSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +143,7 @@ class SettingsSidebarView extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               onTap: () {
                 AppState.activeSettingsSection.value = SettingsSection.profile;
+                onSectionSelected?.call();
               },
               child: Container(
                 padding: const EdgeInsets.all(10),
@@ -214,6 +220,7 @@ class SettingsSidebarView extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
       onTap: () {
         AppState.activeSettingsSection.value = section;
+        onSectionSelected?.call();
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

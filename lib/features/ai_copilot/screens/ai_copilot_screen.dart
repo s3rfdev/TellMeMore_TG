@@ -16,7 +16,14 @@ import '../services/copilot_session_store.dart';
 
 /// Экран активного чата с выбранным Copilot-агентом.
 class AiCopilotScreen extends StatefulWidget {
-  const AiCopilotScreen({super.key});
+  const AiCopilotScreen({
+    super.key,
+    this.showBack = false,
+    this.onBack,
+  });
+
+  final bool showBack;
+  final VoidCallback? onBack;
 
   @override
   State<AiCopilotScreen> createState() => _AiCopilotScreenState();
@@ -559,6 +566,17 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
       ),
       child: Row(
         children: [
+          if (widget.showBack) ...[
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Tg.textDim),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              splashRadius: 18,
+              tooltip: tr('back'),
+              onPressed: widget.onBack,
+            ),
+            const SizedBox(width: 4),
+          ],
           Container(
             width: 36,
             height: 36,

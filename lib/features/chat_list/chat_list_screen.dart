@@ -73,6 +73,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     Expanded(
                       child: SettingsSidebarView(
                         onClose: () => AppState.activeSidebarTab.value = SidebarTab.chats,
+                        onSectionSelected: widget.onChatOpened,
                       ),
                     )
                   else ...[

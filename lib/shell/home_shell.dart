@@ -34,6 +34,24 @@ class _HomeShellState extends State<HomeShell> {
   static const _maxSidebar = 640.0;
 
   @override
+  void initState() {
+    super.initState();
+    AppState.activeSidebarTab.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (mounted) {
+      setState(() => _overlayOpen = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    AppState.activeSidebarTab.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: Listenable.merge([
@@ -102,9 +120,15 @@ class _HomeShellState extends State<HomeShell> {
               builder: (context, tab, _) {
                 switch (tab) {
                   case SidebarTab.copilot:
-                    return const AiCopilotScreen();
+                    return AiCopilotScreen(
+                      showBack: true,
+                      onBack: () => setState(() => _overlayOpen = true),
+                    );
                   case SidebarTab.settings:
-                    return const AiSettingsScreen();
+                    return AiSettingsScreen(
+                      showBack: true,
+                      onBack: () => setState(() => _overlayOpen = true),
+                    );
                   case SidebarTab.contacts:
                   case SidebarTab.chats:
                     return ChatScreen(
@@ -114,15 +138,33 @@ class _HomeShellState extends State<HomeShell> {
                 }
               },
             ),
+            if (_overlayOpen && constraints.maxWidth >= 600)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _overlayOpen = false),
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.45),
+                ),
+              ),
             AnimatedSlide(
               offset: _overlayOpen ? Offset.zero : const Offset(-1, 0),
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
-              child: SizedBox(
-                width: (constraints.maxWidth - 48).clamp(_minSidebar, 420.0),
-                child: ChatListScreen(
-                  elevated: true,
-                  onChatOpened: () => setState(() => _overlayOpen = false),
+              child: IgnorePointer(
+                ignoring: !_overlayOpen,
+                child: SizedBox(
+                  width: constraints.maxWidth < 600
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - 48).clamp(_minSidebar, 420.0),
+                  child: Padding(
+                    padding: constraints.maxWidth < 600
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.fromLTRB(10, 10, 0, 10),
+                    child: ChatListScreen(
+                      elevated: true,
+                      onChatOpened: () => setState(() => _overlayOpen = false),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -147,7 +189,9 @@ class _HomeShellState extends State<HomeShell> {
             ),
           ),
           Positioned.fill(
-            child: mainContent,
+            child: SafeArea(
+              child: mainContent,
+            ),
           ),
           ValueListenableBuilder<bool>(
             valueListenable: AppState.drawerOpen,

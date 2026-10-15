@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 /// Скрываем штатный заголовок окна, оставляя «светофор» macOS —
 /// как в оригинальном Telegram.
 Future<void> initWindowImpl() async {
+  if (!Platform.isLinux && !Platform.isMacOS && !Platform.isWindows) return;
   await windowManager.ensureInitialized();
   final isMac = Platform.isMacOS;
   final options = WindowOptions(
@@ -23,8 +24,11 @@ Future<void> initWindowImpl() async {
 
 /// SIGTERM (в т.ч. pkill без -9): успеваем закрыть TDLib перед выходом.
 void registerExitHookImpl(Future<void> Function() onExit) {
-  ProcessSignal.sigterm.watch().listen((_) async {
-    await onExit();
-    exit(0);
-  });
+  if (!Platform.isLinux && !Platform.isMacOS && !Platform.isWindows) return;
+  try {
+    ProcessSignal.sigterm.watch().listen((_) async {
+      await onExit();
+      exit(0);
+    });
+  } catch (_) {}
 }

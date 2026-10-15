@@ -326,15 +326,19 @@ class _Header extends StatelessWidget {
           color: Tg.textDim,
           onTap: () => AppState.chatSearchActive.value = true,
         ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert_rounded, size: 20, color: Tg.textDim),
-          color: Tg.card,
-          elevation: 0,
-          constraints: const BoxConstraints(minWidth: 260, maxWidth: 320),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: const BorderSide(color: Tg.border),
-          ),
+        SizedBox(
+          width: 36,
+          height: 36,
+          child: PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, size: 20, color: Tg.textDim),
+            padding: EdgeInsets.zero,
+            color: Tg.card,
+            elevation: 0,
+            constraints: const BoxConstraints(minWidth: 260, maxWidth: 320),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: Tg.border),
+            ),
           onSelected: (val) {
             if (val == 'system_prompt') {
               ChatSystemPromptDialog.show(context, chat);
@@ -438,7 +442,8 @@ class _Header extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(width: 6),
+      ),
+      const SizedBox(width: 6),
       ],
     );
   }

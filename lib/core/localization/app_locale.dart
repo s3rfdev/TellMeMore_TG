@@ -35,6 +35,7 @@ class I18n {
   static const Map<String, String> _ruStrings = {
     // Navigation
     'chats': 'Чаты',
+    'back': 'Назад',
     'contacts': 'Контакты',
     'copilot': 'AI Copilot',
     'settings': 'Настройки',
@@ -601,6 +602,7 @@ class I18n {
   static const Map<String, String> _enStrings = {
     // Navigation
     'chats': 'Chats',
+    'back': 'Back',
     'contacts': 'Contacts',
     'copilot': 'AI Copilot',
     'settings': 'Settings',

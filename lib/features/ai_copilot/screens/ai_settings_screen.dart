@@ -9,7 +9,14 @@ import '../models/ai_settings_model.dart';
 import '../services/ai_model_service.dart';
 
 class AiSettingsScreen extends StatefulWidget {
-  const AiSettingsScreen({super.key});
+  const AiSettingsScreen({
+    super.key,
+    this.showBack = false,
+    this.onBack,
+  });
+
+  final bool showBack;
+  final VoidCallback? onBack;
 
   @override
   State<AiSettingsScreen> createState() => _AiSettingsScreenState();
@@ -167,11 +174,24 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
       ),
       child: Row(
         children: [
+          if (widget.showBack) ...[
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Tg.textDim),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              splashRadius: 18,
+              tooltip: tr('back'),
+              onPressed: widget.onBack,
+            ),
+            const SizedBox(width: 4),
+          ],
           Icon(icon, color: Tg.accent, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 14.5,
                 fontWeight: Tg.fontMedium,
@@ -179,26 +199,37 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 8),
           if (section == SettingsSection.general)
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Tg.card,
-                foregroundColor: Tg.accent,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: Tg.border),
+            Tooltip(
+              message: tr('ai_check_connection'),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: _loadingModels ? null : () => _refreshModels(AiSettingsStore.instance.settings.value),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Tg.card,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Tg.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _loadingModels
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Tg.accent))
+                          : const Icon(Icons.refresh_rounded, size: 16, color: Tg.accent),
+                      if (MediaQuery.sizeOf(context).width > 480) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          tr('ai_check_connection'),
+                          style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium, color: Tg.accent),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                elevation: 0,
               ),
-              icon: _loadingModels
-                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Tg.accent))
-                  : const Icon(Icons.refresh_rounded, size: 16),
-              label: Text(
-                tr('ai_check_connection'),
-                style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium),
-              ),
-              onPressed: _loadingModels ? null : () => _refreshModels(AiSettingsStore.instance.settings.value),
             ),
         ],
       ),
@@ -274,10 +305,15 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    tr('ai_current_model'),
-                    style: Tg.caption,
+                  Expanded(
+                    child: Text(
+                      tr('ai_current_model'),
+                      style: Tg.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   if (_loadingModels)
                     const SizedBox(
                       width: 14,
