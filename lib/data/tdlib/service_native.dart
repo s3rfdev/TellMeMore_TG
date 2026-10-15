@@ -308,10 +308,12 @@ class TdlibService {
   }
 
   void sendPhoneNumber(String phone) {
-    // ignore: avoid_print
-    print('[auth-ui] sendPhoneNumber "$phone", cmdPort ready: ${_cmd != null}');
     errorText.value = null;
-    _sendCmd({'type': 'phone', 'value': phone});
+    final cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    final formatted = cleaned.startsWith('+') ? cleaned : '+$cleaned';
+    // ignore: avoid_print
+    print('[auth-ui] sendPhoneNumber "$formatted", cmdPort ready: ${_cmd != null}');
+    _sendCmd({'type': 'phone', 'value': formatted});
   }
 
   void sendCode(String code) {

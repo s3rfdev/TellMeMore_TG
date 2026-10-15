@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -208,17 +210,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           label: tr('continue_btn'),
                           onPressed: () => _submit(AuthPhase.waitPhone),
                         ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: () {
-                            setState(() => _preferPhone = false);
-                            service.requestQrCode();
-                          },
-                          child: Text(
-                            tr('login_qr_btn'),
-                            style: const TextStyle(fontSize: 14, color: Tg.accent, fontWeight: FontWeight.w600),
+                        if (!Platform.isAndroid && !Platform.isIOS) ...[
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: () {
+                              setState(() => _preferPhone = false);
+                              service.requestQrCode();
+                            },
+                            child: Text(
+                              tr('login_qr_btn'),
+                              style: const TextStyle(fontSize: 14, color: Tg.accent, fontWeight: FontWeight.w600),
+                            ),
                           ),
-                        ),
+                        ],
                       ] else if (phase == AuthPhase.waitCode) ...[
                         // Ввод кода
                         const SizedBox(height: 8),

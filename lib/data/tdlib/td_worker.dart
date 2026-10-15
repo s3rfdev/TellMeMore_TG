@@ -552,8 +552,14 @@ class _Store {
           case 'authorizationStateWaitEncryptionKey':
             _send({'@type': 'checkDatabaseEncryptionKey', 'encryption_key': ''});
           case 'authorizationStateWaitPhoneNumber':
-            // Запрашиваем QR-код для удобного и безопасного входа
-            _send({'@type': 'requestQrCodeAuthentication'});
+            if (Platform.isAndroid || Platform.isIOS) {
+              // На мобильных устройствах пользователь входит по номеру телефона
+              // (камерой этого же смартфона нельзя сосканировать QR с его экрана).
+              // Оставляем TDLib в состоянии WaitPhoneNumber.
+            } else {
+              // На десктопе по умолчанию запрашиваем QR-код для удобного сканирования с телефона
+              _send({'@type': 'requestQrCodeAuthentication'});
+            }
           case 'authorizationStateReady':
             _authorized = true;
             _send({'@type': 'getMe', '@extra': {'action': 'getMe'}});
