@@ -53,7 +53,6 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_icon_from_file(window, "assets/images/tg_icon.png", &icon_err);
     if (icon_err) {
       g_clear_error(&icon_err);
-      gtk_window_set_icon_from_file(window, "", NULL);
     }
   }
 
