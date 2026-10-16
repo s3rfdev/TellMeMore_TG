@@ -184,7 +184,7 @@ void main() {
       expect(restored.agentRole, session.agentRole);
       expect(restored.systemPrompt, session.systemPrompt);
       expect(restored.avatarIcon.codePoint, session.avatarIcon.codePoint);
-      expect(restored.avatarColor.value, session.avatarColor.value);
+      expect(restored.avatarColor.toARGB32(), session.avatarColor.toARGB32());
       expect(restored.messages.length, 1);
       expect(restored.messages.first.id, msg.id);
       expect(restored.messages.first.text, msg.text);

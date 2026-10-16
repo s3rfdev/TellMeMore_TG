@@ -227,7 +227,7 @@ class CopilotSession {
         'model': model,
         'avatarIcon': avatarIcon.codePoint,
         'avatarFontFamily': avatarIcon.fontFamily,
-        'avatarColor': avatarColor.value,
+        'avatarColor': avatarColor.toARGB32(),
         'messages': messages.map((m) => m.toJson()).toList(),
         'contextSummary': contextSummary,
         'summaryTokenCount': summaryTokenCount,
