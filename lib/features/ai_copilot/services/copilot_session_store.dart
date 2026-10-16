@@ -306,6 +306,22 @@ class CopilotSessionStore {
     }
   }
 
+  /// Обновить конкретное сообщение в сессии (например, заменить текст транскрипции на готовый).
+  void updateMessage(String sessionId, String messageId, CopilotMessage updated) {
+    final current = sessions.value;
+    final idx = current.indexWhere((s) => s.id == sessionId);
+    if (idx != -1) {
+      final s = current[idx];
+      final mIdx = s.messages.indexWhere((m) => m.id == messageId);
+      if (mIdx != -1) {
+        s.messages[mIdx] = updated;
+        s.updatedAt = DateTime.now();
+        sessions.value = List.from(current);
+        _saveToDisk();
+      }
+    }
+  }
+
   /// Выполнить компрессию контекста сессии (синхронный базовый метод).
   /// Сохраняет [keepRawCount] последних сырых сообщений, а более ранние
   /// сообщения сжимает в структурированное резюме (Layer 1 начинки бутерброда).

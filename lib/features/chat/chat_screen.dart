@@ -915,6 +915,8 @@ class _InputBarState extends State<_InputBar> {
 
       final reply = await SmartReplyEngine.generateInstructionReplyAsync(
         chatTitle: widget.chat.title,
+        chatId: widget.chat.id,
+        chatSubtitle: widget.chat.headerSubtitle,
         messages: realMsgs,
         instruction: query,
         dossier: dossier,
@@ -1171,7 +1173,7 @@ class _InputBarState extends State<_InputBar> {
           ValueListenableBuilder<String?>(
             valueListenable: AppState.aiProcessingStatus,
             builder: (context, status, _) {
-              if (status == null) return const SizedBox.shrink();
+              if (status == null || _showSmartReplies) return const SizedBox.shrink();
               return Container(
                 margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),

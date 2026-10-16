@@ -123,30 +123,84 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
 
     if (send && finalPath != null && (sec > 0 || (File(finalPath).existsSync() && File(finalPath).lengthSync() > 1000))) {
       final isRu = I18n.instance.isRu;
-      if (mounted) {
-        TgToast.show(
-          context,
-          isRu ? '🎤 Распознавание речи...' : '🎤 Transcribing speech...',
-          icon: Icons.mic_rounded,
-        );
-      }
 
-      final transcription = await VoiceTranscriptionService.instance.transcribeVoiceFile(
-        filePath: finalPath,
-        durationSeconds: sec,
+      // 1. СРАЗУ добавляем сообщение пользователя в чат (мгновенный отклик в UI)
+      final placeholderText = isRu
+          ? '🎤 Голосовое сообщение ($sec с)... [Распознавание речи]'
+          : '🎤 Voice message (${sec}s)... [Transcribing speech]';
+
+      final voiceUserMsg = CopilotMessage(
+        text: placeholderText,
+        isUser: true,
+        attachmentPath: finalPath,
+        attachmentName: 'voice_${sec}s.m4a',
       );
 
-      if (transcription.isNotEmpty && !transcription.startsWith('[')) {
-        _sendMessage(session, transcription);
-      } else {
-        if (mounted) {
-          TgToast.show(
-            context,
-            isRu
-                ? 'Не удалось распознать речь'
-                : 'Could not transcribe speech',
-            icon: Icons.warning_amber_rounded,
+      CopilotSessionStore.instance.addMessage(session.id, voiceUserMsg);
+      _scrollToBottom();
+
+      // 2. СРАЗУ включаем статус-спиннер распознавания речи
+      setState(() {
+        _isLoading = true;
+        _loadingStatusText = isRu
+            ? '🎤 Распознавание речи ($sec с)...'
+            : '🎤 Transcribing speech (${sec}s)...';
+      });
+      AppState.aiProcessingStatus.value = _loadingStatusText;
+
+      try {
+        final transcription = await VoiceTranscriptionService.instance.transcribeVoiceFile(
+          filePath: finalPath,
+          durationSeconds: sec,
+        );
+
+        if (transcription.isNotEmpty && !transcription.startsWith('[')) {
+          // 3. Заменяем текст сообщения в чате на реальный распознанный текст
+          final updatedMsg = voiceUserMsg.copyWith(text: transcription);
+          CopilotSessionStore.instance.updateMessage(session.id, voiceUserMsg.id, updatedMsg);
+          _lastUserQuery = transcription;
+
+          // 4. Плавно переводим статус в подготовку контекста и запускаем генерацию ответа агента
+          setState(() {
+            _loadingStatusText = isRu ? '🧠 Подготовка контекста диалога...' : '🧠 Preparing context...';
+          });
+          AppState.aiProcessingStatus.value = _loadingStatusText;
+
+          await _processAiResponse(session, updatedMsg);
+        } else {
+          final failedMsg = voiceUserMsg.copyWith(
+            text: isRu
+                ? '🎤 Голосовое сообщение ($sec с) [Не удалось распознать речь]'
+                : '🎤 Voice message (${sec}s) [Could not transcribe speech]',
+            isError: true,
           );
+          CopilotSessionStore.instance.updateMessage(session.id, voiceUserMsg.id, failedMsg);
+          setState(() {
+            _isLoading = false;
+            _loadingStatusText = null;
+          });
+          AppState.aiProcessingStatus.value = null;
+          if (mounted) {
+            TgToast.show(
+              context,
+              isRu ? 'Не удалось распознать речь' : 'Could not transcribe speech',
+              icon: Icons.warning_amber_rounded,
+            );
+          }
+        }
+      } catch (e) {
+        final failedMsg = voiceUserMsg.copyWith(
+          text: isRu ? '🎤 Ошибка распознавания речи: $e' : '🎤 Speech recognition error: $e',
+          isError: true,
+        );
+        CopilotSessionStore.instance.updateMessage(session.id, voiceUserMsg.id, failedMsg);
+        setState(() {
+          _isLoading = false;
+          _loadingStatusText = null;
+        });
+        AppState.aiProcessingStatus.value = null;
+        if (mounted) {
+          TgToast.show(context, 'Ошибка STT: $e', icon: Icons.error_outline_rounded);
         }
       }
     }
@@ -228,9 +282,19 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
     CopilotSessionStore.instance.addMessage(session.id, userMsg);
     _scrollToBottom();
 
+    await _processAiResponse(session, userMsg);
+  }
+
+  Future<void> _processAiResponse(CopilotSession session, CopilotMessage userMsg) async {
+    final attachedPath = userMsg.attachmentPath;
+    final attachedName = userMsg.attachmentName;
+    final isImg = userMsg.isImageAttachment;
+    final isRu = I18n.instance.isRu;
+    final query = userMsg.text;
+
     try {
       // Читаем содержимое неграфических файлов при необходимости
-    String effectiveQuery = query;
+      String effectiveQuery = query;
     if (attachedPath != null && !isImg) {
       try {
         final f = File(attachedPath);
@@ -1864,8 +1928,8 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
   }
 
   Widget _buildMessageBubble(CopilotSession session, CopilotMessage msg) {
+    final isRu = I18n.instance.isRu;
     if (msg.isError) {
-      final isRu = I18n.instance.isRu;
       return Align(
         alignment: Alignment.centerLeft,
         child: Container(
@@ -2070,11 +2134,20 @@ class _AiCopilotScreenState extends State<AiCopilotScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.insert_drive_file_rounded, size: 16, color: Color(0xFF51B2FF)),
+                      Icon(
+                        (msg.attachmentName?.toLowerCase().endsWith('.m4a') == true ||
+                         msg.attachmentName?.toLowerCase().endsWith('.ogg') == true ||
+                         msg.attachmentName?.toLowerCase().endsWith('.mp3') == true ||
+                         msg.attachmentName?.contains('voice_') == true)
+                            ? Icons.mic_rounded
+                            : Icons.insert_drive_file_rounded,
+                        size: 16,
+                        color: const Color(0xFF51B2FF),
+                      ),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
-                          msg.attachmentName ?? 'Файл',
+                          msg.attachmentName ?? (isRu ? 'Файл' : 'File'),
                           style: const TextStyle(fontSize: 12, color: Tg.text),
                           overflow: TextOverflow.ellipsis,
                         ),

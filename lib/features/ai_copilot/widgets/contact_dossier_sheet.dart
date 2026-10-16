@@ -455,20 +455,35 @@ Format strictly as:
       final lines = aiResponse.split('\n');
       String currentSection = '';
       final summaryBuffer = StringBuffer();
+      final psychoBuffer = StringBuffer();
+
+      final psychoRegex = RegExp(r'^(?:\d+\.|\*+|#+)?\s*\[?(?:ПСИХОТИП|PSYCHOTYPE)\]?\*?:?\s*(.*)$', caseSensitive: false);
+      final summaryRegex = RegExp(r'^(?:\d+\.|\*+|#+)?\s*\[?(?:РЕЗЮМЕ|SUMMARY)\]?\*?:?\s*(.*)$', caseSensitive: false);
+      final factsRegex = RegExp(r'^(?:\d+\.|\*+|#+)?\s*\[?(?:ФАКТЫ|FACTS)\]?\*?:?\s*(.*)$', caseSensitive: false);
 
       for (final line in lines) {
         final t = line.trim();
-        if (t.startsWith('[ПСИХОТИП]:') || t.startsWith('[PSYCHOTYPE]:') || t.startsWith('ПСИХОТИП:')) {
-          extractedPsycho = t.replaceFirst(RegExp(r'^\[?(ПСИХОТИП|PSYCHOTYPE)\]?:?\s*'), '').trim();
+        if (t.isEmpty) continue;
+        final pMatch = psychoRegex.firstMatch(t);
+        final sMatch = summaryRegex.firstMatch(t);
+        final fMatch = factsRegex.firstMatch(t);
+
+        if (pMatch != null) {
           currentSection = 'psycho';
-        } else if (t.startsWith('[РЕЗЮМЕ]:') || t.startsWith('[SUMMARY]:') || t.startsWith('РЕЗЮМЕ:')) {
+          final rest = pMatch.group(1)?.replaceAll(RegExp(r'^\*+|\*+$'), '').trim() ?? '';
+          if (rest.isNotEmpty) psychoBuffer.writeln(rest);
+        } else if (sMatch != null) {
           currentSection = 'summary';
-          final rest = t.replaceFirst(RegExp(r'^\[?(РЕЗЮМЕ|SUMMARY)\]?:?\s*'), '').trim();
+          final rest = sMatch.group(1)?.replaceAll(RegExp(r'^\*+|\*+$'), '').trim() ?? '';
           if (rest.isNotEmpty) summaryBuffer.writeln(rest);
-        } else if (t.startsWith('[ФАКТЫ]:') || t.startsWith('[FACTS]:') || t.startsWith('ФАКТЫ:')) {
+        } else if (fMatch != null) {
           currentSection = 'facts';
+        } else if (currentSection == 'psycho') {
+          if (sMatch == null && fMatch == null && !t.startsWith('[') && !t.toLowerCase().startsWith('резюме') && !t.toLowerCase().startsWith('факты')) {
+            psychoBuffer.writeln(t);
+          }
         } else if (currentSection == 'summary') {
-          if (t.isNotEmpty && !t.startsWith('[') && !t.startsWith('ФАКТЫ:')) {
+          if (fMatch == null && !t.startsWith('[') && !t.toLowerCase().startsWith('факты')) {
             summaryBuffer.writeln(t);
           }
         } else if (currentSection == 'facts') {
@@ -479,10 +494,15 @@ Format strictly as:
         }
       }
 
+      extractedPsycho = psychoBuffer.toString().trim();
+      extractedSummary = summaryBuffer.toString().trim();
+
       if (extractedPsycho.isEmpty) {
         extractedPsycho = aiResponse.split('\n').first.trim();
       }
-      extractedSummary = summaryBuffer.toString().trim();
+      if (extractedSummary.isEmpty) {
+        extractedSummary = aiResponse.trim();
+      }
 
       final mergedFacts = List<String>.from(current.facts);
       for (final f in extractedFacts) {

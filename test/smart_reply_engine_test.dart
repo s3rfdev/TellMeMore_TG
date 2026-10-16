@@ -152,5 +152,46 @@ void main() {
       );
       expect(SmartReplyEngine.getEffectiveMessageText(photoNoCaption), contains('фото'));
     });
+
+    test('generateAutoReply adapts investment goal tone and never emits rigid canned pitch to friends', () {
+      final messages = [
+        const TgMessage(
+          kind: MessageKind.text,
+          text: 'Привет, как продвигается проект?',
+          outgoing: false,
+        ),
+      ];
+
+      // 1. Friendly / informal tone
+      final friendDossier = ContactDossier(
+        chatId: 'friend_1',
+        goal: '💰 Привлечь инвестиции',
+        tone: 'Дружелюбный IT-разработчик',
+        psychotype: 'Прагматик',
+      );
+      final informalReply = SmartReplyEngine.generateAutoReply(
+        chatTitle: 'Тарас',
+        messages: messages,
+        dossier: friendDossier,
+      );
+      expect(informalReply, contains('Привет!'));
+      expect(informalReply, contains('финализируем'));
+      expect(informalReply.contains('Здравствуйте! Мы как раз обновили инвестиционную презентацию'), isFalse);
+
+      // 2. Formal / business tone
+      final businessDossier = ContactDossier(
+        chatId: 'fund_1',
+        goal: '💰 Привлечь инвестиции',
+        tone: 'Строго деловой и лаконичный',
+        psychotype: 'Инвестор',
+      );
+      final formalReply = SmartReplyEngine.generateAutoReply(
+        chatTitle: 'Фонд',
+        messages: messages,
+        dossier: businessDossier,
+      );
+      expect(formalReply, contains('Добрый день!'));
+      expect(formalReply, contains('инвестиционному направлению'));
+    });
   });
 }

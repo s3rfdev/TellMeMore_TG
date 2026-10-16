@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import '../../../core/localization/app_locale.dart';
 import '../../../data/models/tg_chat.dart';
+import '../../../data/tdlib/tdlib_service.dart';
+import '../models/ai_settings_model.dart';
 import '../models/contact_dossier.dart';
+import '../services/copilot_session_store.dart';
 import 'ai_model_service.dart';
 import 'image_description_service.dart';
 import 'voice_transcription_service.dart';
@@ -41,140 +45,269 @@ class SmartReplyEngine {
     return '';
   }
 
-  /// Асинхронная умная генерация ответа через LLM с откатом на эвристический движок.
+  /// Асинхронная генерация автоответа через LLM с глубоким Sandwich Context (досье, RAG, история, медиа, ToV).
   static Future<String> generateAutoReplyAsync({
     required String chatTitle,
+    String? chatId,
+    String? chatSubtitle,
     required List<TgMessage> messages,
     ContactDossier? dossier,
   }) async {
-    final isRu = I18n.instance.isRu;
-    try {
-      final realMsgs = messages.where((m) => m.kind != MessageKind.date && m.kind != MessageKind.unreadDivider).toList();
-      final recent = realMsgs.length > 15
-          ? realMsgs.sublist(realMsgs.length - 15)
-          : realMsgs;
-
-      if (recent.isNotEmpty) {
-        final formattedHistory = <String>[];
-        for (final m in recent) {
-          final sender = m.outgoing
-              ? (isRu ? 'Вы' : 'You')
-              : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
-          final content = getEffectiveMessageText(m);
-          if (content.isNotEmpty) {
-            formattedHistory.add('$sender: $content');
-          }
-        }
-
-        if (formattedHistory.isNotEmpty) {
-          final prompt = isRu
-              ? '''
-Вот последние реплики переписки с "$chatTitle":
-${formattedHistory.join('\n')}
-
-${dossier != null && dossier.goal.isNotEmpty ? "Цель общения: ${dossier.goal}\n" : ""}${dossier != null && dossier.tone.isNotEmpty ? "Тон: ${dossier.tone}\n" : ""}
-Напиши один естественный, готовый к отправке ответ собеседнику. Ответ должен быть лаконичным (1-2 предложения), живым, без вводных слов и без кавычек.
-'''
-              : '''
-Recent messages with "$chatTitle":
-${formattedHistory.join('\n')}
-
-${dossier != null && dossier.goal.isNotEmpty ? "Goal: ${dossier.goal}\n" : ""}${dossier != null && dossier.tone.isNotEmpty ? "Tone: ${dossier.tone}\n" : ""}
-Write a natural, ready-to-send reply. Keep it concise (1-2 sentences), conversational, without preamble or quotation marks.
-''';
-
-          final reply = await AiModelService.instance
-              .generateChatCompletion(
-                prompt: prompt,
-                systemPrompt: isRu
-                    ? 'Ты — умный помощник по быстрым ответам в Telegram. Твоя задача — сгенерировать идеальный ответ на последнее сообщение.'
-                    : 'You are a smart Telegram assistant generating the ideal quick reply to the latest message.',
-              )
-              .timeout(const Duration(seconds: 4));
-
-          final cleaned = reply.trim().replaceAll('"', '').replaceAll('«', '').replaceAll('»', '');
-          if (cleaned.isNotEmpty && !cleaned.toLowerCase().contains('яндекс') && !cleaned.toLowerCase().contains('openai')) {
-            return cleaned;
-          }
-        }
-      }
-    } catch (_) {}
-
-    return generateAutoReply(
+    return _generateContextualReplyInternal(
       chatTitle: chatTitle,
+      chatId: chatId,
+      chatSubtitle: chatSubtitle,
       messages: messages,
       dossier: dossier,
+      instruction: null,
     );
   }
 
-  /// Асинхронная умная генерация по личной директиве через LLM с откатом на эвристический движок.
+  /// Асинхронная генерация ответа по личной директиве/голосу через LLM с глубоким Sandwich Context.
   static Future<String> generateInstructionReplyAsync({
     required String chatTitle,
+    String? chatId,
+    String? chatSubtitle,
     required List<TgMessage> messages,
     required String instruction,
     ContactDossier? dossier,
   }) async {
-    final isRu = I18n.instance.isRu;
-    try {
-      final realMsgs = messages.where((m) => m.kind != MessageKind.date && m.kind != MessageKind.unreadDivider).toList();
-      final recent = realMsgs.length > 15
-          ? realMsgs.sublist(realMsgs.length - 15)
-          : realMsgs;
+    return _generateContextualReplyInternal(
+      chatTitle: chatTitle,
+      chatId: chatId,
+      chatSubtitle: chatSubtitle,
+      messages: messages,
+      dossier: dossier,
+      instruction: instruction,
+    );
+  }
 
-      if (recent.isNotEmpty) {
-        final formattedHistory = <String>[];
-        for (final m in recent) {
-          final sender = m.outgoing
-              ? (isRu ? 'Вы' : 'You')
-              : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
-          final content = getEffectiveMessageText(m);
-          if (content.isNotEmpty) {
-            formattedHistory.add('$sender: $content');
+  /// Внутренняя сборка глубокого Sandwich Context идентично полноценному Copilot:
+  /// - Верхний слой: жесткие системные директивы (живой стиль, никаких "Здравствуйте!" в неформальном чате)
+  /// - Досье контакта: цели, Tone of Voice, психотип, CRM-факты, Шерлок-саммари
+  /// - RAG-факты: из сессии или досье
+  /// - Скользящее окно сообщений: со звуковыми транскрипциями (STT) и описаниями фото (Vision)
+  /// - Нижний слой: задача (автономный автоответ или исполнение голосовой директивы)
+  static Future<String> _generateContextualReplyInternal({
+    required String chatTitle,
+    String? chatId,
+    String? chatSubtitle,
+    required List<TgMessage> messages,
+    ContactDossier? dossier,
+    String? instruction,
+  }) async {
+    final isRu = I18n.instance.isRu;
+    final settings = AiSettingsStore.instance.settings.value;
+
+    // 1. Извлекаем сообщения (приоритет живому хранилищу TdlibService при наличии chatId)
+    List<TgMessage> allMsgs = messages;
+    if (chatId != null && chatId.isNotEmpty) {
+      try {
+        final liveMsgs = TdlibService.instance.messagesOf(chatId).value.messages;
+        if (liveMsgs.isNotEmpty) {
+          allMsgs = liveMsgs;
+        }
+      } catch (_) {}
+    }
+
+    final realMsgs = allMsgs
+        .where((m) => m.kind != MessageKind.date && m.kind != MessageKind.unreadDivider)
+        .toList();
+
+    final limit = settings.contextMessageCount > 0 ? settings.contextMessageCount : 30;
+    final recent = realMsgs.length > limit
+        ? realMsgs.sublist(realMsgs.length - limit)
+        : realMsgs;
+
+    // 2. Форматируем сообщения с распознаванием голосовых (STT) и описанием изображений (Vision)
+    final formattedHistory = <String>[];
+    for (final m in recent) {
+      final sender = m.outgoing
+          ? (isRu ? 'Вы' : 'You')
+          : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
+
+      String content = m.text.replaceAll('\n', ' ').trim();
+      if (m.kind == MessageKind.voice) {
+        String? trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
+            VoiceTranscriptionService.instance.getCachedTranscription(m.mediaPath);
+        if (trans == null || trans.isEmpty) {
+          if (m.mediaPath.isNotEmpty && File(m.mediaPath).existsSync()) {
+            try {
+              trans = await VoiceTranscriptionService.instance.transcribeVoiceFile(
+                filePath: m.mediaPath,
+                messageId: m.id,
+                durationSeconds: m.duration,
+              );
+            } catch (_) {}
           }
         }
+        if (trans != null && trans.isNotEmpty && !trans.startsWith('[')) {
+          content = isRu ? '[🎤 Расшифровка голосового: "$trans"]' : '[🎤 Voice transcript: "$trans"]';
+        } else {
+          content = isRu ? '[🎤 Голосовое сообщение (${m.duration} сек)]' : '[🎤 Voice note (${m.duration}s)]';
+        }
+      } else if (ImageDescriptionService.isImageMessage(m)) {
+        String? desc = ImageDescriptionService.instance.getCachedDescription(m.id) ??
+            ImageDescriptionService.instance.getCachedDescription(m.mediaPath) ??
+            ImageDescriptionService.instance.getCachedDescription(m.thumbnailPath);
+        if (desc != null && desc.isNotEmpty) {
+          content = isRu
+              ? '[🖼 Фото: $desc${content.isNotEmpty ? " (подпись: $content)" : ""}]'
+              : '[🖼 Photo: $desc${content.isNotEmpty ? " (caption: $content)" : ""}]';
+        } else {
+          final nameHint = m.fileName.isNotEmpty ? ': ${m.fileName}' : (content.isNotEmpty ? ': $content' : '');
+          content = isRu ? '[🖼 Фото$nameHint]' : '[🖼 Photo$nameHint]';
+        }
+      } else if (m.kind == MessageKind.video) {
+        content = isRu
+            ? '[🎬 Видео (${m.duration} сек)${content.isNotEmpty ? ": $content" : ""}]'
+            : '[🎬 Video (${m.duration}s)${content.isNotEmpty ? ": $content" : ""}]';
+      } else if (m.kind == MessageKind.document) {
+        content = isRu
+            ? '[📎 Документ: ${m.fileName} (${m.fileSize})${content.isNotEmpty ? ": $content" : ""}]'
+            : '[📎 Document: ${m.fileName} (${m.fileSize})${content.isNotEmpty ? ": $content" : ""}]';
+      }
 
-        final prompt = isRu
-            ? '''
-Контекст последних реплик с "$chatTitle":
-${formattedHistory.join('\n')}
+      if (content.isNotEmpty) {
+        formattedHistory.add('$sender: $content');
+      }
+    }
 
-${dossier != null && dossier.goal.isNotEmpty ? "Цель: ${dossier.goal}\n" : ""}${dossier != null && dossier.tone.isNotEmpty ? "Тон: ${dossier.tone}\n" : ""}
-Инструкция пользователя, как нужно ответить: "$instruction"
+    // 3. Досье контакта и RAG-факты
+    final targetDossier = dossier ?? (chatId != null ? ContactDossierStore.instance.getDossier(chatId).value : null);
 
-Сформулируй готовый текст ответа от лица пользователя строго по инструкции. Без кавычек, без лишних вводных слов, 1-3 предложения.
+    String ragSummary = targetDossier?.ragFactSummary ?? '';
+    if (ragSummary.isEmpty && chatId != null) {
+      final session = CopilotSessionStore.instance.sessions.value
+          .where((s) => s.id == 'contact_$chatId')
+          .firstOrNull;
+      if (session != null && session.ragFactSummary != null && session.ragFactSummary!.isNotEmpty) {
+        ragSummary = session.ragFactSummary!;
+      }
+    }
+
+    // 4. Верхний слой Sandwich Context: жесткие системные директивы для LLM
+    final systemPrompt = isRu
+        ? '''
+Ты — персональный AI-копилот пользователя, составляющий ответ в Telegram для "$chatTitle".
+ПРАВИЛА И ПРИНЦИПЫ:
+1. Пиши СТРОГО от первого лица («я») от имени пользователя.
+2. Подстраивайся под РЕАЛЬНЫЙ стиль и тональность диалога. Если общение идет по-дружески или неформально («на ты», сленг, непринужденный тон, краткие фразы) — отвечай ИСКЛЮЧИТЕЛЬНО в таком же живом неформальном стиле. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать шаблонные официозные приветствия («Здравствуйте!», «Уважаемый...») и пустые корпоративные фразы!
+3. Опирайся на цель пользователя, заданный Tone of Voice, психотип и факты о контакте.
+4. Ответ должен быть полностью готов к немедленной отправке (1-3 живых, емких предложения).
+5. Выводи ТОЛЬКО готовый текст сообщения без кавычек, без кавычек-ёлочек, без вводных слов и без пояснений.
 '''
-            : '''
-Context of chat with "$chatTitle":
-${formattedHistory.join('\n')}
-
-${dossier != null && dossier.goal.isNotEmpty ? "Goal: ${dossier.goal}\n" : ""}${dossier != null && dossier.tone.isNotEmpty ? "Tone: ${dossier.tone}\n" : ""}
-User instruction on how to reply: "$instruction"
-
-Draft a ready-to-send reply on behalf of the user following this instruction. No quotes, 1-3 sentences.
+        : '''
+You are the user's personal AI Copilot drafting a Telegram response to "$chatTitle".
+RULES & PRINCIPLES:
+1. Write strictly in the first person ("I") on behalf of the user.
+2. Match the ACTUAL style and tone of this chat. If the participants talk casually or informally as friends (first-name basis, relaxed, conversational) — reply in the EXACT SAME natural casual style. NEVER use robotic formal greetings ("Hello!", "Dear...") or corporate clichés in informal chats!
+3. Respect user objectives, specified Tone of Voice, psychotype, and known CRM facts.
+4. The response must be ready to send immediately (1-3 concise, natural sentences).
+5. Output ONLY the response text itself without quotes, introductory text, or explanations.
 ''';
 
-        final reply = await AiModelService.instance
-            .generateChatCompletion(
-              prompt: prompt,
-              systemPrompt: isRu
-                  ? 'Ты — персональный AI-копилот по ответам в Telegram. Сформулируй точный ответ по инструкции пользователя.'
-                  : 'You are a personal Telegram AI assistant. Draft an exact reply based on user instructions.',
-            )
-            .timeout(const Duration(seconds: 4));
+    // 5. Формируем тело промпта с блоками Sandwich Context
+    final promptBuffer = StringBuffer();
 
-        final cleaned = reply.trim().replaceAll('"', '').replaceAll('«', '').replaceAll('»', '');
-        if (cleaned.isNotEmpty) {
-          return cleaned;
-        }
+    // Блок целевого контакта
+    promptBuffer.writeln('<target_contact>');
+    promptBuffer.writeln(isRu ? 'Имя контакта: "$chatTitle"' : 'Contact Name: "$chatTitle"');
+    if (chatSubtitle != null && chatSubtitle.isNotEmpty) {
+      promptBuffer.writeln(isRu ? 'Статус/роль: "$chatSubtitle"' : 'Status/Role: "$chatSubtitle"');
+    }
+    if (targetDossier != null) {
+      if (targetDossier.goal.isNotEmpty) {
+        promptBuffer.writeln(isRu ? 'Цель пользователя: "${targetDossier.goal}"' : 'User Goal: "${targetDossier.goal}"');
       }
-    } catch (_) {}
+      if (targetDossier.tone.isNotEmpty) {
+        promptBuffer.writeln(isRu ? 'Tone of Voice: "${targetDossier.tone}"' : 'Tone of Voice: "${targetDossier.tone}"');
+      }
+      if (targetDossier.psychotype.isNotEmpty) {
+        promptBuffer.writeln(isRu ? 'Психотип контакта: "${targetDossier.psychotype}"' : 'Psychotype: "${targetDossier.psychotype}"');
+      }
+      if (targetDossier.facts.isNotEmpty) {
+        promptBuffer.writeln(isRu ? 'Факты о контакте: ${targetDossier.facts.join("; ")}' : 'Facts: ${targetDossier.facts.join("; ")}');
+      }
+      if (targetDossier.summary.isNotEmpty) {
+        promptBuffer.writeln(isRu ? 'Резюме переписки (Шерлок): "${targetDossier.summary}"' : 'Chat Summary: "${targetDossier.summary}"');
+      }
+      if (targetDossier.systemPrompt.isNotEmpty) {
+        promptBuffer.writeln(isRu ? 'Индивидуальные инструкции: "${targetDossier.systemPrompt}"' : 'Contact Directives: "${targetDossier.systemPrompt}"');
+      }
+    }
+    promptBuffer.writeln('</target_contact>\n');
 
-    return generateInstructionReply(
-      chatTitle: chatTitle,
-      messages: messages,
-      instruction: instruction,
-      dossier: dossier,
-    );
+    // Блок RAG-фактов
+    if (ragSummary.isNotEmpty) {
+      promptBuffer.writeln('<rag_chat_facts>');
+      promptBuffer.writeln(ragSummary);
+      promptBuffer.writeln('</rag_chat_facts>\n');
+    }
+
+    // Блок истории диалога
+    promptBuffer.writeln('<telegram_chat_history count="${recent.length}">');
+    if (formattedHistory.isNotEmpty) {
+      promptBuffer.writeln(formattedHistory.join('\n'));
+    } else {
+      promptBuffer.writeln(isRu ? '(Диалог только начинается)' : '(Conversation is just beginning)');
+    }
+    promptBuffer.writeln('</telegram_chat_history>\n');
+
+    // Нижний слой Sandwich Context: директива от пользователя или автономное решение AI
+    if (instruction != null && instruction.trim().isNotEmpty) {
+      promptBuffer.writeln(isRu
+          ? '''
+ЗАДАЧА:
+Пользователь передал следующую голосовую или текстовую инструкцию (смысл и намерение):
+"$instruction"
+
+Сформулируй готовый текст ответа от лица пользователя строго по этой инструкции, адаптировав его под естественный стиль переписки с "$chatTitle" и цель общения.
+Выведи ТОЛЬКО финальный текст сообщения.
+'''
+          : '''
+TASK:
+The user provided the following voice or text instruction (intent & core message):
+"$instruction"
+
+Draft a ready-to-send reply on behalf of the user strictly following this instruction, adapted to the natural style of the conversation with "$chatTitle" and the user's objective.
+Output ONLY the final message text.
+''');
+    } else {
+      promptBuffer.writeln(isRu
+          ? '''
+ЗАДАЧА AI-КОПИЛОТА:
+Внимательно проанализируй последнее сообщение собеседника и общую динамику разговора.
+Самостоятельно сформулируй идеальный, живой и логичный следующий ответ от лица пользователя, который органично продолжает беседу с "$chatTitle", учитывает цель общения и попадает в стиль чата.
+Выведи ТОЛЬКО финальный текст сообщения.
+'''
+          : '''
+TASK:
+Analyze the interlocutor's latest message and the conversation context.
+Formulate the ideal, organic next reply on behalf of the user that naturally advances the conversation with "$chatTitle", aligns with the goal, and matches the chat's style.
+Output ONLY the final message text.
+''');
+    }
+
+    // 6. Вызов LLM через AiModelService с 30-секундным таймаутом
+    final rawReply = await AiModelService.instance
+        .generateChatCompletion(
+          prompt: promptBuffer.toString(),
+          systemPrompt: systemPrompt,
+          settings: settings,
+        )
+        .timeout(const Duration(seconds: 30));
+
+    final cleaned = rawReply.trim()
+        .replaceAll('"', '')
+        .replaceAll('«', '')
+        .replaceAll('»', '');
+
+    if (cleaned.isNotEmpty) {
+      return cleaned;
+    }
+
+    throw Exception(isRu ? 'Пустой ответ от нейросети' : 'Empty reply from AI model');
   }
 
   /// Автоответ с глубоким учетом контекста переписки И досье контакта (цели, психотип, тон).
@@ -261,18 +394,30 @@ Draft a ready-to-send reply on behalf of the user following this instruction. No
           goalLower.contains('ваканси') ||
           goalLower.contains('hire') ||
           goalLower.contains('interview')) {
+        final tone = dossier.tone.toLowerCase();
+        final isFormal = tone.contains('делов') || tone.contains('formal') || tone.contains('business');
         return isRu
-            ? 'Здравствуйте! Изучил ваш опыт и стек — выглядит очень релевантно нашим задачам. Подскажите, когда вам удобно созвониться на 15 минут для технического интервью?'
-            : 'Hello! I reviewed your background and tech stack — looks very relevant to our goals. When would it be convenient for you to hop on a 15-minute technical intro call?';
+            ? (isFormal
+                ? 'Здравствуйте! Изучил ваш опыт и стек — выглядит очень релевантно нашим задачам. Подскажите, когда вам удобно созвониться на 15 минут для технического интервью?'
+                : 'Привет! Посмотрел твой опыт и стек — выглядит очень интересно и по делу. Подскажи, когда тебе удобно созвониться на 15 минут пообщаться?')
+            : (isFormal
+                ? 'Hello! I reviewed your background and tech stack — looks very relevant to our goals. When would it be convenient for you to hop on a 15-minute technical intro call?'
+                : 'Hey! Looked over your background and tech stack — looks really solid. When would you be free for a quick 15-minute intro chat?');
       }
 
       // Цель: Привлечь инвестиции
       if (goalLower.contains('инвест') ||
           goalLower.contains('привлечь инвестиции') ||
           goalLower.contains('invest')) {
+        final tone = dossier.tone.toLowerCase();
+        final isFormal = tone.contains('делов') || tone.contains('formal') || tone.contains('business');
         return isRu
-            ? 'Здравствуйте! Мы как раз обновили инвестиционную презентацию и метрики проекта. Могу прислать дек для ознакомления или кратко созвонимся с фаундерами на 10 минут.'
-            : 'Hello! We just updated our investment pitch deck and key metrics. I can send the deck over for review, or we can do a brief 10-minute intro call with the founders.';
+            ? (isFormal
+                ? 'Добрый день! По инвестиционному направлению и метрикам проекта готовы обсудить детали. Подскажите, когда вам удобно созвониться на 10-15 минут?'
+                : 'Привет! По проекту и инвестициям как раз финализируем детали. Давай на днях созвонимся на 10 минут голосом или спишемся подробнее?')
+            : (isFormal
+                ? 'Hello! We are ready to discuss the investment overview and project metrics. When would be a convenient time to jump on a brief 10-15 minute call with the founders?'
+                : 'Hey! We\'re wrapping up the project details and metrics. Let\'s catch up for a quick 10-minute call or chat soon?');
       }
 
       // Цель: Нетворкинг и партнёрство

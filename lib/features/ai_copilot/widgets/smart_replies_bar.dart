@@ -64,11 +64,12 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
       _isGenerating = true;
       _generatingStatus = isRu ? '🧠 Генерация ответа по контексту диалога...' : '🧠 Generating contextual reply...';
     });
-    AppState.aiProcessingStatus.value = _generatingStatus;
     final dossier = ContactDossierStore.instance.getDossier(widget.chat.id).value;
     try {
       final reply = await SmartReplyEngine.generateAutoReplyAsync(
         chatTitle: widget.chat.title,
+        chatId: widget.chat.id,
+        chatSubtitle: widget.chat.headerSubtitle,
         messages: widget.messages,
         dossier: dossier,
       );
@@ -76,16 +77,11 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
       widget.onSelected(reply);
     } catch (e) {
       if (!mounted) return;
-      final reply = SmartReplyEngine.generateAutoReply(
-        chatTitle: widget.chat.title,
-        messages: widget.messages,
-        dossier: dossier,
-      );
       TgToast.show(
         context,
-        isRu ? '⚠️ Использован локальный ответ (ошибка AI: $e)' : '⚠️ Used fallback reply (AI error: $e)',
+        isRu ? 'Ошибка генерации ответа: $e' : 'Failed to generate reply: $e',
+        icon: Icons.error_outline_rounded,
       );
-      widget.onSelected(reply);
     } finally {
       if (mounted) {
         setState(() {
@@ -93,7 +89,6 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
           _generatingStatus = null;
         });
       }
-      AppState.aiProcessingStatus.value = null;
     }
   }
 
@@ -225,11 +220,12 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
           ? '🧠 Генерация ответа по инструкции: "$text"...'
           : '🧠 Generating reply by instruction: "$text"...';
     });
-    AppState.aiProcessingStatus.value = _generatingStatus;
 
     try {
       final reply = await SmartReplyEngine.generateInstructionReplyAsync(
         chatTitle: widget.chat.title,
+        chatId: widget.chat.id,
+        chatSubtitle: widget.chat.headerSubtitle,
         messages: widget.messages,
         instruction: text,
         dossier: dossier,
@@ -238,17 +234,11 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
       widget.onSelected(reply);
     } catch (e) {
       if (!mounted) return;
-      final reply = SmartReplyEngine.generateInstructionReply(
-        chatTitle: widget.chat.title,
-        messages: widget.messages,
-        instruction: text,
-        dossier: dossier,
-      );
       TgToast.show(
         context,
-        isRu ? '⚠️ Использован локальный ответ (ошибка AI: $e)' : '⚠️ Used fallback reply (AI error: $e)',
+        isRu ? 'Ошибка генерации ответа: $e' : 'Failed to generate reply: $e',
+        icon: Icons.error_outline_rounded,
       );
-      widget.onSelected(reply);
     } finally {
       if (mounted) {
         setState(() {
@@ -256,7 +246,6 @@ class _SmartRepliesBarState extends State<SmartRepliesBar> {
           _generatingStatus = null;
         });
       }
-      AppState.aiProcessingStatus.value = null;
     }
   }
 
