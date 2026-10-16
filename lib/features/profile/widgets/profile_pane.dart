@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/models/tg_account.dart';
 import '../../../data/tdlib/tdlib_service.dart';
+import 'profile_accounts_section.dart';
 import 'profile_action_buttons.dart';
 import 'profile_avatar_section.dart';
 import 'profile_info_card.dart';
@@ -38,6 +39,8 @@ class _ProfilePaneState extends State<ProfilePane> {
             const ProfileActionButtons(),
             const SizedBox(height: 16),
             ProfileInfoCard(account: acc),
+            const SizedBox(height: 16),
+            ProfileAccountsSection(currentAccount: acc),
             const SizedBox(height: 16),
             ProfilePostsTabs(
               activeTab: _activeTab,

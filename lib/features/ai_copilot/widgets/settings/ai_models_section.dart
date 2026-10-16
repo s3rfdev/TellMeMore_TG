@@ -216,7 +216,137 @@ class AiModelsSection extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          title: I18n.instance.isRu ? 'Интерфейс и оформление' : 'Appearance & Interface',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 360;
+                  final langLabel = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.language_rounded, size: 20, color: Tg.accent),
+                      const SizedBox(width: 10),
+                      Text(
+                        tr('language'),
+                        style: const TextStyle(fontSize: 13.5, color: Tg.text, fontWeight: Tg.fontMedium),
+                      ),
+                    ],
+                  );
+
+                  final langChips = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildLangChoiceChip(
+                        label: 'Русский',
+                        flag: '🇷🇺',
+                        selected: I18n.instance.isRu,
+                        onTap: () {
+                          I18n.instance.setLanguage(AppLanguage.ru);
+                          TgToast.show(context, tr('lang_changed_toast'));
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildLangChoiceChip(
+                        label: 'English',
+                        flag: '🇬🇧',
+                        selected: !I18n.instance.isRu,
+                        onTap: () {
+                          I18n.instance.setLanguage(AppLanguage.en);
+                          TgToast.show(context, tr('lang_changed_toast'));
+                        },
+                      ),
+                    ],
+                  );
+
+                  if (isCompact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        langLabel,
+                        const SizedBox(height: 10),
+                        langChips,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [langLabel, langChips],
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.nightlight_round, size: 20, color: Tg.accent),
+                      const SizedBox(width: 10),
+                      Text(
+                        I18n.instance.isRu ? 'Ночной режим' : 'Night Mode',
+                        style: const TextStyle(fontSize: 13.5, color: Tg.text, fontWeight: Tg.fontMedium),
+                      ),
+                    ],
+                  ),
+                  Switch(
+                    value: true,
+                    activeThumbColor: Tg.accent,
+                    activeTrackColor: Tg.accentDark.withValues(alpha: 0.5),
+                    onChanged: (val) {
+                      TgToast.show(context, I18n.instance.isRu ? 'Тёмная тема активна' : 'Dark theme is active');
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildLangChoiceChip({
+    required String label,
+    required String flag,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? Tg.accentDark.withValues(alpha: 0.35) : Tg.field,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? Tg.accent : Tg.border,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(flag, style: const TextStyle(fontSize: 13)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? Tg.fontMedium : Tg.fontRegular,
+                color: selected ? Tg.accent : Tg.textDim,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

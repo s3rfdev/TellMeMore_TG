@@ -194,6 +194,28 @@ class SettingsSidebarView extends StatelessWidget {
                         ],
                       ),
                     ),
+                    ValueListenableBuilder<List<TgAccount>>(
+                      valueListenable: AccountManager.instance.accounts,
+                      builder: (context, accounts, _) {
+                        if (accounts.length <= 1) return const SizedBox.shrink();
+                        return Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Tg.accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${accounts.length}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: Tg.fontMedium,
+                              color: Tg.accent,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     Icon(
                       Icons.chevron_right_rounded,
                       size: 18,

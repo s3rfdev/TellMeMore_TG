@@ -8,11 +8,8 @@ import '../../../data/models/tg_account.dart';
 import '../../../data/models/tg_chat.dart';
 import '../../../data/tdlib/tdlib_service.dart';
 import '../../../state/app_state.dart';
-import '../../auth/add_account_dialog.dart';
-import '../../profile/profile_dialog.dart';
-import '../../settings/settings_dialog.dart';
 
-/// Главное меню Telegram Desktop (выдвигается по кнопке ≡).
+/// Главное меню Telegram Desktop (выдвигается по клику на бургер или аватарку в шапке).
 class MainDrawer extends StatefulWidget {
   const MainDrawer({super.key, required this.onClose});
 
@@ -23,99 +20,6 @@ class MainDrawer extends StatefulWidget {
 }
 
 class _MainDrawerState extends State<MainDrawer> {
-  bool _accountsExpanded = false;
-
-  void _showLogOutConfirm(BuildContext context, TgAccount currentAcc) {
-    final isPrimary = currentAcc.id == 'sergei';
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.65),
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: 380,
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              color: Tg.sidebar,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        isPrimary ? tr('log_out_confirm_title') : tr('delete_account_confirm_title'),
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: Tg.fontMedium,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  (isPrimary ? tr('log_out_confirm_msg') : tr('delete_account_confirm_msg'))
-                      .replaceAll('{name}', currentAcc.name)
-                      .replaceAll('{phone}', currentAcc.phone),
-                  style: const TextStyle(fontSize: 13.5, color: Tg.textDim, height: 1.4),
-                ),
-                const SizedBox(height: 22),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: Text(
-                        tr('cancel'),
-                        style: const TextStyle(color: Tg.textDim, fontSize: 14),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        widget.onClose();
-                        if (isPrimary) {
-                          TdlibService.instance.logOut();
-                          TgToast.show(context, tr('session_logged_out'));
-                        } else {
-                          AccountManager.instance.removeAccount(currentAcc.id);
-                          TgToast.show(context, tr('account_deleted'));
-                        }
-                      },
-                      child: Text(isPrimary ? tr('log_out') : tr('delete_account')),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<AppLanguage>(
@@ -131,7 +35,7 @@ class _MainDrawerState extends State<MainDrawer> {
               _userHeader(context),
               const Divider(height: 1, color: Tg.hairline),
               Expanded(
-                child: _accountsExpanded ? _buildAccountsList(context) : _buildMainMenu(context),
+                child: _buildMainMenu(context),
               ),
               const Divider(height: 1, color: Tg.hairline),
               Padding(
@@ -155,181 +59,65 @@ class _MainDrawerState extends State<MainDrawer> {
     return ValueListenableBuilder<TgAccount>(
       valueListenable: AccountManager.instance.currentAccount,
       builder: (context, acc, _) {
-        return InkWell(
-          onTap: () {
-            setState(() {
-              _accountsExpanded = !_accountsExpanded;
-            });
-          },
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-            color: Tg.sidebar,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Stack(
-                      children: [
-                        TgAvatar(
-                          emoji: acc.avatarEmoji,
-                          color: acc.avatarColor,
-                          imagePath: acc.avatarPath,
-                          size: 48,
-                          fontSize: 20,
+        return Container(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+          color: Tg.sidebar,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Stack(
+                    children: [
+                      TgAvatar(
+                        emoji: acc.avatarEmoji,
+                        color: acc.avatarColor,
+                        imagePath: acc.avatarPath,
+                        size: 48,
+                        fontSize: 20,
+                      ),
+                      if (acc.isOnline)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4BD964),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Tg.sidebar, width: 2),
+                            ),
+                          ),
                         ),
-                        if (acc.isOnline)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF4BD964),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Tg.sidebar, width: 2),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 20, color: Tg.textDim),
-                      onPressed: widget.onClose,
-                      splashRadius: 18,
-                    ),
-                  ],
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20, color: Tg.textDim),
+                    onPressed: widget.onClose,
+                    splashRadius: 18,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                acc.name,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: Tg.fontMedium,
+                  color: Tg.text,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            acc.name,
-                            style: const TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: Tg.fontMedium,
-                              color: Tg.text,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            acc.phone,
-                            style: const TextStyle(fontSize: 13, color: Tg.textDim),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: AnimatedRotation(
-                        duration: const Duration(milliseconds: 200),
-                        turns: _accountsExpanded ? 0.5 : 0.0,
-                        child: const Icon(Icons.keyboard_arrow_down_rounded, color: Tg.textDim),
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _accountsExpanded = !_accountsExpanded;
-                        });
-                      },
-                      splashRadius: 18,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                acc.phone.isNotEmpty ? acc.phone : (acc.username.isNotEmpty ? acc.username : '—'),
+                style: const TextStyle(fontSize: 13, color: Tg.textDim),
+              ),
+            ],
           ),
         );
       },
-    );
-  }
-
-  Widget _buildAccountsList(BuildContext context) {
-    final current = AccountManager.instance.currentAccount.value;
-    final all = AccountManager.instance.accounts.value;
-
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            tr('accounts'),
-            style: const TextStyle(fontSize: 12, fontWeight: Tg.fontMedium, color: Tg.accent),
-          ),
-        ),
-        ...all.map((acc) {
-          final isSelected = acc.id == current.id;
-          return ListTile(
-            dense: true,
-            leading: TgAvatar(
-              emoji: acc.avatarEmoji,
-              color: acc.avatarColor,
-              imagePath: acc.avatarPath,
-              size: 34,
-              fontSize: 14,
-            ),
-            title: Text(
-              acc.name,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: isSelected ? Tg.fontMedium : Tg.fontRegular,
-                color: isSelected ? Tg.accent : Tg.text,
-              ),
-            ),
-            subtitle: Text(
-              acc.phone,
-              style: Tg.caption,
-            ),
-            trailing: isSelected
-                ? const Icon(Icons.check_rounded, color: Tg.accent, size: 18)
-                : (acc.unreadBadge > 0
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Tg.accentDark,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${acc.unreadBadge}',
-                          style: const TextStyle(fontSize: 11, fontWeight: Tg.fontMedium, color: Colors.white),
-                        ),
-                      )
-                    : null),
-            onTap: () {
-              AccountManager.instance.switchAccount(acc.id);
-              TgToast.show(context, tr('active_account_toast', {'name': acc.name}));
-              setState(() {
-                _accountsExpanded = false;
-              });
-            },
-          );
-        }),
-        const Divider(height: 12, color: Tg.hairline),
-        _menuItem(
-          icon: Icons.add_rounded,
-          title: tr('add_account'),
-          iconColor: Tg.accent,
-          textColor: Tg.accent,
-          onTap: () {
-            widget.onClose();
-            AddAccountDialog.show(context);
-          },
-        ),
-        _menuItem(
-          icon: Icons.logout_rounded,
-          title: tr('log_out'),
-          iconColor: Colors.redAccent,
-          textColor: Colors.redAccent,
-          onTap: () {
-            _showLogOutConfirm(context, current);
-          },
-        ),
-      ],
     );
   }
 
@@ -337,14 +125,6 @@ class _MainDrawerState extends State<MainDrawer> {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 6),
       children: [
-        _menuItem(
-          icon: Icons.account_circle_outlined,
-          title: tr('profile'),
-          onTap: () {
-            widget.onClose();
-            ProfileDialog.show(context);
-          },
-        ),
         _menuItem(
           icon: Icons.group_outlined,
           title: I18n.instance.isRu ? 'Создать группу' : 'New Group',
@@ -397,21 +177,9 @@ class _MainDrawerState extends State<MainDrawer> {
           title: tr('settings_title'),
           onTap: () {
             widget.onClose();
-            SettingsDialog.show(context);
+            AppState.activeSidebarTab.value = SidebarTab.settings;
           },
         ),
-        const Divider(height: 12, color: Tg.hairline),
-        _menuItem(
-          icon: Icons.add_rounded,
-          title: tr('add_account'),
-          iconColor: Tg.accent,
-          textColor: Tg.accent,
-          onTap: () {
-            widget.onClose();
-            AddAccountDialog.show(context);
-          },
-        ),
-        _nightModeRow(),
       ],
     );
   }
@@ -434,30 +202,6 @@ class _MainDrawerState extends State<MainDrawer> {
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       hoverColor: Colors.white.withValues(alpha: 0.05),
-    );
-  }
-
-  Widget _nightModeRow() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          const Icon(Icons.nightlight_round, color: Tg.textDim, size: 20),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              I18n.instance.isRu ? 'Ночной режим' : 'Night Mode',
-              style: const TextStyle(fontSize: 13.5, color: Tg.text),
-            ),
-          ),
-          Switch(
-            value: true,
-            activeThumbColor: Tg.accent,
-            activeTrackColor: Tg.accentDark.withValues(alpha: 0.5),
-            onChanged: (val) {},
-          ),
-        ],
-      ),
     );
   }
 
