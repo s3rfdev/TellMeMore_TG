@@ -123,16 +123,42 @@ class CopilotPromptBuilder {
           : (chatDossier.ragFactSummaryCount > 0 ? chatDossier.ragFactSummaryCount : msgsToAnalyze.length);
 
       final systemDirectives = StringBuffer();
-      systemDirectives.writeln('Ты — проницательный, откровенный и независимый AI-копилот и аналитик переговоров.');
-      systemDirectives.writeln('Ты помогаешь пользователю анализировать переписку в Telegram и вести диалоги.');
-      systemDirectives.writeln('');
-      systemDirectives.writeln('ГЛАВНЫЕ ПРИНЦИПЫ:');
-      systemDirectives.writeln('1. Будь предельно честен, прямолинеен и объективен. Не пытайся сглаживать углы, придумывать лесть или использовать пустые корпоративные штампы.');
-      systemDirectives.writeln('2. Если пользователь спрашивает твое мнение, оценку человека, мотивы, манипуляции, токсичность или "мудак ли он" — дай бескомпромиссную, психологически точную и доказательную оценку на основе реальных фактов и реплик.');
-      systemDirectives.writeln('3. Если собеседник некомпетентен, ведет себя неадекватно, перекладывает работу, юлит или манипулирует — укажи на конкретные сигналы и предложи четкую линию защиты.');
-      systemDirectives.writeln('4. Если пользователь просит предложить ответ — напиши уверенный, выверенный ответ, пресекающий манипуляции.');
+      if (isRu) {
+        systemDirectives.writeln('Ты — проницательный, откровенный и независимый AI-копилот и аналитик переговоров.');
+        systemDirectives.writeln('Ты помогаешь пользователю анализировать переписку в Telegram и вести диалоги.');
+        systemDirectives.writeln('');
+        systemDirectives.writeln('ГЛАВНЫЕ ПРИНЦИПЫ:');
+        systemDirectives.writeln('1. Будь предельно честен, прямолинеен и объективен. Не пытайся сглаживать углы, придумывать лесть или использовать пустые корпоративные штампы.');
+        systemDirectives.writeln('2. Если пользователь спрашивает твое мнение, оценку человека, мотивы, манипуляции, токсичность — дай бескомпромиссную, психологически точную и доказательную оценку на основе реальных фактов и реплик.');
+        systemDirectives.writeln('3. Если собеседник некомпетентен, ведет себя неадекватно, перекладывает работу, юлит или манипулирует — укажи на конкретные сигналы и предложи четкую линию защиты.');
+        systemDirectives.writeln('4. Если пользователь просит предложить ответ — напиши уверенный, выверенный ответ, пресекающий манипуляции.');
+        systemDirectives.writeln('');
+        systemDirectives.writeln('ВАЖНЕЙШЕЕ ПРАВИЛО РАЗДЕЛЕНИЯ РОЛЕЙ:');
+        systemDirectives.writeln('В блоках истории сообщений (<telegram_chat_history> и <telegram_recent_raw_messages>):');
+        systemDirectives.writeln('• «[Пользователь (Вы)]» — это САМ ПОЛЬЗОВАТЕЛЬ (автор запроса к тебе, владелец аккаунта Telegram, от чьего лица ты действуешь и кому помогаешь).');
+        systemDirectives.writeln('• «[Собеседник (${activeChat.title})]» — это его ОППОНЕНТ / ВИЗАВИ в данном чате.');
+        systemDirectives.writeln('СТРОЖАЙШЕ ЗАПРЕЩЕНО путать роли: никогда не приписывай слова оппонента пользователю и слова пользователя оппоненту!');
+      } else {
+        systemDirectives.writeln('You are an insightful, candid, and independent AI Copilot and negotiation analyst.');
+        systemDirectives.writeln('You help the user analyze Telegram conversations and conduct effective dialogue.');
+        systemDirectives.writeln('');
+        systemDirectives.writeln('CORE PRINCIPLES:');
+        systemDirectives.writeln('1. Be completely truthful, direct, and objective. Never sugarcoat, flatter, or resort to empty corporate jargon.');
+        systemDirectives.writeln('2. If the user asks for your psychological assessment, intentions, toxic behavior, or manipulation signals — provide an uncompromising, grounded evaluation citing concrete message facts.');
+        systemDirectives.writeln('3. If the other person is evasive, gaslighting, or shifting blame — identify the exact signals and recommend a firm defense posture.');
+        systemDirectives.writeln('4. If the user asks for a response suggestion — draft a sharp, poised, and strategic reply that protects user interests.');
+        systemDirectives.writeln('');
+        systemDirectives.writeln('CRITICAL ROLE SEPARATION RULE:');
+        systemDirectives.writeln('In conversation history blocks (<telegram_chat_history> and <telegram_recent_raw_messages>):');
+        systemDirectives.writeln('• "[User (You)]" denotes the USER HIMSELF (the person asking you for advice, Telegram account owner).');
+        systemDirectives.writeln('• "[Interlocutor (${activeChat.title})]" denotes his OPPONENT / COUNTERPART in this chat.');
+        systemDirectives.writeln('STRICTLY FORBIDDEN to invert roles: never attribute counterpart messages to the user or vice versa!');
+      }
+
       if (effectivePrompt.isNotEmpty) {
-        systemDirectives.writeln('\nДОПОЛНИТЕЛЬНЫЕ ДИРЕКТИВЫ ПОЛЬЗОВАТЕЛЯ:\n$effectivePrompt');
+        systemDirectives.writeln(isRu
+            ? '\nДОПОЛНИТЕЛЬНЫЕ ДИРЕКТИВЫ ПОЛЬЗОВАТЕЛЯ:\n$effectivePrompt'
+            : '\nADDITIONAL USER DIRECTIVES:\n$effectivePrompt');
       }
 
       if (session.contextSummary != null && session.contextSummary!.isNotEmpty) {
@@ -143,24 +169,24 @@ class CopilotPromptBuilder {
 
       systemDirectives.writeln('');
       systemDirectives.writeln('<target_contact>');
-      systemDirectives.writeln('Имя контакта: "${activeChat.title}"');
+      systemDirectives.writeln(isRu ? 'Имя контакта: "${activeChat.title}"' : 'Contact Name: "${activeChat.title}"');
       if (activeChat.headerSubtitle.isNotEmpty) {
-        systemDirectives.writeln('Статус/роль: "${activeChat.headerSubtitle}"');
+        systemDirectives.writeln(isRu ? 'Статус/роль: "${activeChat.headerSubtitle}"' : 'Status/role: "${activeChat.headerSubtitle}"');
       }
       if (chatDossier.goal.isNotEmpty) {
-        systemDirectives.writeln('Цель пользователя: "${chatDossier.goal}"');
+        systemDirectives.writeln(isRu ? 'Цель пользователя: "${chatDossier.goal}"' : 'User Goal: "${chatDossier.goal}"');
       }
       if (chatDossier.psychotype.isNotEmpty) {
-        systemDirectives.writeln('Психотип контакта: "${chatDossier.psychotype}"');
+        systemDirectives.writeln(isRu ? 'Психотип контакта: "${chatDossier.psychotype}"' : 'Psychotype: "${chatDossier.psychotype}"');
       }
       if (chatDossier.tone.isNotEmpty) {
-        systemDirectives.writeln('Рекомендуемый тон: "${chatDossier.tone}"');
+        systemDirectives.writeln(isRu ? 'Рекомендуемый тон: "${chatDossier.tone}"' : 'Recommended Tone: "${chatDossier.tone}"');
       }
       if (chatDossier.facts.isNotEmpty) {
-        systemDirectives.writeln('Факты: ${chatDossier.facts.join("; ")}');
+        systemDirectives.writeln(isRu ? 'Факты: ${chatDossier.facts.join("; ")}' : 'Facts: ${chatDossier.facts.join("; ")}');
       }
       if (chatDossier.summary.isNotEmpty) {
-        systemDirectives.writeln('Саммари: "${chatDossier.summary}"');
+        systemDirectives.writeln(isRu ? 'Саммари: "${chatDossier.summary}"' : 'Summary: "${chatDossier.summary}"');
       }
       systemDirectives.writeln('</target_contact>');
       systemDirectives.writeln('');
@@ -192,8 +218,10 @@ class CopilotPromptBuilder {
 
         for (final m in recentRaw) {
           final sender = m.outgoing
-              ? (isRu ? 'Вы' : 'You')
-              : (m.senderName.isNotEmpty ? m.senderName : activeChat.title);
+              ? (isRu ? '[Пользователь (Вы)]' : '[User (You)]')
+              : (m.senderName.isNotEmpty && m.senderName != activeChat.title
+                  ? (isRu ? '[Собеседник (${m.senderName})]' : '[Interlocutor (${m.senderName})]')
+                  : (isRu ? '[Собеседник (${activeChat.title})]' : '[Interlocutor (${activeChat.title})]'));
           String content = m.text.replaceAll('\n', ' ').trim();
           if (m.kind == MessageKind.voice) {
             final trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
@@ -258,8 +286,10 @@ class CopilotPromptBuilder {
         final formattedList = <String>[];
         for (final m in msgsToAnalyze) {
           final sender = m.outgoing
-              ? (isRu ? 'Вы' : 'You')
-              : (m.senderName.isNotEmpty ? m.senderName : activeChat.title);
+              ? (isRu ? '[Пользователь (Вы)]' : '[User (You)]')
+              : (m.senderName.isNotEmpty && m.senderName != activeChat.title
+                  ? (isRu ? '[Собеседник (${m.senderName})]' : '[Interlocutor (${m.senderName})]')
+                  : (isRu ? '[Собеседник (${activeChat.title})]' : '[Interlocutor (${activeChat.title})]'));
           String content = m.text.replaceAll('\n', ' ').trim();
           if (m.kind == MessageKind.voice) {
             String? trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
@@ -324,10 +354,18 @@ class CopilotPromptBuilder {
       final output = isRu ? 'Обработка запроса нейросетью ${settings.model}' : 'Processing via ${settings.model}';
 
       final systemDirectives = StringBuffer();
-      systemDirectives.writeln('Ты — интеллектуальный персональный ассистент и советник.');
-      systemDirectives.writeln('Роль агента: ${session.agentRole}.');
-      if (effectivePrompt.isNotEmpty) {
-        systemDirectives.writeln('Директивы: $effectivePrompt');
+      if (isRu) {
+        systemDirectives.writeln('Ты — интеллектуальный персональный ассистент и советник.');
+        systemDirectives.writeln('Роль агента: ${session.agentRole}.');
+        if (effectivePrompt.isNotEmpty) {
+          systemDirectives.writeln('Директивы: $effectivePrompt');
+        }
+      } else {
+        systemDirectives.writeln('You are an intelligent personal AI assistant and advisor.');
+        systemDirectives.writeln('Agent role: ${session.agentRole}.');
+        if (effectivePrompt.isNotEmpty) {
+          systemDirectives.writeln('Directives: $effectivePrompt');
+        }
       }
 
       if (session.contextSummary != null && session.contextSummary!.isNotEmpty) {

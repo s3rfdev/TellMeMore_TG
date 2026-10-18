@@ -123,8 +123,10 @@ class SmartReplyEngine {
     final formattedHistory = <String>[];
     for (final m in recent) {
       final sender = m.outgoing
-          ? (isRu ? 'Вы' : 'You')
-          : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
+          ? (isRu ? '[Пользователь (Вы)]' : '[User (You)]')
+          : (m.senderName.isNotEmpty && m.senderName != chatTitle
+              ? (isRu ? '[Собеседник (${m.senderName})]' : '[Interlocutor (${m.senderName})]')
+              : (isRu ? '[Собеседник ($chatTitle)]' : '[Interlocutor ($chatTitle)]'));
 
       String content = m.text.replaceAll('\n', ' ').trim();
       if (m.kind == MessageKind.voice) {
@@ -194,8 +196,12 @@ class SmartReplyEngine {
 1. Пиши СТРОГО от первого лица («я») от имени пользователя.
 2. Подстраивайся под РЕАЛЬНЫЙ стиль и тональность диалога. Если общение идет по-дружески или неформально («на ты», сленг, непринужденный тон, краткие фразы) — отвечай ИСКЛЮЧИТЕЛЬНО в таком же живом неформальном стиле. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать шаблонные официозные приветствия («Здравствуйте!», «Уважаемый...») и пустые корпоративные фразы!
 3. Опирайся на цель пользователя, заданный Tone of Voice, психотип и факты о контакте.
-4. Ответ должен быть полностью готов к немедленной отправке (1-3 живых, емких предложения).
-5. Выводи ТОЛЬКО готовый текст сообщения без кавычек, без кавычек-ёлочек, без вводных слов и без пояснений.
+4. ВАЖНОЕ ПРАВИЛО РАЗДЕЛЕНИЯ РОЛЕЙ:
+   - «[Пользователь (Вы)]» в истории чата — это реплики САМОГО ПОЛЬЗОВАТЕЛЯ. Твой ответ должен быть продолжением его реплик!
+   - «[Собеседник ($chatTitle)]» — это реплики ОППОНЕНТА / СОБЕСЕДНИКА.
+   Никогда не путай роли участников!
+5. Ответ должен быть полностью готов к немедленной отправке (1-3 живых, емких предложения).
+6. Выводи ТОЛЬКО готовый текст сообщения без кавычек, без кавычек-ёлочек, без вводных слов и без пояснений.
 '''
         : '''
 You are the user's personal AI Copilot drafting a Telegram response to "$chatTitle".
@@ -203,8 +209,12 @@ RULES & PRINCIPLES:
 1. Write strictly in the first person ("I") on behalf of the user.
 2. Match the ACTUAL style and tone of this chat. If the participants talk casually or informally as friends (first-name basis, relaxed, conversational) — reply in the EXACT SAME natural casual style. NEVER use robotic formal greetings ("Hello!", "Dear...") or corporate clichés in informal chats!
 3. Respect user objectives, specified Tone of Voice, psychotype, and known CRM facts.
-4. The response must be ready to send immediately (1-3 concise, natural sentences).
-5. Output ONLY the response text itself without quotes, introductory text, or explanations.
+4. CRITICAL ROLE SEPARATION:
+   - "[User (You)]" in chat history denotes messages by the USER HIMSELF. Your generated reply must continue his side of the conversation!
+   - "[Interlocutor ($chatTitle)]" denotes messages by the COUNTERPART.
+   Never invert or confuse the participants!
+5. The response must be ready to send immediately (1-3 concise, natural sentences).
+6. Output ONLY the response text itself without quotes, introductory text, or explanations.
 ''';
 
     // 5. Формируем тело промпта с блоками Sandwich Context

@@ -117,6 +117,7 @@ lib/
 | 2026-10-16 | Chat Screen Decomposition | 1,522 | 88 (screen) + 1,471 (modular components) | COMPLETE | 68/68 Flutter Tests Passing |
 | 2026-10-16 | AI Settings Screen Decomposition | 1,108 | 151 (screen) + 1,018 (modular components) | COMPLETE | 68/68 Flutter Tests Passing |
 | 2026-10-16 | Profile Dialog & Pane Decomposition | 1,838 | 142 (dialog+pane) + 1,073 (modular components) | COMPLETE | 68/68 Flutter Tests Passing |
+| 2026-10-18 | AI Role Separation & Multilingual Sandwich Context | 1,745 | 1,820 | COMPLETE | 73/73 Flutter Tests Passing |
 
 ### 4.2 Contact Dossier Sheet Decomposition Details
 - **`lib/features/ai_copilot/widgets/contact_dossier_sheet.dart`** (543 lines):
@@ -265,6 +266,24 @@ lib/
 - **`lib/features/profile/widgets/profile_posts_section.dart`** (138 lines):
   - Class: `ProfilePostsSection`
   - Responsibilities: Feed coordinator displaying background sync loader, empty states, publication counter, and grid of post cards.
+
+### 4.6 AI Copilot Role Separation & Multilingual Architecture Details
+- **Problem Statement**:
+  - LLMs frequently exhibited role inversion ("hallucinating counterpart as user" or attributing opponent statements to account owner) when transcripts used generic `Вы:` / `You:` prefixes without explicit role definitions.
+  - TDLib isolate worker (`TdWorker`) occasionally reported `is_outgoing: false` during initial database cache sync on Android or cross-device sessions, causing the user's own outgoing messages to be mislabeled with the opponent's contact name.
+- **Architectural Solution (Clean Architecture & SOLID)**:
+  - **`TdWorker` Data Layer (`lib/data/tdlib/td_worker.dart`)**:
+    - Updated message parser in `parseMessage` to check `msg['is_outgoing'] == true || _isFromMe(msg)`. Guarantees message ownership integrity at the data ingestion boundary.
+  - **`CopilotPromptBuilder` Domain Service (`lib/features/ai_copilot/services/copilot_prompt_builder.dart`)**:
+    - Introduced strict, unambiguous message prefixes: `[Пользователь (Вы)]` / `[User (You)]` for user messages and `[Собеседник ($chatTitle)]` / `[Interlocutor ($chatTitle)]` for counterpart messages.
+    - Added explicit **Role Separation Legend & Anti-Hallucination Directive** in both Russian and English system directives.
+    - Fully multilingual prompt synthesis driven by `isRu` locale routing.
+  - **`SmartReplyEngine` Domain Service (`lib/features/ai_copilot/services/smart_reply_engine.dart`)**:
+    - Applied identical role tags and role separation guardrails in contextual auto-reply and voice instruction generation.
+  - **`CopilotSessionStore` Storage & Synthesis (`lib/features/ai_copilot/services/copilot_session_store.dart`)**:
+    - Updated RAG fact extraction to format transcripts using unambiguous role tags, preventing distorted fact synthesis.
+  - **Regression Prevention**:
+    - Added dedicated test suite `test/copilot_role_separation_test.dart` verifying Russian and English prompt generation, explicit tags, and role directives.
 
 
 

@@ -476,8 +476,10 @@ class CopilotSessionStore {
     final formatted = <String>[];
     for (final m in msgsToAnalyze) {
       final sender = m.outgoing
-          ? (isRu ? 'Вы' : 'You')
-          : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
+          ? (isRu ? '[Пользователь (Вы)]' : '[User (You)]')
+          : (m.senderName.isNotEmpty && m.senderName != chatTitle
+              ? (isRu ? '[Собеседник (${m.senderName})]' : '[Interlocutor (${m.senderName})]')
+              : (isRu ? '[Собеседник ($chatTitle)]' : '[Interlocutor ($chatTitle)]'));
       String content = m.text.replaceAll('\n', ' ').trim();
       if (m.kind == MessageKind.voice) {
         String? trans = VoiceTranscriptionService.instance.getCachedTranscription(m.id) ??
@@ -510,8 +512,8 @@ class CopilotSessionStore {
 
     final transcript = formatted.join('\n');
     final prompt = isRu
-        ? 'Вот история переписки ($chatTitle, ${msgsToAnalyze.length} сообщ.):\n\n$transcript\n\nИзвлеки сухие факты согласно директиве.'
-        : 'Here is conversation history ($chatTitle, ${msgsToAnalyze.length} msgs):\n\n$transcript\n\nExtract dry facts per instructions.';
+        ? 'Вот история переписки ($chatTitle, ${msgsToAnalyze.length} сообщ., где [Пользователь (Вы)] — владелец аккаунта, а [Собеседник ($chatTitle)] — его визави):\n\n$transcript\n\nИзвлеки сухие факты согласно директиве, четко разделяя действия и слова пользователя и собеседника.'
+        : 'Here is conversation history ($chatTitle, ${msgsToAnalyze.length} msgs, where [User (You)] is account owner and [Interlocutor ($chatTitle)] is counterpart):\n\n$transcript\n\nExtract dry facts per instructions, clearly separating actions and statements of user and counterpart.';
 
     String result = '';
     try {
@@ -535,8 +537,10 @@ class CopilotSessionStore {
       for (final m in fallbackRecent) {
         if (m.text.trim().isNotEmpty) {
           final sender = m.outgoing
-              ? (isRu ? 'Вы' : 'You')
-              : (m.senderName.isNotEmpty ? m.senderName : chatTitle);
+              ? (isRu ? '[Пользователь (Вы)]' : '[User (You)]')
+              : (m.senderName.isNotEmpty && m.senderName != chatTitle
+                  ? (isRu ? '[Собеседник (${m.senderName})]' : '[Interlocutor (${m.senderName})]')
+                  : (isRu ? '[Собеседник ($chatTitle)]' : '[Interlocutor ($chatTitle)]'));
           buffer.writeln('• $sender: ${m.text.trim().replaceAll("\n", " ")}');
         }
       }

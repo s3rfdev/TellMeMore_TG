@@ -1823,7 +1823,7 @@ class _Store {
           kind: kind,
           text: TdContent.fullText(msg),
           time: formatTime((msg['date'] as num?)?.toInt() ?? 0),
-          outgoing: msg['is_outgoing'] == true,
+          outgoing: msg['is_outgoing'] == true || _isFromMe(msg),
           read: msg['contains_unread_mention'] != true,
           mediaPath: mediaPath,
           thumbnailPath: thumbnailPath,
